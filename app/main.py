@@ -9,6 +9,8 @@ from app.routes import meta, pages, products
 from db.session import init_db
 
 BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
 
 
 @asynccontextmanager
@@ -18,7 +20,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="PriceKenya", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(pages.router)
 app.include_router(products.router)
