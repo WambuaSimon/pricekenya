@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: pricekenya
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: pip install -e .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: BASE_URL
+        value: https://pricekenya.onrender.com
+      - key: SCRAPER_USER_AGENT
+        value: PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)
+      - key: SCRAPER_REQUEST_DELAY_SECONDS
+        value: "2"
+      - key: JUMIA_AFFILIATE_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false

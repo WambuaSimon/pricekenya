@@ -1,0 +1,32 @@
+name: Scheduled scrape
+
+on:
+  schedule:
+    # Every 6 hours, at :17 past to avoid the top-of-hour Actions rush
+    - cron: '17 */6 * * *'
+  workflow_dispatch:  # allow manual runs from the Actions tab
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)"
+      SCRAPER_REQUEST_DELAY_SECONDS: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+      - name: Scrape all merchants
+        run: python -m scrapers.ingest all-phones
+      - name: Dispatch price-drop alerts
+        run: python -m alerts.dispatcher

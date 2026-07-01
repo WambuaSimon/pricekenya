@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}PriceKenya — compare prices in Kenya{% endblock %}</title>
+  <meta name="description" content="{% block description %}Compare prices from Jumia, Kilimall and more across Kenya. See price history and get drop alerts.{% endblock %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+  <header class="border-b bg-white">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
+      <a href="/" class="font-bold text-lg">PriceKenya</a>
+      <form action="/search" method="get" class="flex-1">
+        <input
+          name="q"
+          value="{{ q or '' }}"
+          placeholder="Search phones, brands, models…"
+          class="w-full rounded-lg border px-3 py-2 text-sm"
+          hx-get="/search"
+          hx-trigger="keyup changed delay:300ms"
+          hx-target="#results"
+          hx-push-url="true">
+      </form>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="mt-12">
+    <div class="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-500">
+      PriceKenya · prices last seen at the time of crawl. Always verify on the merchant site before buying.
+    </div>
+  </footer>
+</body>
+</html>
