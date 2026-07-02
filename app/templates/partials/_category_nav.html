@@ -1,0 +1,12 @@
+<nav class="border-b bg-white">
+  <div class="max-w-5xl mx-auto px-4">
+    <div class="flex gap-4 overflow-x-auto py-2 text-sm">
+      {% for cat in nav_categories() %}
+        <a href="/c/{{ cat.slug }}"
+           class="whitespace-nowrap text-slate-700 hover:text-slate-900 hover:underline">
+          {{ cat.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</nav>

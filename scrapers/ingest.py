@@ -34,7 +34,10 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> No
 
         async for raw in stream:
             product = match_or_create_product(
-                session, title=raw.title, image_url=raw.image_url
+                session,
+                title=raw.title,
+                image_url=raw.image_url,
+                category=raw.category_slug,
             )
             if not product:
                 continue  # title we couldn't parse; v1: queue for LLM review

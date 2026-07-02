@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from db.models import Listing, Merchant, PriceHistory
 from db.session import engine, init_db
 from matching.match import match_or_create_product
+from seed.categories import run as seed_categories
 
 MERCHANTS = [
     {
@@ -68,6 +69,7 @@ SAMPLE_LISTINGS = [
 
 def run() -> None:
     init_db()
+    seed_categories()
     with Session(engine) as session:
         # Merchants
         slug_to_merchant: dict[str, Merchant] = {}
@@ -84,7 +86,9 @@ def run() -> None:
         # Listings
         now = datetime.utcnow()
         for title, image_url, merchant_slug, price in SAMPLE_LISTINGS:
-            product = match_or_create_product(session, title=title, image_url=image_url)
+            product = match_or_create_product(
+                session, title=title, image_url=image_url, category="phones"
+            )
             if not product:
                 print(f"  ! couldn't parse: {title}")
                 continue

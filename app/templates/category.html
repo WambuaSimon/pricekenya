@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ category.name }} in Kenya — PriceKenya{% endblock %}
+{% block description %}Compare {{ category.name }} prices across Kenyan merchants.{% endblock %}
+{% block content %}
+  <h1 class="text-2xl font-semibold mb-1">{{ category.name }}</h1>
+  <p class="text-slate-600 mb-6">Compare prices across Kenyan merchants.</p>
+
+  {% if children %}
+    <div class="flex flex-wrap gap-2 mb-6">
+      {% for child in children %}
+        <a href="/c/{{ child.slug }}" class="text-sm rounded-full border px-3 py-1 bg-white hover:bg-slate-50">
+          {{ child.name }}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if rows %}
+    {% include "partials/_product_grid.html" %}
+  {% else %}
+    <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm">
+      No products indexed here yet. Scrapers are coming — check back soon.
+    </div>
+  {% endif %}
+{% endblock %}

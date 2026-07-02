@@ -76,6 +76,7 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
                     image_url=(img_node.attributes.get("data-src") or img_node.attributes.get("src"))
                     if img_node
                     else None,
+                    category_slug="phones",
                 )
     finally:
         await client.aclose()

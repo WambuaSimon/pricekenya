@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.routes import alerts as alerts_routes
-from app.routes import meta, pages, products
+from app.routes import categories, meta, pages, products
 from db.session import init_db
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -25,4 +25,5 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(pages.router)
 app.include_router(products.router)
 app.include_router(alerts_routes.router)
+app.include_router(categories.router)
 app.include_router(meta.router)

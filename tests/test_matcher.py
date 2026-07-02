@@ -31,8 +31,8 @@ from matching.normalize import parse_title
         ("iPhone 15 - 128GB - Black", "apple|iphone-15|128"),
     ],
 )
-def test_known_titles_produce_expected_canonical_key(title: str, expected_key: str) -> None:
-    parsed = parse_title(title)
+def test_known_phone_titles_produce_expected_canonical_key(title: str, expected_key: str) -> None:
+    parsed = parse_title(title, category="phones")
     assert parsed.canonical_key == expected_key
 
 
@@ -41,9 +41,9 @@ def test_decimal_plus_number_is_not_treated_as_storage_pair() -> None:
     because the pair regex matched '0+12'. Real specs elsewhere in the title
     ('128GB ROM +4GB RAM') should win via the gb-anchored fallback."""
     title = "Realme C100i, 128GB ROM +4GB RAM, 6.8 inches, 7000 mAh Battery, Wet Hand Touch 2.0+12 MONTHS WARRANTY"
-    parsed = parse_title(title)
-    assert parsed.storage_gb == 128
-    assert parsed.ram_gb == 4
+    parsed = parse_title(title, category="phones")
+    assert parsed.specs.get("storage_gb") == 128
+    assert parsed.specs.get("ram_gb") == 4
     assert parsed.canonical_key == "realme|c100i|128|4"
 
 
@@ -63,6 +63,15 @@ def test_full_seed_set_collapses_to_five_products() -> None:
         "Apple iPhone 15 128GB Blue",
         "iPhone 15 - 128GB - Black",
     ]
-    keys = {parse_title(t).canonical_key for t in titles}
+    keys = {parse_title(t, category="phones").canonical_key for t in titles}
     assert None not in keys, "Every seed title must be parseable"
     assert len(keys) == 5
+
+
+def test_unknown_category_returns_unparsed() -> None:
+    """Categories without a parser yet must return an empty result so the
+    ingest pipeline drops the listing safely."""
+    parsed = parse_title("Some Laptop Title", category="laptops")
+    assert parsed.canonical_key is None
+    assert parsed.brand is None
+    assert parsed.specs == {}

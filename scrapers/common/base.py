@@ -21,6 +21,9 @@ class RawListing:
     price_kes: Decimal
     in_stock: bool
     image_url: str | None
+    # Category slug the scraper knows this listing belongs to (e.g. "phones",
+    # "laptops"). The ingest pipeline uses this to route to the right matcher.
+    category_slug: str = "phones"
 
 
 class PoliteClient:

@@ -76,6 +76,7 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
                     price_kes=price,
                     in_stock=True,
                     image_url=None,
+                    category_slug="phones",
                 )
     finally:
         await client.aclose()

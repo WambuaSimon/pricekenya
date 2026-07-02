@@ -1,7 +1,24 @@
 from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
+
+
+class Category(SQLModel, table=True):
+    """Hierarchical category tree (e.g. Electronics → Computing → Laptops).
+
+    parent_id = None → top-level (e.g. "electronics"). Products always attach to
+    a leaf (a category whose subtree contains no other categories). Non-leaf
+    categories are structural: their landing pages aggregate all descendant
+    leaves' products.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    slug: str = Field(unique=True, index=True)
+    name: str
+    parent_id: int | None = Field(default=None, foreign_key="category.id", index=True)
+    sort_order: int = 0
 
 
 class Merchant(SQLModel, table=True):
@@ -22,11 +39,15 @@ class Product(SQLModel, table=True):
     brand: str = Field(index=True)
     model: str
     title: str
-    storage_gb: int | None = None
-    ram_gb: int | None = None
-    color: str | None = None
     image_url: str | None = None
-    category: str = Field(default="phone", index=True)
+    # Category leaf this product belongs to. category_slug is denormalized for
+    # cheap filtering; category_id keeps referential integrity.
+    category_id: int | None = Field(default=None, foreign_key="category.id", index=True)
+    category_slug: str = Field(default="phones", index=True)
+    # Category-specific attributes as JSON (e.g. {"storage_gb": 256, "ram_gb": 8}
+    # for phones; {"screen_inches": 55, "resolution": "4K"} for TVs). The
+    # matcher populates these per category.
+    specs: dict | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     listings: list["Listing"] = Relationship(back_populates="product")

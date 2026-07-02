@@ -61,6 +61,20 @@ curl https://pricekenya.onrender.com/robots.txt         # → sitemap line point
 curl -s https://pricekenya.onrender.com/sitemap.xml | grep -c '<url>'   # → 100+ after first scrape
 ```
 
+## Schema migrations (one-shot, until Alembic)
+
+We add Alembic when we have user data worth preserving. Until then, schema
+changes that add columns to existing tables need a wipe-and-recreate:
+
+```bash
+DATABASE_URL="postgresql+psycopg://..." python -m db.reset --confirm
+gh workflow run scrape.yml --repo WambuaSimon/pricekenya
+```
+
+The wipe is destructive by design — it exists only so v0 iteration isn't
+blocked by migration ceremony. Grep the repo for `db.reset` before running to
+be sure that's still true.
+
 ## Common failure modes
 
 - **Render build fails on `pip install -e .`** — usually a Python version mismatch. `PYTHON_VERSION` is pinned in `render.yaml`; if you change it locally, keep them in sync.
