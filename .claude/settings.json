@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source .venv/bin/activate)",
+      "Bash(gh run watch *)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}

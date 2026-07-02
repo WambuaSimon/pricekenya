@@ -138,6 +138,42 @@ def run_kilimall_tvs() -> None:
     asyncio.run(_consume(fetch_tvs(), MERCHANT_META))
 
 
+def run_jumia_refrigerators() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_refrigerators
+
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_kilimall_refrigerators() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_refrigerators
+
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_jumia_washers() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_washers_dryers
+
+    asyncio.run(_consume(fetch_washers_dryers(), MERCHANT_META))
+
+
+def run_kilimall_washers() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_washers_dryers
+
+    asyncio.run(_consume(fetch_washers_dryers(), MERCHANT_META))
+
+
+def run_jumia_cooking() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_cooking
+
+    asyncio.run(_consume(fetch_cooking(), MERCHANT_META))
+
+
+def run_kilimall_cooking() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_cooking
+
+    asyncio.run(_consume(fetch_cooking(), MERCHANT_META))
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -145,6 +181,12 @@ def _run_all() -> None:
     run_kilimall_laptops()
     run_jumia_tvs()
     run_kilimall_tvs()
+    run_jumia_refrigerators()
+    run_kilimall_refrigerators()
+    run_jumia_washers()
+    run_kilimall_washers()
+    run_jumia_cooking()
+    run_kilimall_cooking()
 
 
 TARGETS = {
@@ -154,9 +196,18 @@ TARGETS = {
     "kilimall-laptops": run_kilimall_laptops,
     "jumia-tvs": run_jumia_tvs,
     "kilimall-tvs": run_kilimall_tvs,
+    "jumia-refrigerators": run_jumia_refrigerators,
+    "kilimall-refrigerators": run_kilimall_refrigerators,
+    "jumia-washers": run_jumia_washers,
+    "kilimall-washers": run_kilimall_washers,
+    "jumia-cooking": run_jumia_cooking,
+    "kilimall-cooking": run_kilimall_cooking,
     "all-phones": lambda: (run_jumia_phones(), run_kilimall_phones()),
     "all-laptops": lambda: (run_jumia_laptops(), run_kilimall_laptops()),
     "all-tvs": lambda: (run_jumia_tvs(), run_kilimall_tvs()),
+    "all-refrigerators": lambda: (run_jumia_refrigerators(), run_kilimall_refrigerators()),
+    "all-washers": lambda: (run_jumia_washers(), run_kilimall_washers()),
+    "all-cooking": lambda: (run_jumia_cooking(), run_kilimall_cooking()),
     "all": _run_all,
 }
 

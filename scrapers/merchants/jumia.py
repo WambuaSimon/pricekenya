@@ -93,3 +93,39 @@ async def fetch_laptops() -> AsyncIterator[RawListing]:
 async def fetch_tvs() -> AsyncIterator[RawListing]:
     async for r in _fetch_category("https://www.jumia.co.ke/televisions/?page={page}", 3, "tvs"):
         yield r
+
+
+async def fetch_refrigerators() -> AsyncIterator[RawListing]:
+    # Jumia redirects /refrigerators/ to this canonical URL but drops the
+    # query string in the redirect, so hitting the canonical URL directly is
+    # what actually paginates.
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/appliances-fridges-freezers/?page={page}",
+        3,
+        "refrigerators",
+    ):
+        yield r
+
+
+async def fetch_washers_dryers() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/appliances-washers-dryers/?page={page}",
+        3,
+        "washers-dryers",
+    ):
+        yield r
+
+
+async def fetch_cooking() -> AsyncIterator[RawListing]:
+    """Cookers + microwaves. Jumia files them under separate URLs but the
+    matcher unifies them into the "cooking" leaf."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/cookers/?page={page}", 2, "cooking"
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/small-appliances-microwave/?page={page}",
+        2,
+        "cooking",
+    ):
+        yield r

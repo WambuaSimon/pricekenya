@@ -145,3 +145,21 @@ async def fetch_laptops() -> AsyncIterator[RawListing]:
 async def fetch_tvs() -> AsyncIterator[RawListing]:
     async for r in _fetch_search("tv", 3, "tvs"):
         yield r
+
+
+async def fetch_refrigerators() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("refrigerator", 3, "refrigerators"):
+        yield r
+
+
+async def fetch_washers_dryers() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("washing machine", 3, "washers-dryers"):
+        yield r
+
+
+async def fetch_cooking() -> AsyncIterator[RawListing]:
+    """Cookers + microwaves via two searches; matcher unifies into 'cooking'."""
+    async for r in _fetch_search("microwave", 2, "cooking"):
+        yield r
+    async for r in _fetch_search("cooker", 2, "cooking"):
+        yield r
