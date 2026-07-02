@@ -37,6 +37,10 @@ _NUXT_TUPLE_RE = re.compile(
     r',(\d{9,12}),"(https://(?:img|image)\.kilimall\.com/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
     re.IGNORECASE,
 )
+_OG_IMAGE_RE = re.compile(
+    r'<meta[^>]*property=["\']og:image["\'][^>]*content=["\']([^"\']+)["\']',
+    re.IGNORECASE,
+)
 
 
 def _parse_price(raw: str) -> Decimal | None:
@@ -63,6 +67,22 @@ def _build_image_map(raw_html: str) -> dict[str, str]:
         # Preserve first URL if the same listing appears twice.
         m.setdefault(listing_id, url)
     return m
+
+
+async def _fetch_og_image(client: PoliteClient, product_url: str) -> str | None:
+    """Last-resort image lookup: fetch the product detail page and read og:image.
+
+    Used only when the Nuxt state didn't include an image for a listing (Kilimall's
+    payload shape isn't 100% consistent across sellers). Cost is one extra HTTP
+    request per missing-image listing per scrape — cheap because most listings hit
+    the Nuxt fast-path.
+    """
+    try:
+        resp = await client.get(product_url)
+    except Exception:  # noqa: BLE001
+        return None
+    m = _OG_IMAGE_RE.search(resp.text)
+    return m.group(1) if m else None
 
 
 async def _fetch_search(
@@ -95,6 +115,9 @@ async def _fetch_search(
                 m = _LISTING_ID_RE.search(href)
                 if m:
                     sku = m.group(1)
+                image_url = image_map.get(sku) if sku else None
+                if not image_url:
+                    image_url = await _fetch_og_image(client, product_url)
                 yield RawListing(
                     merchant_slug=MERCHANT_SLUG,
                     merchant_sku=sku,
@@ -102,7 +125,7 @@ async def _fetch_search(
                     title=title_node.text(strip=True),
                     price_kes=price,
                     in_stock=True,
-                    image_url=image_map.get(sku) if sku else None,
+                    image_url=image_url,
                     category_slug=category_slug,
                 )
     finally:
