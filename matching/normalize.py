@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from matching import phone
+from matching import laptop, phone
 from matching.base import ParsedTitle
 
 # Category slug → parser function.
@@ -17,6 +17,7 @@ from matching.base import ParsedTitle
 # empty ParsedTitle (ingest will drop the listing until we ship a parser).
 _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "phones": phone.parse_title,
+    "laptops": laptop.parse_title,
 }
 
 

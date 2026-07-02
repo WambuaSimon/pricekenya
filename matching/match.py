@@ -44,11 +44,16 @@ def match_or_create_product(
     if existing:
         return existing
 
-    pretty_title = _pretty_title_for_phone(
-        parsed.brand or "unknown",
-        parsed.model or "unknown",
-        parsed.specs,
-    ) or title
+    # Each parser may provide its own display_title (laptops build a rich one
+    # with CPU + refurb flag). Phones fall back to the legacy phone builder.
+    if parsed.display_title:
+        pretty_title = parsed.display_title
+    else:
+        pretty_title = _pretty_title_for_phone(
+            parsed.brand or "unknown",
+            parsed.model or "unknown",
+            parsed.specs,
+        ) or title
 
     product = Product(
         slug=slugify(parsed.canonical_key.replace("|", "-")),

@@ -1,13 +1,12 @@
-"""Kilimall Kenya phones scraper.
+"""Kilimall Kenya scraper.
 
 Kilimall is a Nuxt SPA that server-renders 36 cards/page. Category URLs
-(/category/mobile-phones) return HTTP 500 for anonymous requests, but the search
-endpoint (?q=smartphone) works and returns clean HTML.
+(/category/...) return HTTP 500 for anonymous requests, so we use the search
+endpoint (?q=<query>) which does work.
 
 Known gap: image URLs are lazy-loaded via JS and not present in the initial
-HTML, so listings from Kilimall land without images for now. Cross-merchant
-matching (the main point) is unaffected. To fill images later, either parse the
-window.__NUXT__ JSON blob in the SSR'd HTML or fetch each product detail page.
+HTML — listings from Kilimall land without images until we parse the
+window.__NUXT__ JSON blob or hit product detail pages.
 """
 
 from __future__ import annotations
@@ -26,8 +25,6 @@ MERCHANT_META = {
     "base_url": "https://www.kilimall.co.ke",
 }
 MERCHANT_SLUG = MERCHANT_META["slug"]
-SEARCH_URL = "https://www.kilimall.co.ke/search?q=smartphone&page={page}"
-MAX_PAGES = 3
 
 _PRICE_RE = re.compile(r"[\d,]+")
 _LISTING_ID_RE = re.compile(r"/listing/(\d+)-")
@@ -43,11 +40,13 @@ def _parse_price(raw: str) -> Decimal | None:
         return None
 
 
-async def fetch_phones() -> AsyncIterator[RawListing]:
+async def _fetch_search(
+    query: str, max_pages: int, category_slug: str
+) -> AsyncIterator[RawListing]:
     client = PoliteClient()
     try:
-        for page in range(1, MAX_PAGES + 1):
-            url = SEARCH_URL.format(page=page)
+        for page in range(1, max_pages + 1):
+            url = f"https://www.kilimall.co.ke/search?q={query}&page={page}"
             resp = await client.get(url)
             html = HTMLParser(resp.text)
             cards = html.css(".product-item")
@@ -60,7 +59,9 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
                 if not (a and title_node and price_node):
                     continue
                 href = a.attributes.get("href", "")
-                product_url = href if href.startswith("http") else f"https://www.kilimall.co.ke{href}"
+                product_url = (
+                    href if href.startswith("http") else f"https://www.kilimall.co.ke{href}"
+                )
                 price = _parse_price(price_node.text(strip=True))
                 if price is None:
                     continue
@@ -76,7 +77,17 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
                     price_kes=price,
                     in_stock=True,
                     image_url=None,
-                    category_slug="phones",
+                    category_slug=category_slug,
                 )
     finally:
         await client.aclose()
+
+
+async def fetch_phones() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("smartphone", 3, "phones"):
+        yield r
+
+
+async def fetch_laptops() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("laptop", 3, "laptops"):
+        yield r

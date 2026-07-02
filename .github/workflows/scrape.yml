@@ -27,6 +27,6 @@ jobs:
       - name: Install deps
         run: pip install -e .
       - name: Scrape all merchants
-        run: python -m scrapers.ingest all-phones
+        run: python -m scrapers.ingest all
       - name: Dispatch price-drop alerts
         run: python -m alerts.dispatcher

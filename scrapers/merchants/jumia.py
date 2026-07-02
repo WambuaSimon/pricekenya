@@ -1,12 +1,9 @@
-"""Jumia Kenya phones scraper.
+"""Jumia Kenya scraper.
 
-NOTE: This is a v0 reference implementation. Jumia's HTML changes; selectors will
-need to be revisited. The category and pagination URLs are intentionally
-parameterised so they can be tweaked without code changes elsewhere.
-
-If Jumia blocks the IP or serves a JS-only page, swap PoliteClient for a
-Playwright-based fetch in this file — the public function signature stays the
-same.
+Jumia serves clean, static HTML with stable selectors (`article.prd`, `.name`,
+`.prc`, `img.img`) across categories. We only need one selector-based parser
+and a per-category URL. The polite UA in `settings.scraper_user_agent` is
+important — Mozilla-style UAs get 403 from Jumia's WAF; ours don't.
 """
 
 from __future__ import annotations
@@ -25,8 +22,6 @@ MERCHANT_META = {
     "base_url": "https://www.jumia.co.ke",
 }
 MERCHANT_SLUG = MERCHANT_META["slug"]
-CATEGORY_URL = "https://www.jumia.co.ke/smartphones/?page={page}"
-MAX_PAGES = 3  # v0: keep small until we're sure we're not being blocked
 
 _PRICE_RE = re.compile(r"[\d,]+")
 
@@ -41,17 +36,18 @@ def _parse_price(raw: str) -> Decimal | None:
         return None
 
 
-async def fetch_phones() -> AsyncIterator[RawListing]:
+async def _fetch_category(
+    url_pattern: str, max_pages: int, category_slug: str
+) -> AsyncIterator[RawListing]:
     client = PoliteClient()
     try:
-        for page in range(1, MAX_PAGES + 1):
-            url = CATEGORY_URL.format(page=page)
+        for page in range(1, max_pages + 1):
+            url = url_pattern.format(page=page)
             resp = await client.get(url)
             html = HTMLParser(resp.text)
             cards = html.css("article.prd")
             if not cards:
-                # Layout drift or block — stop quietly rather than burning pages.
-                return
+                return  # layout drift or block — stop quietly
             for card in cards:
                 a = card.css_first("a.core")
                 if not a:
@@ -73,10 +69,22 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
                     title=title_node.text(strip=True),
                     price_kes=price,
                     in_stock=True,
-                    image_url=(img_node.attributes.get("data-src") or img_node.attributes.get("src"))
+                    image_url=(
+                        img_node.attributes.get("data-src") or img_node.attributes.get("src")
+                    )
                     if img_node
                     else None,
-                    category_slug="phones",
+                    category_slug=category_slug,
                 )
     finally:
         await client.aclose()
+
+
+async def fetch_phones() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category("https://www.jumia.co.ke/smartphones/?page={page}", 3, "phones"):
+        yield r
+
+
+async def fetch_laptops() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category("https://www.jumia.co.ke/laptops/?page={page}", 3, "laptops"):
+        yield r

@@ -114,10 +114,33 @@ def run_kilimall_phones() -> None:
     asyncio.run(_consume(fetch_phones(), MERCHANT_META))
 
 
+def run_jumia_laptops() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_laptops
+
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def run_kilimall_laptops() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_laptops
+
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def _run_all() -> None:
+    run_jumia_phones()
+    run_kilimall_phones()
+    run_jumia_laptops()
+    run_kilimall_laptops()
+
+
 TARGETS = {
     "jumia-phones": run_jumia_phones,
     "kilimall-phones": run_kilimall_phones,
+    "jumia-laptops": run_jumia_laptops,
+    "kilimall-laptops": run_kilimall_laptops,
     "all-phones": lambda: (run_jumia_phones(), run_kilimall_phones()),
+    "all-laptops": lambda: (run_jumia_laptops(), run_kilimall_laptops()),
+    "all": _run_all,
 }
 
 
