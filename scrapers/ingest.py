@@ -39,6 +39,14 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> No
             if not product:
                 continue  # title we couldn't parse; v1: queue for LLM review
 
+            # Promote a listing image to the product when the product has none.
+            # Fixes the case where a merchant that doesn't ship images (Kilimall)
+            # created the product first, then a merchant with images (Jumia)
+            # matched to it later — without this, the product card stays blank.
+            if raw.image_url and not product.image_url:
+                product.image_url = raw.image_url
+                session.add(product)
+
             listing = session.exec(
                 select(Listing).where(
                     Listing.product_id == product.id,
