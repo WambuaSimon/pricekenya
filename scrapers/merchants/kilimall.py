@@ -4,9 +4,11 @@ Kilimall is a Nuxt SPA that server-renders 36 cards/page. Category URLs
 (/category/...) return HTTP 500 for anonymous requests, so we use the search
 endpoint (?q=<query>) which does work.
 
-Known gap: image URLs are lazy-loaded via JS and not present in the initial
-HTML — listings from Kilimall land without images until we parse the
-window.__NUXT__ JSON blob or hit product detail pages.
+Image URLs are not on the SSR'd `<img>` tags (Kilimall attaches them via JS
+after hydration) but ARE embedded in the Nuxt state script as a flattened
+array: `,<listing_id>,"<image_url>",<price>,<original_price>,"<title>",...`
+_build_image_map extracts that positional pairing so listings land with
+their real thumbnail.
 """
 
 from __future__ import annotations
@@ -28,6 +30,13 @@ MERCHANT_SLUG = MERCHANT_META["slug"]
 
 _PRICE_RE = re.compile(r"[\d,]+")
 _LISTING_ID_RE = re.compile(r"/listing/(\d+)-")
+# Matches the Nuxt hydration tuple  ,<listing_id>,"<image_url>",<price>,...
+# Constraints on the pieces are loose enough to survive Kilimall CDN URL shape
+# changes, tight enough that random 10-digit numbers in the page can't collide.
+_NUXT_TUPLE_RE = re.compile(
+    r',(\d{9,12}),"(https://(?:img|image)\.kilimall\.com/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+    re.IGNORECASE,
+)
 
 
 def _parse_price(raw: str) -> Decimal | None:
@@ -40,6 +49,22 @@ def _parse_price(raw: str) -> Decimal | None:
         return None
 
 
+def _build_image_map(raw_html: str) -> dict[str, str]:
+    """Return {listing_id: image_url} from the Nuxt SSR state.
+
+    Each product tuple in the flattened Nuxt payload starts with the listing
+    ID as an unquoted integer, immediately followed by the primary image URL
+    string. If Kilimall changes its payload shape the map will just come back
+    empty — the scraper still yields listings, just without images.
+    """
+    m: dict[str, str] = {}
+    for match in _NUXT_TUPLE_RE.finditer(raw_html):
+        listing_id, url = match.group(1), match.group(2)
+        # Preserve first URL if the same listing appears twice.
+        m.setdefault(listing_id, url)
+    return m
+
+
 async def _fetch_search(
     query: str, max_pages: int, category_slug: str
 ) -> AsyncIterator[RawListing]:
@@ -48,6 +73,7 @@ async def _fetch_search(
         for page in range(1, max_pages + 1):
             url = f"https://www.kilimall.co.ke/search?q={query}&page={page}"
             resp = await client.get(url)
+            image_map = _build_image_map(resp.text)
             html = HTMLParser(resp.text)
             cards = html.css(".product-item")
             if not cards:
@@ -76,7 +102,7 @@ async def _fetch_search(
                     title=title_node.text(strip=True),
                     price_kes=price,
                     in_stock=True,
-                    image_url=None,
+                    image_url=image_map.get(sku) if sku else None,
                     category_slug=category_slug,
                 )
     finally:
