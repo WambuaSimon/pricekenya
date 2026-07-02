@@ -163,3 +163,10 @@ async def fetch_cooking() -> AsyncIterator[RawListing]:
         yield r
     async for r in _fetch_search("cooker", 2, "cooking"):
         yield r
+
+
+async def fetch_audio() -> AsyncIterator[RawListing]:
+    """Broad audio coverage across four search queries."""
+    for query in ("soundbar", "home theatre", "bluetooth speaker", "earbuds"):
+        async for r in _fetch_search(query, 2, "audio"):
+            yield r

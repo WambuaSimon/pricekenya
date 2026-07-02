@@ -129,3 +129,26 @@ async def fetch_cooking() -> AsyncIterator[RawListing]:
         "cooking",
     ):
         yield r
+
+
+async def fetch_audio() -> AsyncIterator[RawListing]:
+    """Home audio, speakers, soundbars, headphones — Jumia splits these across
+    a few URLs. Matcher routes each listing by device-type keyword."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/home-audio-electronics/?page={page}",
+        2,
+        "audio",
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/home-audio-speakers/?page={page}",
+        2,
+        "audio",
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/portable-audio-video/?page={page}",
+        2,
+        "audio",
+    ):
+        yield r

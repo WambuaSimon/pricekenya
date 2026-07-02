@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from matching import cooking, laptop, phone, refrigerator, tv, washer
+from matching import audio, cooking, laptop, phone, refrigerator, tv, washer
 from matching.base import ParsedTitle
 
 # Category slug → parser function.
@@ -22,6 +22,7 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "refrigerators": refrigerator.parse_title,
     "washers-dryers": washer.parse_title,
     "cooking": cooking.parse_title,
+    "audio": audio.parse_title,
 }
 
 
