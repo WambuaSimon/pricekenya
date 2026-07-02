@@ -7,11 +7,11 @@ Product row so category landing pages can filter cheaply.
 
 from __future__ import annotations
 
+from slugify import slugify
 from sqlmodel import Session, select
 
 from db.models import Category, Product
 from matching.normalize import parse_title
-from slugify import slugify
 
 
 def _category_id_for(session: Session, slug: str) -> int | None:

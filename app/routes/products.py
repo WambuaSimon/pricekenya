@@ -41,7 +41,7 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
         )
 
     # Aggregate history across all listings for a single sparkline.
-    listing_ids = [l.id for l, _ in listings]
+    listing_ids = [listing.id for listing, _ in listings]
     history = []
     if listing_ids:
         history = session.exec(

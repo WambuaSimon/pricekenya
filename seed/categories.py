@@ -12,7 +12,6 @@ from sqlmodel import Session, select
 from db.models import Category
 from db.session import engine, init_db
 
-
 # (slug, display_name, [children])
 CATEGORY_TREE: list[tuple[str, str, list]] = [
     ("electronics", "Electronics", [

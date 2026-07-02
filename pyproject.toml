@@ -42,4 +42,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+# B008: function calls in argument defaults are the idiomatic FastAPI DI
+# pattern (`Depends(get_session)`), so flagging them is a false positive.
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+# Silence the sqlmodel/datetime.utcnow() deprecation warnings noise in CI
+# so we notice real warnings when they appear.
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
