@@ -20,7 +20,12 @@ from selectolax.parser import HTMLParser
 
 from scrapers.common.base import PoliteClient, RawListing
 
-MERCHANT_SLUG = "kilimall-ke"
+MERCHANT_META = {
+    "slug": "kilimall-ke",
+    "name": "Kilimall Kenya",
+    "base_url": "https://www.kilimall.co.ke",
+}
+MERCHANT_SLUG = MERCHANT_META["slug"]
 SEARCH_URL = "https://www.kilimall.co.ke/search?q=smartphone&page={page}"
 MAX_PAGES = 3
 

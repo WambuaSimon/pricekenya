@@ -15,12 +15,22 @@ from matching.match import match_or_create_product
 from scrapers.common.base import RawListing
 
 
-async def _consume(stream: AsyncIterator[RawListing], merchant_slug: str) -> None:
+async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> None:
+    """Ingest a scraper's async stream of RawListings.
+
+    The scraper module owns its merchant metadata (slug, name, base_url) so the
+    first live run against a fresh DB can upsert the merchant row without any
+    seed step. This is what makes the prod deploy work: nothing needs to be
+    manually loaded into Neon before the cron scrape fires.
+    """
     init_db()
     with Session(engine) as session:
-        merchant = session.exec(select(Merchant).where(Merchant.slug == merchant_slug)).first()
+        slug = merchant_meta["slug"]
+        merchant = session.exec(select(Merchant).where(Merchant.slug == slug)).first()
         if not merchant:
-            raise RuntimeError(f"Merchant {merchant_slug!r} not in DB. Run seed first.")
+            merchant = Merchant(**merchant_meta)
+            session.add(merchant)
+            session.flush()
 
         async for raw in stream:
             product = match_or_create_product(
@@ -82,15 +92,15 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_slug: str) -> Non
 
 
 def run_jumia_phones() -> None:
-    from scrapers.merchants.jumia import MERCHANT_SLUG, fetch_phones
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_phones
 
-    asyncio.run(_consume(fetch_phones(), MERCHANT_SLUG))
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
 
 
 def run_kilimall_phones() -> None:
-    from scrapers.merchants.kilimall import MERCHANT_SLUG, fetch_phones
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_phones
 
-    asyncio.run(_consume(fetch_phones(), MERCHANT_SLUG))
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
 
 
 TARGETS = {

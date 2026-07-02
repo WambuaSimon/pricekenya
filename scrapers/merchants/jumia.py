@@ -19,7 +19,12 @@ from selectolax.parser import HTMLParser
 
 from scrapers.common.base import PoliteClient, RawListing
 
-MERCHANT_SLUG = "jumia-ke"
+MERCHANT_META = {
+    "slug": "jumia-ke",
+    "name": "Jumia Kenya",
+    "base_url": "https://www.jumia.co.ke",
+}
+MERCHANT_SLUG = MERCHANT_META["slug"]
 CATEGORY_URL = "https://www.jumia.co.ke/smartphones/?page={page}"
 MAX_PAGES = 3  # v0: keep small until we're sure we're not being blocked
 
