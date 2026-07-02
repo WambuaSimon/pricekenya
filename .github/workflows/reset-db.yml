@@ -1,0 +1,44 @@
+name: Reset DB (destructive)
+
+# Manually-triggered one-shot workflow that drops all tables in the prod
+# Neon database and recreates them from the current schema. Reuses the
+# DATABASE_URL secret already configured for the scheduled scrape, so no
+# credentials are ever handled locally.
+#
+# Requires typing "WIPE-PROD-DB" as the confirmation input — anything else
+# and the job hard-fails without touching the DB. This is deliberately
+# annoying to prevent accidental fires when someone browses the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type WIPE-PROD-DB to confirm. This drops all tables.'
+        required: true
+        type: string
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify confirmation phrase
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "WIPE-PROD-DB" ]; then
+            echo "::error::Confirmation phrase missing or wrong. Refusing to proceed."
+            exit 1
+          fi
+          echo "Confirmation accepted."
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+
+      - name: Drop and recreate all tables
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m db.reset --confirm
