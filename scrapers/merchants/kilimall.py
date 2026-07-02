@@ -91,3 +91,8 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
 async def fetch_laptops() -> AsyncIterator[RawListing]:
     async for r in _fetch_search("laptop", 3, "laptops"):
         yield r
+
+
+async def fetch_tvs() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("tv", 3, "tvs"):
+        yield r

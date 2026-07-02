@@ -88,3 +88,8 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
 async def fetch_laptops() -> AsyncIterator[RawListing]:
     async for r in _fetch_category("https://www.jumia.co.ke/laptops/?page={page}", 3, "laptops"):
         yield r
+
+
+async def fetch_tvs() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category("https://www.jumia.co.ke/televisions/?page={page}", 3, "tvs"):
+        yield r
