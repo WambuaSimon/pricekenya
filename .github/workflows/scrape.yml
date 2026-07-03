@@ -13,7 +13,9 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 45 min covers the current 24 merchant×category combinations with
+    # 2s polite delays + fetches + DB writes. Bump again if we grow.
+    timeout-minutes: 45
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)"
