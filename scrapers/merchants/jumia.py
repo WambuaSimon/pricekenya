@@ -152,3 +152,18 @@ async def fetch_audio() -> AsyncIterator[RawListing]:
         "audio",
     ):
         yield r
+
+
+async def fetch_cameras() -> AsyncIterator[RawListing]:
+    """Jumia files cameras (real + generic imports) under two URLs. The
+    matcher rejects the accessories that leak in."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/cameras/?page={page}", 2, "cameras"
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/electronics-cameras-digital-cameras/?page={page}",
+        2,
+        "cameras",
+    ):
+        yield r

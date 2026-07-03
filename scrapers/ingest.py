@@ -186,6 +186,18 @@ def run_kilimall_audio() -> None:
     asyncio.run(_consume(fetch_audio(), MERCHANT_META))
 
 
+def run_jumia_cameras() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_cameras
+
+    asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
+
+
+def run_kilimall_cameras() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_cameras
+
+    asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -201,6 +213,8 @@ def _run_all() -> None:
     run_kilimall_cooking()
     run_jumia_audio()
     run_kilimall_audio()
+    run_jumia_cameras()
+    run_kilimall_cameras()
 
 
 TARGETS = {
@@ -218,6 +232,8 @@ TARGETS = {
     "kilimall-cooking": run_kilimall_cooking,
     "jumia-audio": run_jumia_audio,
     "kilimall-audio": run_kilimall_audio,
+    "jumia-cameras": run_jumia_cameras,
+    "kilimall-cameras": run_kilimall_cameras,
     "all-phones": lambda: (run_jumia_phones(), run_kilimall_phones()),
     "all-laptops": lambda: (run_jumia_laptops(), run_kilimall_laptops()),
     "all-tvs": lambda: (run_jumia_tvs(), run_kilimall_tvs()),
@@ -225,6 +241,7 @@ TARGETS = {
     "all-washers": lambda: (run_jumia_washers(), run_kilimall_washers()),
     "all-cooking": lambda: (run_jumia_cooking(), run_kilimall_cooking()),
     "all-audio": lambda: (run_jumia_audio(), run_kilimall_audio()),
+    "all-cameras": lambda: (run_jumia_cameras(), run_kilimall_cameras()),
     "all": _run_all,
 }
 

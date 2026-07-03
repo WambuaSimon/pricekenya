@@ -170,3 +170,11 @@ async def fetch_audio() -> AsyncIterator[RawListing]:
     for query in ("soundbar", "home theatre", "bluetooth speaker", "earbuds"):
         async for r in _fetch_search(query, 2, "audio"):
             yield r
+
+
+async def fetch_cameras() -> AsyncIterator[RawListing]:
+    """Camera coverage across the main types (broader queries return more
+    accessories, but the matcher filters them out)."""
+    for query in ("digital camera", "action camera", "cctv camera", "dslr"):
+        async for r in _fetch_search(query, 2, "cameras"):
+            yield r
