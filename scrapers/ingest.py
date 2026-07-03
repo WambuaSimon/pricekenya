@@ -370,6 +370,52 @@ def _run_gadgetworld_all() -> None:
     run_gadgetworld_laptops()
 
 
+# Ramtons (Magento)
+def run_ramtons_refrigerators() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_refrigerators
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_ramtons_washers() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_washers_dryers
+    asyncio.run(_consume(fetch_washers_dryers(), MERCHANT_META))
+
+
+def run_ramtons_cooking() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_cooking
+    asyncio.run(_consume(fetch_cooking(), MERCHANT_META))
+
+
+def run_ramtons_blenders() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_blenders
+    asyncio.run(_consume(fetch_blenders(), MERCHANT_META))
+
+
+def run_ramtons_toasters() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_toasters
+    asyncio.run(_consume(fetch_toasters(), MERCHANT_META))
+
+
+def run_ramtons_kettles() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_kettles
+    asyncio.run(_consume(fetch_kettles(), MERCHANT_META))
+
+
+def run_ramtons_irons() -> None:
+    from scrapers.merchants.ramtons import MERCHANT_META, fetch_irons
+    asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
+def _run_ramtons_all() -> None:
+    run_ramtons_refrigerators()
+    run_ramtons_washers()
+    run_ramtons_cooking()
+    run_ramtons_blenders()
+    run_ramtons_toasters()
+    run_ramtons_kettles()
+    run_ramtons_irons()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -399,6 +445,7 @@ def _run_all() -> None:
     _run_avechi_all()
     _run_istore_all()
     _run_gadgetworld_all()
+    _run_ramtons_all()
 
 
 TARGETS = {
@@ -460,6 +507,14 @@ TARGETS = {
     "all-istore": _run_istore_all,
     "gadgetworld-laptops": run_gadgetworld_laptops,
     "all-gadgetworld": _run_gadgetworld_all,
+    "ramtons-refrigerators": run_ramtons_refrigerators,
+    "ramtons-washers": run_ramtons_washers,
+    "ramtons-cooking": run_ramtons_cooking,
+    "ramtons-blenders": run_ramtons_blenders,
+    "ramtons-toasters": run_ramtons_toasters,
+    "ramtons-kettles": run_ramtons_kettles,
+    "ramtons-irons": run_ramtons_irons,
+    "all-ramtons": _run_ramtons_all,
     "all": _run_all,
 }
 
