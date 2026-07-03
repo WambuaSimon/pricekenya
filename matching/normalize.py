@@ -9,7 +9,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from matching import audio, camera, cooking, laptop, phone, refrigerator, tv, washer
+from matching import (
+    audio,
+    camera,
+    cooking,
+    laptop,
+    phone,
+    refrigerator,
+    small_appliances,
+    tv,
+    washer,
+)
 from matching.base import ParsedTitle
 
 # Category slug → parser function.
@@ -24,6 +34,12 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "cooking": cooking.parse_title,
     "audio": audio.parse_title,
     "cameras": camera.parse_title,
+    # Small-appliance leaves share one matcher module with an expected-type
+    # closure so a kettle in the toasters feed gets rejected.
+    "blenders": lambda t: small_appliances.parse_title(t, expected_type="blender"),
+    "toasters": lambda t: small_appliances.parse_title(t, expected_type="toaster"),
+    "kettles": lambda t: small_appliances.parse_title(t, expected_type="kettle"),
+    "ironing-laundry": lambda t: small_appliances.parse_title(t, expected_type="iron"),
 }
 
 

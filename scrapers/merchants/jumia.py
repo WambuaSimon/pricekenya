@@ -167,3 +167,31 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
         "cameras",
     ):
         yield r
+
+
+async def fetch_blenders() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/blenders/?page={page}", 2, "blenders"
+    ):
+        yield r
+
+
+async def fetch_toasters() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/toasters/?page={page}", 2, "toasters"
+    ):
+        yield r
+
+
+async def fetch_kettles() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/kettles/?page={page}", 2, "kettles"
+    ):
+        yield r
+
+
+async def fetch_irons() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/irons/?page={page}", 2, "ironing-laundry"
+    ):
+        yield r

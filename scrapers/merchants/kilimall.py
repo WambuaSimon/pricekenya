@@ -178,3 +178,23 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
     for query in ("digital camera", "action camera", "cctv camera", "dslr"):
         async for r in _fetch_search(query, 2, "cameras"):
             yield r
+
+
+async def fetch_blenders() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("blender", 2, "blenders"):
+        yield r
+
+
+async def fetch_toasters() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("toaster", 2, "toasters"):
+        yield r
+
+
+async def fetch_kettles() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("electric kettle", 2, "kettles"):
+        yield r
+
+
+async def fetch_irons() -> AsyncIterator[RawListing]:
+    async for r in _fetch_search("clothes iron", 2, "ironing-laundry"):
+        yield r

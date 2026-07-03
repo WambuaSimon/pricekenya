@@ -198,6 +198,54 @@ def run_kilimall_cameras() -> None:
     asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
 
 
+def run_jumia_blenders() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_blenders
+
+    asyncio.run(_consume(fetch_blenders(), MERCHANT_META))
+
+
+def run_kilimall_blenders() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_blenders
+
+    asyncio.run(_consume(fetch_blenders(), MERCHANT_META))
+
+
+def run_jumia_toasters() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_toasters
+
+    asyncio.run(_consume(fetch_toasters(), MERCHANT_META))
+
+
+def run_kilimall_toasters() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_toasters
+
+    asyncio.run(_consume(fetch_toasters(), MERCHANT_META))
+
+
+def run_jumia_kettles() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_kettles
+
+    asyncio.run(_consume(fetch_kettles(), MERCHANT_META))
+
+
+def run_kilimall_kettles() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_kettles
+
+    asyncio.run(_consume(fetch_kettles(), MERCHANT_META))
+
+
+def run_jumia_irons() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_irons
+
+    asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
+def run_kilimall_irons() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_irons
+
+    asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -215,6 +263,14 @@ def _run_all() -> None:
     run_kilimall_audio()
     run_jumia_cameras()
     run_kilimall_cameras()
+    run_jumia_blenders()
+    run_kilimall_blenders()
+    run_jumia_toasters()
+    run_kilimall_toasters()
+    run_jumia_kettles()
+    run_kilimall_kettles()
+    run_jumia_irons()
+    run_kilimall_irons()
 
 
 TARGETS = {
@@ -234,6 +290,14 @@ TARGETS = {
     "kilimall-audio": run_kilimall_audio,
     "jumia-cameras": run_jumia_cameras,
     "kilimall-cameras": run_kilimall_cameras,
+    "jumia-blenders": run_jumia_blenders,
+    "kilimall-blenders": run_kilimall_blenders,
+    "jumia-toasters": run_jumia_toasters,
+    "kilimall-toasters": run_kilimall_toasters,
+    "jumia-kettles": run_jumia_kettles,
+    "kilimall-kettles": run_kilimall_kettles,
+    "jumia-irons": run_jumia_irons,
+    "kilimall-irons": run_kilimall_irons,
     "all-phones": lambda: (run_jumia_phones(), run_kilimall_phones()),
     "all-laptops": lambda: (run_jumia_laptops(), run_kilimall_laptops()),
     "all-tvs": lambda: (run_jumia_tvs(), run_kilimall_tvs()),
@@ -242,6 +306,10 @@ TARGETS = {
     "all-cooking": lambda: (run_jumia_cooking(), run_kilimall_cooking()),
     "all-audio": lambda: (run_jumia_audio(), run_kilimall_audio()),
     "all-cameras": lambda: (run_jumia_cameras(), run_kilimall_cameras()),
+    "all-blenders": lambda: (run_jumia_blenders(), run_kilimall_blenders()),
+    "all-toasters": lambda: (run_jumia_toasters(), run_kilimall_toasters()),
+    "all-kettles": lambda: (run_jumia_kettles(), run_kilimall_kettles()),
+    "all-irons": lambda: (run_jumia_irons(), run_kilimall_irons()),
     "all": _run_all,
 }
 
