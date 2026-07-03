@@ -416,6 +416,28 @@ def _run_ramtons_all() -> None:
     run_ramtons_irons()
 
 
+# Masoko (Safaricom's electronics shop — Next.js + Magento)
+def run_masoko_phones() -> None:
+    from scrapers.merchants.masoko import MERCHANT_META, fetch_phones
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
+
+
+def run_masoko_tablets() -> None:
+    from scrapers.merchants.masoko import MERCHANT_META, fetch_tablets
+    asyncio.run(_consume(fetch_tablets(), MERCHANT_META))
+
+
+def run_masoko_laptops() -> None:
+    from scrapers.merchants.masoko import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def _run_masoko_all() -> None:
+    run_masoko_phones()
+    run_masoko_tablets()
+    run_masoko_laptops()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -446,6 +468,7 @@ def _run_all() -> None:
     _run_istore_all()
     _run_gadgetworld_all()
     _run_ramtons_all()
+    _run_masoko_all()
 
 
 TARGETS = {
@@ -515,6 +538,10 @@ TARGETS = {
     "ramtons-kettles": run_ramtons_kettles,
     "ramtons-irons": run_ramtons_irons,
     "all-ramtons": _run_ramtons_all,
+    "masoko-phones": run_masoko_phones,
+    "masoko-tablets": run_masoko_tablets,
+    "masoko-laptops": run_masoko_laptops,
+    "all-masoko": _run_masoko_all,
     "all": _run_all,
 }
 
