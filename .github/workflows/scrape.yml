@@ -1,5 +1,14 @@
 name: Scheduled scrape
 
+# Fan-out fan-in structure:
+#   1. seed          — one job that upserts the Category tree (idempotent)
+#   2. scrape        — matrix of jobs, one runner per merchant, run in parallel
+#   3. alerts        — one job that runs the price-drop email dispatcher after
+#                      all scrapes complete
+# Total wall-clock cost is (slowest single merchant + a few min for install +
+# alerts), typically ~20 min. Adding a new merchant costs only its own runtime,
+# not extra time on the critical path.
+
 on:
   schedule:
     # Every 6 hours, at :17 past to avoid the top-of-hour Actions rush
@@ -10,16 +19,15 @@ concurrency:
   group: scrape
   cancel-in-progress: false
 
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)"
+  SCRAPER_REQUEST_DELAY_SECONDS: "2"
+
 jobs:
-  scrape:
+  seed:
     runs-on: ubuntu-latest
-    # 45 min covers the current 24 merchant×category combinations with
-    # 2s polite delays + fetches + DB writes. Bump again if we grow.
-    timeout-minutes: 45
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)"
-      SCRAPER_REQUEST_DELAY_SECONDS: "2"
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,10 +37,61 @@ jobs:
       - name: Install deps
         run: pip install -e .
       - name: Seed category tree
-        # Idempotent — upserts by slug. Required so /c/<slug> routes resolve
-        # against an empty Neon after a reset.
         run: python -m seed.categories
-      - name: Scrape all merchants
-        run: python -m scrapers.ingest all
+
+  scrape:
+    needs: seed
+    runs-on: ubuntu-latest
+    # Each merchant gets 30 min. Hotpoint is the slowest (~15-18 min because
+    # of per-product detail fetches for prices) so this leaves headroom.
+    timeout-minutes: 30
+    strategy:
+      # One failing merchant shouldn't kill the others.
+      fail-fast: false
+      matrix:
+        target:
+          - all-phones          # Jumia + Kilimall phones
+          - all-laptops         # Jumia + Kilimall laptops
+          - all-tvs             # Jumia + Kilimall TVs
+          - all-refrigerators
+          - all-washers
+          - all-cooking
+          - all-audio
+          - all-cameras
+          - all-blenders
+          - all-toasters
+          - all-kettles
+          - all-irons
+          - all-hotpoint        # Big — 9 categories × detail fetches
+          - all-avechi          # 6 categories
+          - all-istore          # 2 categories
+          - all-gadgetworld     # 1 category
+          - all-ramtons         # 7 categories
+          - all-masoko          # 3 categories
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+      - name: Scrape ${{ matrix.target }}
+        run: python -m scrapers.ingest ${{ matrix.target }}
+
+  alerts:
+    needs: scrape
+    # Even if some scrapes failed, still run alerts against whatever landed.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
       - name: Dispatch price-drop alerts
         run: python -m alerts.dispatcher
