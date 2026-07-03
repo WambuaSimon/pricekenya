@@ -1,15 +1,13 @@
 """Request-lifetime context providers used across templates.
 
-The category nav appears on every page, so we want its data source in one
-place — not repeated in each route. We inject `nav_categories` into the
-template environment as globals refreshed per request via a lightweight
-middleware would be overkill for v0; instead, the templating module reads
-this on every render.
+The category nav appears on every page. We used to cache the lookup with
+@lru_cache for the process lifetime, but that broke on prod when Render's
+app booted while the Category table was empty (the cache stuck on []).
+The table has ~30 rows and the query is trivial, so we just run it per
+render — well under 1ms and immune to boot-time race conditions.
 """
 
 from __future__ import annotations
-
-from functools import lru_cache
 
 from sqlmodel import Session, select
 
@@ -17,25 +15,27 @@ from db.models import Category
 from db.session import engine
 
 
-@lru_cache(maxsize=1)
-def _top_level_categories_cached() -> list[dict]:
-    """Fetch top-level categories once per process. They're seeded, not scraped,
-    so cache invalidation isn't a concern. Clear the cache in tests if needed."""
+def get_nav_categories() -> list[dict]:
+    """Return the top-level category buckets shown in the site nav.
+
+    Excludes the single "electronics" root because it's a wrapper node —
+    the useful buckets are its immediate children (Phones/Tablets, Computing,
+    TVs, Audio, Cameras, Appliances, Gaming).
+    """
     with Session(engine) as s:
-        rows = s.exec(
-            select(Category).where(Category.parent_id.is_not(None)).order_by(Category.sort_order)
-        ).all()
-        # Filter to second-level categories under the single 'electronics' root
-        # so the nav shows the actionable buckets, not the root itself.
         root = s.exec(select(Category).where(Category.slug == "electronics")).first()
         if not root:
+            # Fallback: no root defined yet — return every non-root category.
+            rows = s.exec(
+                select(Category)
+                .where(Category.parent_id.is_not(None))
+                .order_by(Category.sort_order)
+            ).all()
             return [{"slug": r.slug, "name": r.name} for r in rows]
-        return [
-            {"slug": r.slug, "name": r.name}
-            for r in rows
-            if r.parent_id == root.id
-        ]
 
-
-def get_nav_categories() -> list[dict]:
-    return _top_level_categories_cached()
+        rows = s.exec(
+            select(Category)
+            .where(Category.parent_id == root.id)
+            .order_by(Category.sort_order)
+        ).all()
+        return [{"slug": r.slug, "name": r.name} for r in rows]
