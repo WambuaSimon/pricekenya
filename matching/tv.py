@@ -43,10 +43,21 @@ NON_TV_MARKERS = (
     "antenna",
     "hdmi cable", "vga cable",
     "tv stand",
+    # Non-TV items that appear in some merchants' TV feeds (Hotpoint files
+    # these under /catalogue/category/tvs/ but they're not TVs)
+    "interactive board", "interactive display", "smartboard",
+    "integrated ops", "ops pc", "opsm pc",
+    "wireless dongle", "hdmi dongle", "usb dongle",
+    "digital signage",
 )
 
-# "43 inch", "43 Inch", "43\"", "43 INCHES", "43-Inch"
+# Explicit "43 inch" / "43 Inch" / "43\"" / "43 INCHES" / "43-Inch"
 _SIZE_RE = re.compile(r"(\d{2,3})\s*[- ]?\s*(?:\"|''|inch(?:es)?)", re.IGNORECASE)
+# Fallback: bare 2-3 digit number followed by ≥1 model-code letter — Hotpoint
+# writes TV titles like "Hisense 55Q6Q QLED VIDAA Smart 4K TV" and
+# "LG 43UA80006LC UHD 4K Smart TV" where the size number runs into the model
+# code without an inch marker.
+_SIZE_MODEL_PREFIX_RE = re.compile(r"\b(\d{2,3})[a-z]+", re.IGNORECASE)
 
 CONDITION_KEYWORDS = {
     "refurbished": "refurbished",
@@ -75,9 +86,21 @@ def _find_brand(cleaned: str) -> str | None:
 
 
 def _find_size(cleaned: str) -> int | None:
+    # Prefer explicit inch-marker sizes.
     for m in _SIZE_RE.finditer(cleaned):
         n = int(m.group(1))
-        if 15 <= n <= 120:  # plausible TV size range
+        if 15 <= n <= 120:
+            return n
+    # Fallback: only fire when the title clearly claims to be a TV. Otherwise
+    # a size-shaped model prefix like "43UA80006LC" would false-trigger on
+    # non-TV listings.
+    if not any(m in cleaned for m in (" tv", " tv,", "smart tv", "led tv", "qled tv",
+                                        "oled tv", "uhd tv", "hd tv", "4k tv", "8k tv",
+                                        "vidaa", "webos", "tizen", "google tv")):
+        return None
+    for m in _SIZE_MODEL_PREFIX_RE.finditer(cleaned):
+        n = int(m.group(1))
+        if 15 <= n <= 120:
             return n
     return None
 

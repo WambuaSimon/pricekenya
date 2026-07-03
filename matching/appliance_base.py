@@ -25,6 +25,10 @@ APPLIANCE_BRANDS: set[str] = {
     # Global
     "samsung", "lg", "sony", "hisense", "tcl", "haier", "bosch", "whirlpool",
     "beko", "electrolux", "midea", "sharp", "toshiba", "panasonic", "skyworth",
+    # Premium / imported brands common at Hotpoint
+    "smeg", "ariete", "braun", "nutricook", "kenwood", "philips",
+    "kitchenaid", "delonghi", "de'longhi", "moulinex", "tefal", "russell",
+    "krups", "cuisinart", "morphy", "sunbeam", "black+decker", "sinbo",
     # Kenyan / regional / brand imports
     "vitron", "amtec", "ramtons", "bruhm", "von", "mika", "smartpro",
     "roch", "maxmo", "volsmart", "ecomax", "premier", "nunix", "sokany",

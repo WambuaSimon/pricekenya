@@ -246,6 +246,64 @@ def run_kilimall_irons() -> None:
     asyncio.run(_consume(fetch_irons(), MERCHANT_META))
 
 
+# Hotpoint — one fetch per leaf, all through the same merchant module.
+def run_hotpoint_tvs() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_tvs
+    asyncio.run(_consume(fetch_tvs(), MERCHANT_META))
+
+
+def run_hotpoint_refrigerators() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_refrigerators
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_hotpoint_washers() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_washers_dryers
+    asyncio.run(_consume(fetch_washers_dryers(), MERCHANT_META))
+
+
+def run_hotpoint_cooking() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_cooking
+    asyncio.run(_consume(fetch_cooking(), MERCHANT_META))
+
+
+def run_hotpoint_audio() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
+def run_hotpoint_blenders() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_blenders
+    asyncio.run(_consume(fetch_blenders(), MERCHANT_META))
+
+
+def run_hotpoint_toasters() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_toasters
+    asyncio.run(_consume(fetch_toasters(), MERCHANT_META))
+
+
+def run_hotpoint_kettles() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_kettles
+    asyncio.run(_consume(fetch_kettles(), MERCHANT_META))
+
+
+def run_hotpoint_irons() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_irons
+    asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
+def _run_hotpoint_all() -> None:
+    run_hotpoint_tvs()
+    run_hotpoint_refrigerators()
+    run_hotpoint_washers()
+    run_hotpoint_cooking()
+    run_hotpoint_audio()
+    run_hotpoint_blenders()
+    run_hotpoint_toasters()
+    run_hotpoint_kettles()
+    run_hotpoint_irons()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -271,6 +329,7 @@ def _run_all() -> None:
     run_kilimall_kettles()
     run_jumia_irons()
     run_kilimall_irons()
+    _run_hotpoint_all()
 
 
 TARGETS = {
@@ -310,6 +369,16 @@ TARGETS = {
     "all-toasters": lambda: (run_jumia_toasters(), run_kilimall_toasters()),
     "all-kettles": lambda: (run_jumia_kettles(), run_kilimall_kettles()),
     "all-irons": lambda: (run_jumia_irons(), run_kilimall_irons()),
+    "hotpoint-tvs": run_hotpoint_tvs,
+    "hotpoint-refrigerators": run_hotpoint_refrigerators,
+    "hotpoint-washers": run_hotpoint_washers,
+    "hotpoint-cooking": run_hotpoint_cooking,
+    "hotpoint-audio": run_hotpoint_audio,
+    "hotpoint-blenders": run_hotpoint_blenders,
+    "hotpoint-toasters": run_hotpoint_toasters,
+    "hotpoint-kettles": run_hotpoint_kettles,
+    "hotpoint-irons": run_hotpoint_irons,
+    "all-hotpoint": _run_hotpoint_all,
     "all": _run_all,
 }
 
