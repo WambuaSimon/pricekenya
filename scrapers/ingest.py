@@ -304,6 +304,72 @@ def _run_hotpoint_all() -> None:
     run_hotpoint_irons()
 
 
+# Avechi (WooCommerce)
+def run_avechi_phones() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_phones
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
+
+
+def run_avechi_laptops() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def run_avechi_tvs() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_tvs
+    asyncio.run(_consume(fetch_tvs(), MERCHANT_META))
+
+
+def run_avechi_audio() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
+def run_avechi_refrigerators() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_refrigerators
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_avechi_cameras() -> None:
+    from scrapers.merchants.avechi import MERCHANT_META, fetch_cameras
+    asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
+
+
+def _run_avechi_all() -> None:
+    run_avechi_phones()
+    run_avechi_laptops()
+    run_avechi_tvs()
+    run_avechi_audio()
+    run_avechi_refrigerators()
+    run_avechi_cameras()
+
+
+# iStore Kenya (Apple official reseller, WooCommerce)
+def run_istore_phones() -> None:
+    from scrapers.merchants.istore import MERCHANT_META, fetch_phones
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
+
+
+def run_istore_laptops() -> None:
+    from scrapers.merchants.istore import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def _run_istore_all() -> None:
+    run_istore_phones()
+    run_istore_laptops()
+
+
+# Gadget World (Computing-focused, WooCommerce)
+def run_gadgetworld_laptops() -> None:
+    from scrapers.merchants.gadget_world import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def _run_gadgetworld_all() -> None:
+    run_gadgetworld_laptops()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -330,6 +396,9 @@ def _run_all() -> None:
     run_jumia_irons()
     run_kilimall_irons()
     _run_hotpoint_all()
+    _run_avechi_all()
+    _run_istore_all()
+    _run_gadgetworld_all()
 
 
 TARGETS = {
@@ -379,6 +448,18 @@ TARGETS = {
     "hotpoint-kettles": run_hotpoint_kettles,
     "hotpoint-irons": run_hotpoint_irons,
     "all-hotpoint": _run_hotpoint_all,
+    "avechi-phones": run_avechi_phones,
+    "avechi-laptops": run_avechi_laptops,
+    "avechi-tvs": run_avechi_tvs,
+    "avechi-audio": run_avechi_audio,
+    "avechi-refrigerators": run_avechi_refrigerators,
+    "avechi-cameras": run_avechi_cameras,
+    "all-avechi": _run_avechi_all,
+    "istore-phones": run_istore_phones,
+    "istore-laptops": run_istore_laptops,
+    "all-istore": _run_istore_all,
+    "gadgetworld-laptops": run_gadgetworld_laptops,
+    "all-gadgetworld": _run_gadgetworld_all,
     "all": _run_all,
 }
 

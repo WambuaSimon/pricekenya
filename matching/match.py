@@ -8,6 +8,7 @@ Product row so category landing pages can filter cheaply.
 from __future__ import annotations
 
 from slugify import slugify
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from db.models import Category, Product
@@ -66,6 +67,16 @@ def match_or_create_product(
         category_id=_category_id_for(session, category),
         specs=parsed.specs or None,
     )
-    session.add(product)
-    session.flush()
+    # Nested transaction (SAVEPOINT) so a UNIQUE-collision only rolls back
+    # this insert, not the entire session. This can happen when a merchant
+    # lists the same product twice (Gadget World has this) or when two
+    # slightly different raw titles collapse to the same canonical key.
+    try:
+        with session.begin_nested():
+            session.add(product)
+            session.flush()
+    except IntegrityError:
+        return session.exec(
+            select(Product).where(Product.canonical_key == parsed.canonical_key)
+        ).first()
     return product
