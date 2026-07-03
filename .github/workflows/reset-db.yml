@@ -42,3 +42,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -m db.reset --confirm
+
+      - name: Re-seed category tree
+        # /c/<slug> routes 404 when the Category table is empty, so we seed
+        # the tree immediately after wipe.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m seed.categories

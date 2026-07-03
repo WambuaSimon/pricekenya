@@ -28,6 +28,10 @@ jobs:
           cache: 'pip'
       - name: Install deps
         run: pip install -e .
+      - name: Seed category tree
+        # Idempotent — upserts by slug. Required so /c/<slug> routes resolve
+        # against an empty Neon after a reset.
+        run: python -m seed.categories
       - name: Scrape all merchants
         run: python -m scrapers.ingest all
       - name: Dispatch price-drop alerts
