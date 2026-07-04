@@ -42,6 +42,9 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
         select(Category).where(Category.parent_id == category.id).order_by(Category.sort_order)
     ).all()
 
+    # Prioritise multi-offer products: this is a price-comparison site, so
+    # anything with 2+ merchants stocking it should show up first regardless
+    # of when it was last scraped. Recency is only the tie-breaker.
     rows = session.exec(
         select(
             Product,
@@ -51,7 +54,10 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
         .group_by(Product.id)
-        .order_by(func.max(Listing.last_checked_at).desc())
+        .order_by(
+            func.count(Listing.id).desc(),
+            func.max(Listing.last_checked_at).desc(),
+        )
         .limit(48)
     ).all()
 

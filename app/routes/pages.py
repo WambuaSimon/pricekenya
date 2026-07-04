@@ -11,7 +11,9 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, session: Session = Depends(get_session)):
-    # Recently-updated products with at least one listing
+    # Multi-offer first — the home page should showcase what the site is
+    # actually for (price comparison), not the most-recently-crawled long
+    # tail. Recency is only the tie-breaker.
     rows = session.exec(
         select(
             Product,
@@ -20,7 +22,10 @@ def home(request: Request, session: Session = Depends(get_session)):
         )
         .join(Listing, Listing.product_id == Product.id)
         .group_by(Product.id)
-        .order_by(func.max(Listing.last_checked_at).desc())
+        .order_by(
+            func.count(Listing.id).desc(),
+            func.max(Listing.last_checked_at).desc(),
+        )
         .limit(24)
     ).all()
     return templates.TemplateResponse(request, "home.html", {"rows": rows})
