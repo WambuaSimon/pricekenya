@@ -26,12 +26,12 @@ MERCHANT_META = {
 MERCHANT_SLUG = MERCHANT_META["slug"]
 BASE = MERCHANT_META["base_url"]
 
-LEAF_TO_URL: dict[str, str] = {
-    "phones":  f"{BASE}/phones-accessories/mobile-phones",
-    "tablets": f"{BASE}/phones-accessories/tablets",
-    "laptops": f"{BASE}/laptops",
-    # Router coverage overlaps our computing subtree — not a leaf yet, skip
-    # until we decide where routers live.
+LEAF_TO_URLS: dict[str, list[str]] = {
+    "phones":  [f"{BASE}/phones-accessories/mobile-phones"],
+    "tablets": [f"{BASE}/phones-accessories/tablets"],
+    "laptops": [f"{BASE}/laptops"],
+    "tvs":     [f"{BASE}/tvs"],
+    "audio":   [f"{BASE}/phones-accessories/accessories/earphones-and-headphones"],
 }
 
 _NEXT_DATA_RE = re.compile(
@@ -73,50 +73,60 @@ def _pick_price(item: dict) -> Decimal | None:
     return p if p > 0 else None
 
 
+async def _fetch_one_url(client: PoliteClient, url: str, leaf: str) -> AsyncIterator[RawListing]:
+    try:
+        resp = await client.get(url)
+    except Exception:  # noqa: BLE001
+        return
+    m = _NEXT_DATA_RE.search(resp.text)
+    if not m:
+        return
+    try:
+        data = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return
+
+    items = _dig(data, "props", "pageProps", "category", "categoryPage", "items")
+    if not isinstance(items, list):
+        return
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        url_path = item.get("urlPath")
+        if not (name and url_path):
+            continue
+        price = _pick_price(item)
+        if price is None:
+            continue
+        product_url = f"{BASE}/{url_path.lstrip('/')}"
+        image_url = item.get("thumbnail") or None
+        yield RawListing(
+            merchant_slug=MERCHANT_SLUG,
+            merchant_sku=item.get("sku"),
+            url=product_url,
+            title=name,
+            price_kes=price,
+            in_stock=bool(_dig(item, "stock", "isInStock") if item.get("stock") else True),
+            image_url=image_url,
+            category_slug=leaf,
+        )
+
+
 async def _fetch_leaf(leaf: str) -> AsyncIterator[RawListing]:
-    url = LEAF_TO_URL.get(leaf)
-    if not url:
+    urls = LEAF_TO_URLS.get(leaf, [])
+    if not urls:
         return
     client = PoliteClient()
     try:
-        try:
-            resp = await client.get(url)
-        except Exception:  # noqa: BLE001
-            return
-        m = _NEXT_DATA_RE.search(resp.text)
-        if not m:
-            return
-        try:
-            data = json.loads(m.group(1))
-        except json.JSONDecodeError:
-            return
-
-        items = _dig(data, "props", "pageProps", "category", "categoryPage", "items")
-        if not isinstance(items, list):
-            return
-
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-            name = item.get("name")
-            url_path = item.get("urlPath")
-            if not (name and url_path):
-                continue
-            price = _pick_price(item)
-            if price is None:
-                continue
-            product_url = f"{BASE}/{url_path.lstrip('/')}"
-            image_url = item.get("thumbnail") or None
-            yield RawListing(
-                merchant_slug=MERCHANT_SLUG,
-                merchant_sku=item.get("sku"),
-                url=product_url,
-                title=name,
-                price_kes=price,
-                in_stock=bool(_dig(item, "stock", "isInStock") if item.get("stock") else True),
-                image_url=image_url,
-                category_slug=leaf,
-            )
+        seen: set[str] = set()
+        for url in urls:
+            async for r in _fetch_one_url(client, url, leaf):
+                if r.url in seen:
+                    continue
+                seen.add(r.url)
+                yield r
     finally:
         await client.aclose()
 
@@ -133,4 +143,14 @@ async def fetch_tablets() -> AsyncIterator[RawListing]:
 
 async def fetch_laptops() -> AsyncIterator[RawListing]:
     async for r in _fetch_leaf("laptops"):
+        yield r
+
+
+async def fetch_tvs() -> AsyncIterator[RawListing]:
+    async for r in _fetch_leaf("tvs"):
+        yield r
+
+
+async def fetch_audio() -> AsyncIterator[RawListing]:
+    async for r in _fetch_leaf("audio"):
         yield r

@@ -432,10 +432,22 @@ def run_masoko_laptops() -> None:
     asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
 
 
+def run_masoko_tvs() -> None:
+    from scrapers.merchants.masoko import MERCHANT_META, fetch_tvs
+    asyncio.run(_consume(fetch_tvs(), MERCHANT_META))
+
+
+def run_masoko_audio() -> None:
+    from scrapers.merchants.masoko import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
 def _run_masoko_all() -> None:
     run_masoko_phones()
     run_masoko_tablets()
     run_masoko_laptops()
+    run_masoko_tvs()
+    run_masoko_audio()
 
 
 def _run_all() -> None:
@@ -541,6 +553,8 @@ TARGETS = {
     "masoko-phones": run_masoko_phones,
     "masoko-tablets": run_masoko_tablets,
     "masoko-laptops": run_masoko_laptops,
+    "masoko-tvs": run_masoko_tvs,
+    "masoko-audio": run_masoko_audio,
     "all-masoko": _run_masoko_all,
     "all": _run_all,
 }

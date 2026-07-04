@@ -81,17 +81,17 @@ async def _fetch_category(
 
 
 async def fetch_phones() -> AsyncIterator[RawListing]:
-    async for r in _fetch_category("https://www.jumia.co.ke/smartphones/?page={page}", 3, "phones"):
+    async for r in _fetch_category("https://www.jumia.co.ke/smartphones/?page={page}", 8, "phones"):
         yield r
 
 
 async def fetch_laptops() -> AsyncIterator[RawListing]:
-    async for r in _fetch_category("https://www.jumia.co.ke/laptops/?page={page}", 3, "laptops"):
+    async for r in _fetch_category("https://www.jumia.co.ke/laptops/?page={page}", 8, "laptops"):
         yield r
 
 
 async def fetch_tvs() -> AsyncIterator[RawListing]:
-    async for r in _fetch_category("https://www.jumia.co.ke/televisions/?page={page}", 3, "tvs"):
+    async for r in _fetch_category("https://www.jumia.co.ke/televisions/?page={page}", 8, "tvs"):
         yield r
 
 
@@ -101,7 +101,7 @@ async def fetch_refrigerators() -> AsyncIterator[RawListing]:
     # what actually paginates.
     async for r in _fetch_category(
         "https://www.jumia.co.ke/appliances-fridges-freezers/?page={page}",
-        3,
+        8,
         "refrigerators",
     ):
         yield r
@@ -110,7 +110,7 @@ async def fetch_refrigerators() -> AsyncIterator[RawListing]:
 async def fetch_washers_dryers() -> AsyncIterator[RawListing]:
     async for r in _fetch_category(
         "https://www.jumia.co.ke/appliances-washers-dryers/?page={page}",
-        3,
+        8,
         "washers-dryers",
     ):
         yield r
@@ -120,12 +120,12 @@ async def fetch_cooking() -> AsyncIterator[RawListing]:
     """Cookers + microwaves. Jumia files them under separate URLs but the
     matcher unifies them into the "cooking" leaf."""
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/cookers/?page={page}", 2, "cooking"
+        "https://www.jumia.co.ke/cookers/?page={page}", 6, "cooking"
     ):
         yield r
     async for r in _fetch_category(
         "https://www.jumia.co.ke/small-appliances-microwave/?page={page}",
-        2,
+        6,
         "cooking",
     ):
         yield r
@@ -136,19 +136,19 @@ async def fetch_audio() -> AsyncIterator[RawListing]:
     a few URLs. Matcher routes each listing by device-type keyword."""
     async for r in _fetch_category(
         "https://www.jumia.co.ke/home-audio-electronics/?page={page}",
-        2,
+        4,
         "audio",
     ):
         yield r
     async for r in _fetch_category(
         "https://www.jumia.co.ke/home-audio-speakers/?page={page}",
-        2,
+        4,
         "audio",
     ):
         yield r
     async for r in _fetch_category(
         "https://www.jumia.co.ke/portable-audio-video/?page={page}",
-        2,
+        4,
         "audio",
     ):
         yield r
@@ -158,12 +158,12 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
     """Jumia files cameras (real + generic imports) under two URLs. The
     matcher rejects the accessories that leak in."""
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/cameras/?page={page}", 2, "cameras"
+        "https://www.jumia.co.ke/cameras/?page={page}", 4, "cameras"
     ):
         yield r
     async for r in _fetch_category(
         "https://www.jumia.co.ke/electronics-cameras-digital-cameras/?page={page}",
-        2,
+        4,
         "cameras",
     ):
         yield r
@@ -171,27 +171,27 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
 
 async def fetch_blenders() -> AsyncIterator[RawListing]:
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/blenders/?page={page}", 2, "blenders"
+        "https://www.jumia.co.ke/blenders/?page={page}", 6, "blenders"
     ):
         yield r
 
 
 async def fetch_toasters() -> AsyncIterator[RawListing]:
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/toasters/?page={page}", 2, "toasters"
+        "https://www.jumia.co.ke/toasters/?page={page}", 6, "toasters"
     ):
         yield r
 
 
 async def fetch_kettles() -> AsyncIterator[RawListing]:
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/kettles/?page={page}", 2, "kettles"
+        "https://www.jumia.co.ke/kettles/?page={page}", 6, "kettles"
     ):
         yield r
 
 
 async def fetch_irons() -> AsyncIterator[RawListing]:
     async for r in _fetch_category(
-        "https://www.jumia.co.ke/irons/?page={page}", 2, "ironing-laundry"
+        "https://www.jumia.co.ke/irons/?page={page}", 6, "ironing-laundry"
     ):
         yield r

@@ -33,17 +33,54 @@ MERCHANT_META = {
 }
 MERCHANT_SLUG = MERCHANT_META["slug"]
 
-# Our leaf category slug → Hotpoint's category URL.
-LEAF_TO_URL: dict[str, str] = {
-    "tvs":             "https://hotpoint.co.ke/catalogue/category/tvs/",
-    "refrigerators":   "https://hotpoint.co.ke/catalogue/category/fridges-freezers/",
-    "washers-dryers":  "https://hotpoint.co.ke/catalogue/category/washers-dryers/",
-    "cooking":         "https://hotpoint.co.ke/catalogue/category/cookers-ovens/",
-    "audio":           "https://hotpoint.co.ke/catalogue/category/audio/",
-    "blenders":        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/blenders/",
-    "toasters":        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/toasters/",
-    "kettles":         "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/kettles/",
-    "ironing-laundry": "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/",
+# Our leaf category slug → list of Hotpoint URLs that feed that leaf.
+#
+# Hotpoint's per-page JSON-LD ItemList caps at ~50 products (their infinite-
+# scroll tail loads via JS which we don't run). For any leaf whose total
+# productCount exceeds ~50, we iterate its sub-categories to reach more of
+# the catalog. Duplicates across parent + child URLs are deduped at the
+# fetch site by product URL.
+LEAF_TO_URLS: dict[str, list[str]] = {
+    "tvs": [
+        "https://hotpoint.co.ke/catalogue/category/tvs/",
+        "https://hotpoint.co.ke/catalogue/category/tvs/tvs-by-feature/",
+    ],
+    "refrigerators": [
+        "https://hotpoint.co.ke/catalogue/category/fridges-freezers/",
+        "https://hotpoint.co.ke/catalogue/category/fridges-freezers/fridges/",
+    ],
+    "washers-dryers": [
+        "https://hotpoint.co.ke/catalogue/category/washers-dryers/",
+        "https://hotpoint.co.ke/catalogue/category/washers-dryers/washing-machines/",
+        "https://hotpoint.co.ke/catalogue/category/washers-dryers/dryers/",
+        "https://hotpoint.co.ke/catalogue/category/washers-dryers/twin-tubs/",
+    ],
+    "cooking": [
+        "https://hotpoint.co.ke/catalogue/category/cookers-ovens/",
+        "https://hotpoint.co.ke/catalogue/category/cookers-ovens/free-standing-cookers/",
+        "https://hotpoint.co.ke/catalogue/category/cookers-ovens/microwave-ovens/",
+        "https://hotpoint.co.ke/catalogue/category/cookers-ovens/table-top-cookers/",
+        "https://hotpoint.co.ke/catalogue/category/cookers-ovens/toaster-ovens/",
+    ],
+    "audio": [
+        "https://hotpoint.co.ke/catalogue/category/audio/",
+        "https://hotpoint.co.ke/catalogue/category/audio/audio-type/",
+    ],
+    "blenders": [
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/blenders/",
+    ],
+    "toasters": [
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/toasters/",
+    ],
+    "kettles": [
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/kitchen-essentials/kettles/",
+    ],
+    "ironing-laundry": [
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/",
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/steam-irons/",
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/dry-irons/",
+        "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/garment-steamers/",
+    ],
 }
 
 # ListItem entries in the Next.js flight payload are doubly-escaped —
@@ -120,13 +157,18 @@ async def _fetch_leaf(
 
 
 async def _fetch_one(category_slug: str) -> AsyncIterator[RawListing]:
-    url = LEAF_TO_URL.get(category_slug)
-    if not url:
+    urls = LEAF_TO_URLS.get(category_slug, [])
+    if not urls:
         return
     client = PoliteClient()
     try:
-        async for r in _fetch_leaf(client, url, category_slug):
-            yield r
+        seen_product_urls: set[str] = set()
+        for url in urls:
+            async for r in _fetch_leaf(client, url, category_slug):
+                if r.url in seen_product_urls:
+                    continue
+                seen_product_urls.add(r.url)
+                yield r
     finally:
         await client.aclose()
 

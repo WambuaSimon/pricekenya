@@ -133,42 +133,42 @@ async def _fetch_search(
 
 
 async def fetch_phones() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("smartphone", 3, "phones"):
+    async for r in _fetch_search("smartphone", 6, "phones"):
         yield r
 
 
 async def fetch_laptops() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("laptop", 3, "laptops"):
+    async for r in _fetch_search("laptop", 6, "laptops"):
         yield r
 
 
 async def fetch_tvs() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("tv", 3, "tvs"):
+    async for r in _fetch_search("tv", 6, "tvs"):
         yield r
 
 
 async def fetch_refrigerators() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("refrigerator", 3, "refrigerators"):
+    async for r in _fetch_search("refrigerator", 6, "refrigerators"):
         yield r
 
 
 async def fetch_washers_dryers() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("washing machine", 3, "washers-dryers"):
+    async for r in _fetch_search("washing machine", 6, "washers-dryers"):
         yield r
 
 
 async def fetch_cooking() -> AsyncIterator[RawListing]:
     """Cookers + microwaves via two searches; matcher unifies into 'cooking'."""
-    async for r in _fetch_search("microwave", 2, "cooking"):
+    async for r in _fetch_search("microwave", 4, "cooking"):
         yield r
-    async for r in _fetch_search("cooker", 2, "cooking"):
+    async for r in _fetch_search("cooker", 4, "cooking"):
         yield r
 
 
 async def fetch_audio() -> AsyncIterator[RawListing]:
     """Broad audio coverage across four search queries."""
     for query in ("soundbar", "home theatre", "bluetooth speaker", "earbuds"):
-        async for r in _fetch_search(query, 2, "audio"):
+        async for r in _fetch_search(query, 4, "audio"):
             yield r
 
 
@@ -176,25 +176,25 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
     """Camera coverage across the main types (broader queries return more
     accessories, but the matcher filters them out)."""
     for query in ("digital camera", "action camera", "cctv camera", "dslr"):
-        async for r in _fetch_search(query, 2, "cameras"):
+        async for r in _fetch_search(query, 4, "cameras"):
             yield r
 
 
 async def fetch_blenders() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("blender", 2, "blenders"):
+    async for r in _fetch_search("blender", 4, "blenders"):
         yield r
 
 
 async def fetch_toasters() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("toaster", 2, "toasters"):
+    async for r in _fetch_search("toaster", 4, "toasters"):
         yield r
 
 
 async def fetch_kettles() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("electric kettle", 2, "kettles"):
+    async for r in _fetch_search("electric kettle", 4, "kettles"):
         yield r
 
 
 async def fetch_irons() -> AsyncIterator[RawListing]:
-    async for r in _fetch_search("clothes iron", 2, "ironing-laundry"):
+    async for r in _fetch_search("clothes iron", 4, "ironing-laundry"):
         yield r
