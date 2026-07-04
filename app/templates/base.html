@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}PriceKenya — compare prices in Kenya{% endblock %}</title>
   <meta name="description" content="{% block description %}Compare prices from Jumia, Kilimall and more across Kenya. See price history and get drop alerts.{% endblock %}">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.svg">
+  <link rel="mask-icon" href="/static/favicon.svg" color="#059669">
+  <meta name="theme-color" content="#059669">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   {% block head_extra %}{% endblock %}
@@ -12,7 +16,10 @@
 <body class="bg-slate-50 text-slate-900 antialiased">
   <header class="border-b bg-white">
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
-      <a href="/" class="font-bold text-lg">PriceKenya</a>
+      <a href="/" class="flex items-center gap-2 font-bold text-lg text-slate-900 hover:text-slate-700">
+        <img src="/static/logo.svg" alt="" class="w-8 h-8" width="32" height="32">
+        <span>PriceKenya</span>
+      </a>
       <form action="/search" method="get" class="flex-1">
         <input
           name="q"
