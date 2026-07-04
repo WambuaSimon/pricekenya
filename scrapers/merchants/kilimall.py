@@ -92,7 +92,12 @@ async def _fetch_search(
     try:
         for page in range(1, max_pages + 1):
             url = f"https://www.kilimall.co.ke/search?q={query}&page={page}"
-            resp = await client.get(url)
+            try:
+                resp = await client.get(url)
+            except Exception:  # noqa: BLE001
+                # One flaky page shouldn't nuke the whole merchant scrape.
+                # Move to the next page — the previous pages already yielded.
+                continue
             image_map = _build_image_map(resp.text)
             html = HTMLParser(resp.text)
             cards = html.css(".product-item")

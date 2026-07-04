@@ -43,7 +43,11 @@ async def _fetch_category(
     try:
         for page in range(1, max_pages + 1):
             url = url_pattern.format(page=page)
-            resp = await client.get(url)
+            try:
+                resp = await client.get(url)
+            except Exception:  # noqa: BLE001
+                # Skip the flaky page; previous pages already yielded.
+                continue
             html = HTMLParser(resp.text)
             cards = html.css("article.prd")
             if not cards:
