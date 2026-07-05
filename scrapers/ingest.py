@@ -600,6 +600,16 @@ def _run_phonesstore_all() -> None:
     run_phonesstore_gaming()
 
 
+# QuickMart (session-gated, single /electronics feed → matcher routes by prodcat_id + title)
+def run_quickmart_electronics() -> None:
+    from scrapers.merchants.quickmart import MERCHANT_META, fetch_electronics
+    asyncio.run(_consume(fetch_electronics(), MERCHANT_META))
+
+
+def _run_quickmart_all() -> None:
+    run_quickmart_electronics()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -634,6 +644,7 @@ def _run_all() -> None:
     _run_naivas_all()
     _run_phoneplace_all()
     _run_phonesstore_all()
+    _run_quickmart_all()
 
 
 TARGETS = {
@@ -735,6 +746,8 @@ TARGETS = {
     "phonesstore-accessories": run_phonesstore_accessories,
     "phonesstore-gaming": run_phonesstore_gaming,
     "all-phonesstore": _run_phonesstore_all,
+    "quickmart-electronics": run_quickmart_electronics,
+    "all-quickmart": _run_quickmart_all,
     "all": _run_all,
 }
 
