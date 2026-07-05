@@ -514,6 +514,46 @@ def _run_naivas_all() -> None:
     run_naivas_water_dispensers()
 
 
+# Phone Place Kenya (Cloudflare-shielded, uses CffiPoliteClient)
+def run_phoneplace_phones() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_phones
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
+
+
+def run_phoneplace_laptops() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def run_phoneplace_audio() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
+def run_phoneplace_cameras() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_cameras
+    asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
+
+
+def run_phoneplace_accessories() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_accessories
+    asyncio.run(_consume(fetch_accessories(), MERCHANT_META))
+
+
+def run_phoneplace_gaming() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_gaming
+    asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
+
+
+def _run_phoneplace_all() -> None:
+    run_phoneplace_phones()
+    run_phoneplace_laptops()
+    run_phoneplace_audio()
+    run_phoneplace_cameras()
+    run_phoneplace_accessories()
+    run_phoneplace_gaming()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -546,6 +586,7 @@ def _run_all() -> None:
     _run_ramtons_all()
     _run_masoko_all()
     _run_naivas_all()
+    _run_phoneplace_all()
 
 
 TARGETS = {
@@ -632,6 +673,13 @@ TARGETS = {
     "naivas-audio": run_naivas_audio,
     "naivas-water-dispensers": run_naivas_water_dispensers,
     "all-naivas": _run_naivas_all,
+    "phoneplace-phones": run_phoneplace_phones,
+    "phoneplace-laptops": run_phoneplace_laptops,
+    "phoneplace-audio": run_phoneplace_audio,
+    "phoneplace-cameras": run_phoneplace_cameras,
+    "phoneplace-accessories": run_phoneplace_accessories,
+    "phoneplace-gaming": run_phoneplace_gaming,
+    "all-phoneplace": _run_phoneplace_all,
     "all": _run_all,
 }
 
