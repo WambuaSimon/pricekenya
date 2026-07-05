@@ -554,6 +554,52 @@ def _run_phoneplace_all() -> None:
     run_phoneplace_gaming()
 
 
+# Phones Store Kenya (phonesstorekenya.com)
+def run_phonesstore_phones() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_phones
+    asyncio.run(_consume(fetch_phones(), MERCHANT_META))
+
+
+def run_phonesstore_tablets() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_tablets
+    asyncio.run(_consume(fetch_tablets(), MERCHANT_META))
+
+
+def run_phonesstore_laptops() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_laptops
+    asyncio.run(_consume(fetch_laptops(), MERCHANT_META))
+
+
+def run_phonesstore_audio() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
+def run_phonesstore_cameras() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_cameras
+    asyncio.run(_consume(fetch_cameras(), MERCHANT_META))
+
+
+def run_phonesstore_accessories() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_accessories
+    asyncio.run(_consume(fetch_accessories(), MERCHANT_META))
+
+
+def run_phonesstore_gaming() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_gaming
+    asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
+
+
+def _run_phonesstore_all() -> None:
+    run_phonesstore_phones()
+    run_phonesstore_tablets()
+    run_phonesstore_laptops()
+    run_phonesstore_audio()
+    run_phonesstore_cameras()
+    run_phonesstore_accessories()
+    run_phonesstore_gaming()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -587,6 +633,7 @@ def _run_all() -> None:
     _run_masoko_all()
     _run_naivas_all()
     _run_phoneplace_all()
+    _run_phonesstore_all()
 
 
 TARGETS = {
@@ -680,6 +727,14 @@ TARGETS = {
     "phoneplace-accessories": run_phoneplace_accessories,
     "phoneplace-gaming": run_phoneplace_gaming,
     "all-phoneplace": _run_phoneplace_all,
+    "phonesstore-phones": run_phonesstore_phones,
+    "phonesstore-tablets": run_phonesstore_tablets,
+    "phonesstore-laptops": run_phonesstore_laptops,
+    "phonesstore-audio": run_phonesstore_audio,
+    "phonesstore-cameras": run_phonesstore_cameras,
+    "phonesstore-accessories": run_phonesstore_accessories,
+    "phonesstore-gaming": run_phonesstore_gaming,
+    "all-phonesstore": _run_phonesstore_all,
     "all": _run_all,
 }
 
