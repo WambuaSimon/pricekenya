@@ -450,6 +450,70 @@ def _run_masoko_all() -> None:
     run_masoko_audio()
 
 
+# Naivas (Cloudflare-shielded, uses CffiPoliteClient)
+def run_naivas_tvs() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_tvs
+    asyncio.run(_consume(fetch_tvs(), MERCHANT_META))
+
+
+def run_naivas_refrigerators() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_refrigerators
+    asyncio.run(_consume(fetch_refrigerators(), MERCHANT_META))
+
+
+def run_naivas_freezers() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_freezers
+    asyncio.run(_consume(fetch_freezers(), MERCHANT_META))
+
+
+def run_naivas_cooking() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_cooking
+    asyncio.run(_consume(fetch_cooking(), MERCHANT_META))
+
+
+def run_naivas_blenders() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_blenders
+    asyncio.run(_consume(fetch_blenders(), MERCHANT_META))
+
+
+def run_naivas_kettles() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_kettles
+    asyncio.run(_consume(fetch_kettles(), MERCHANT_META))
+
+
+def run_naivas_toasters() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_toasters
+    asyncio.run(_consume(fetch_toasters(), MERCHANT_META))
+
+
+def run_naivas_irons() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_irons
+    asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
+def run_naivas_audio() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_audio
+    asyncio.run(_consume(fetch_audio(), MERCHANT_META))
+
+
+def run_naivas_water_dispensers() -> None:
+    from scrapers.merchants.naivas import MERCHANT_META, fetch_water_dispensers
+    asyncio.run(_consume(fetch_water_dispensers(), MERCHANT_META))
+
+
+def _run_naivas_all() -> None:
+    run_naivas_tvs()
+    run_naivas_refrigerators()
+    run_naivas_freezers()
+    run_naivas_cooking()
+    run_naivas_blenders()
+    run_naivas_kettles()
+    run_naivas_toasters()
+    run_naivas_irons()
+    run_naivas_audio()
+    run_naivas_water_dispensers()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -481,6 +545,7 @@ def _run_all() -> None:
     _run_gadgetworld_all()
     _run_ramtons_all()
     _run_masoko_all()
+    _run_naivas_all()
 
 
 TARGETS = {
@@ -556,6 +621,17 @@ TARGETS = {
     "masoko-tvs": run_masoko_tvs,
     "masoko-audio": run_masoko_audio,
     "all-masoko": _run_masoko_all,
+    "naivas-tvs": run_naivas_tvs,
+    "naivas-refrigerators": run_naivas_refrigerators,
+    "naivas-freezers": run_naivas_freezers,
+    "naivas-cooking": run_naivas_cooking,
+    "naivas-blenders": run_naivas_blenders,
+    "naivas-kettles": run_naivas_kettles,
+    "naivas-toasters": run_naivas_toasters,
+    "naivas-irons": run_naivas_irons,
+    "naivas-audio": run_naivas_audio,
+    "naivas-water-dispensers": run_naivas_water_dispensers,
+    "all-naivas": _run_naivas_all,
     "all": _run_all,
 }
 
