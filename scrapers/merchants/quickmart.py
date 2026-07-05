@@ -14,15 +14,13 @@ category requests use that same `Session`.
 category serves the whole electronics catalogue — no sub-URLs. 30 products
 per page, `total_records` is embedded in the page (521 at time of writing).
 
-**Pagination gap (v0):** the `?page=N` and `?sort_by=` query params are
-client-side only — the server ignores them and re-serves page 1. Real
-paging goes through a POST-form (`goToProductListingSearchPage`) with an
-encoded `pageRecordCount` token whose derivation lives in the site's JS
-bundle. Reverse-engineering it needs one DevTools capture of a "Page 2"
-click. Until then, this scraper covers only page 1 (~28 unique cards → ~17
-after matcher rejects voltage protectors / fan heaters / sandwich makers).
-Loop still walks pages defensively: seen-URL dedup terminates cleanly the
-moment the wraparound kicks in.
+**Pagination:** Growcer uses hyphen-separated key-value URL params, not
+the `?key=value` you'd expect: `?page-2`, `?page-3`, etc. Standard
+`?page=2` is silently ignored and re-serves page 1. Total records is
+embedded in the first page (521 at time of writing → 18 pages, the last
+partial with 11 items). Requesting a page past the last wraps back to
+page 1 rather than 404ing, so we cap iteration by `ceil(total / 30)` and
+use seen-URL dedup as a secondary safety net.
 
 **Card structure:**
 - Container: `<div class="products productInfoJs">`
@@ -200,7 +198,7 @@ async def _fetch_electronics(client: CffiPoliteClient) -> AsyncIterator[RawListi
         if page == 1:
             page_html = first.text
         else:
-            resp = await client.get(f"{_ELECTRONICS_URL}?page={page}")
+            resp = await client.get(f"{_ELECTRONICS_URL}?page-{page}")
             page_html = resp.text
         listings = _parse_cards(page_html)
         new_this_page = 0
