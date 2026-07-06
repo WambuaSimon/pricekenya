@@ -18,6 +18,7 @@ def create_alert(
     product_id: int = Form(...),
     email: str = Form(...),
     target_price_kes: str = Form(""),
+    marketing_opt_in: str = Form(""),
     session: Session = Depends(get_session),
 ):
     product = session.get(Product, product_id)
@@ -31,12 +32,20 @@ def create_alert(
         except Exception:  # noqa: BLE001
             target = None
 
+    # HTML checkbox convention: absent when unchecked, "on" or similar when
+    # checked. Anything truthy → opt-in.
+    opt_in = bool(marketing_opt_in.strip())
+
     existing = session.exec(
         select(Alert).where(Alert.product_id == product_id, Alert.email == email.lower())
     ).first()
     if existing:
         existing.target_price_kes = target
         existing.active = True
+        # Only elevate the opt-in flag if the user just ticked it; never
+        # silently downgrade — user might've opted in previously.
+        if opt_in:
+            existing.marketing_opt_in = True
         session.add(existing)
     else:
         session.add(
@@ -45,6 +54,7 @@ def create_alert(
                 email=email.lower().strip(),
                 target_price_kes=target,
                 active=True,
+                marketing_opt_in=opt_in,
             )
         )
     session.commit()

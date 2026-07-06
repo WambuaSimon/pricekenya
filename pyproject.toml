@@ -37,7 +37,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["app", "app.routes", "db", "matching", "scrapers", "scrapers.common", "scrapers.merchants", "workers", "alerts", "seed"]
+packages = ["app", "app.routes", "db", "db.migrations", "matching", "scrapers", "scrapers.common", "scrapers.merchants", "workers", "alerts", "seed"]
 
 [tool.ruff]
 line-length = 100

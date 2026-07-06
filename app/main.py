@@ -16,6 +16,11 @@ STATIC_DIR.mkdir(exist_ok=True)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    # Idempotent schema migrations. We don't (yet) use Alembic; each
+    # migration is a one-shot ADD-COLUMN-IF-NOT-EXISTS. Safe to run every
+    # boot because each script no-ops when its change already exists.
+    from db.migrations import add_marketing_opt_in
+    add_marketing_opt_in.run()
     yield
 
 

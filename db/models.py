@@ -82,5 +82,9 @@ class Alert(SQLModel, table=True):
     email: str = Field(index=True)
     target_price_kes: Decimal | None = None
     active: bool = True
+    # Separate opt-in for non-transactional outreach (product updates, site
+    # announcements). Kenya DPA + GDPR require this to be a distinct
+    # consent — cannot be inferred from the alert signup itself.
+    marketing_opt_in: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_notified_at: datetime | None = None

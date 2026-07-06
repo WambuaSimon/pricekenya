@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy — PriceKenya{% endblock %}
+{% block description %}How PriceKenya collects, uses, and protects your personal data under the Kenya Data Protection Act.{% endblock %}
+{% block content %}
+<article class="prose max-w-3xl mx-auto text-sm leading-relaxed">
+  <h1 class="text-3xl font-semibold mb-2">Privacy Policy</h1>
+  <p class="text-slate-500 dark:text-slate-400 mb-8">Last updated: 2026-07-06</p>
+
+  <p class="mb-6">
+    This Privacy Policy explains how PriceKenya ("we", "us", "our") collects and processes personal
+    data in compliance with the Kenya Data Protection Act, 2019 and the guidelines issued by the
+    Office of the Data Protection Commissioner ("ODPC"). By using this site or subscribing to a
+    price alert, you agree to the practices described below.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">1. Who we are</h2>
+  <p class="mb-4">
+    PriceKenya is a price-comparison service operated from Nairobi, Kenya. For the purposes of
+    the Kenya Data Protection Act, the data controller is the operator of pricekenya.co.ke.
+    Data-protection queries should be directed to
+    <a href="mailto:privacy@pricekenya.co.ke" class="text-emerald-600 dark:text-emerald-400">privacy@pricekenya.co.ke</a>.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">2. What we collect</h2>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li><strong>Alert email address</strong> — when you subscribe to a price-drop alert, we store the email you provide, the product you're watching, and any target price you set.</li>
+    <li><strong>Marketing opt-in status</strong> — a single boolean recording whether you consented to occasional non-transactional updates from us. Off by default.</li>
+    <li><strong>Basic request logs</strong> — IP address, user-agent, and requested URL, retained for up to 30 days for abuse-prevention and error diagnosis.</li>
+    <li><strong>No accounts, no passwords, no payment data.</strong> We do not operate user accounts; we do not process payments; we do not use tracking cookies or advertising pixels.</li>
+  </ul>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">3. Why we process it</h2>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li><strong>Alert emails:</strong> lawful basis is your explicit consent (Kenya DPA s.30(1)(a)). We use your email solely to notify you when the price you asked to watch has changed. Nothing else.</li>
+    <li><strong>Marketing updates:</strong> if — and only if — you tick the marketing opt-in box, we may occasionally send you site announcements. You can withdraw this consent at any time (see §7).</li>
+    <li><strong>Site operation:</strong> logs are processed on the basis of our legitimate interest in keeping the service secure and functional.</li>
+  </ul>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">4. Who we share it with (subprocessors)</h2>
+  <p class="mb-3">Your email address may be handled by the following processors solely to deliver the service you requested:</p>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li><strong>Resend</strong> (email delivery, United States) — sends the alert emails you subscribed to.</li>
+    <li><strong>Cloudflare</strong> (DNS, edge network, email routing, United States) — serves the site and routes inbound mail such as this address.</li>
+    <li><strong>Render</strong> (application hosting, EU / Frankfurt) — runs the web application.</li>
+    <li><strong>Neon</strong> (managed Postgres, EU) — stores the alert records.</li>
+  </ul>
+  <p class="mb-4">
+    Some of these providers are located outside Kenya. Cross-border transfers are made under
+    appropriate safeguards as required by Kenya DPA s.48–49 (standard contractual protections
+    and each provider's own data-processing agreements). We do not sell your data, and we do
+    not share it with any advertiser, data broker, or third party for marketing purposes.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">5. How long we keep it</h2>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li>Active alerts are retained until you unsubscribe or the alert has fired once (single-shot notifications).</li>
+    <li>Inactive (unsubscribed or fired) alerts are retained for 90 days for audit purposes, then permanently deleted.</li>
+    <li>Request logs: 30 days.</li>
+    <li>Marketing opt-in records: retained while active, deleted on withdrawal.</li>
+  </ul>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">6. Cookies and analytics</h2>
+  <p class="mb-4">
+    We do not set any tracking or advertising cookies. The only browser storage the site uses
+    is a single <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">theme</code>
+    entry in localStorage to remember whether you selected dark mode. It's read only by the
+    site and never transmitted.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">7. Your rights</h2>
+  <p class="mb-3">Under s.26 of the Kenya Data Protection Act, you have the right to:</p>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li>Access the personal data we hold about you.</li>
+    <li>Correct any data that is inaccurate.</li>
+    <li>Have your data erased ("right to be forgotten").</li>
+    <li>Restrict or object to further processing.</li>
+    <li>Receive your data in a portable format.</li>
+    <li>Withdraw your consent at any time (using the unsubscribe link in any alert email, or by writing to us).</li>
+    <li>Lodge a complaint with the Office of the Data Protection Commissioner at
+      <a href="https://www.odpc.go.ke" class="text-emerald-600 dark:text-emerald-400">odpc.go.ke</a>.</li>
+  </ul>
+  <p class="mb-4">
+    To exercise any of these rights, email
+    <a href="mailto:privacy@pricekenya.co.ke" class="text-emerald-600 dark:text-emerald-400">privacy@pricekenya.co.ke</a>.
+    We respond within 7 working days, as required by the Act.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">8. Security</h2>
+  <p class="mb-4">
+    All traffic to and from the site is encrypted (TLS 1.2+). Unsubscribe links are
+    cryptographically signed so they cannot be forged or shared beyond the recipient. We limit
+    who inside the operation can access the alert database and never log full email addresses
+    in application or CI output.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">9. Changes to this policy</h2>
+  <p class="mb-4">
+    If we change how we handle your data, we will update this page and, where the change is
+    material, notify subscribed users by email. The "Last updated" date at the top of this
+    page indicates when it was last revised.
+  </p>
+
+  <h2 class="text-lg font-semibold mt-8 mb-3">10. Contact</h2>
+  <p class="mb-4">
+    Questions, requests, or complaints:
+    <a href="mailto:privacy@pricekenya.co.ke" class="text-emerald-600 dark:text-emerald-400">privacy@pricekenya.co.ke</a>.
+  </p>
+</article>
+{% endblock %}
