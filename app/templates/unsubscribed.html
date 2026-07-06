@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Unsubscribed — PriceKenya{% endblock %}
+{% block content %}
+  <div class="max-w-md mx-auto text-center py-16">
+    <div class="text-4xl mb-4">✓</div>
+    <h1 class="text-2xl font-semibold mb-2">You've been unsubscribed</h1>
+    {% if product %}
+      <p class="text-slate-600 dark:text-slate-400 mb-6">
+        We won't email you again about <strong>{{ product.title }}</strong>.
+      </p>
+      <a href="/p/{{ product.slug }}"
+         class="inline-block rounded bg-emerald-600 text-white text-sm px-4 py-2 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+        Back to product page
+      </a>
+    {% else %}
+      <p class="text-slate-600 dark:text-slate-400 mb-6">
+        This alert was already inactive, or the link expired.
+      </p>
+      <a href="/"
+         class="inline-block rounded bg-emerald-600 text-white text-sm px-4 py-2 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+        Browse products
+      </a>
+    {% endif %}
+  </div>
+{% endblock %}

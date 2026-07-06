@@ -21,8 +21,14 @@ concurrency:
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)"
+  BASE_URL: https://pricekenya.co.ke
+  SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.co.ke)"
   SCRAPER_REQUEST_DELAY_SECONDS: "2"
+  # Alert dispatcher needs these to send real email + sign unsubscribe URLs.
+  # Configure in repo settings → Secrets and variables → Actions.
+  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+  ALERTS_FROM_EMAIL: "PriceKenya Alerts <alerts@pricekenya.co.ke>"
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
 
 jobs:
   seed:

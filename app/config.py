@@ -9,11 +9,13 @@ class Settings(BaseSettings):
     jumia_affiliate_id: str = ""
     scraper_user_agent: str = "PriceKenyaBot/0.1"
     scraper_request_delay_seconds: float = 2.0
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    alerts_from_email: str = "alerts@pricekenya.example"
+    # Resend transactional email (used by alerts/dispatcher.py)
+    resend_api_key: str = ""
+    alerts_from_email: str = "PriceKenya Alerts <alerts@pricekenya.co.ke>"
+    # HMAC key for signing one-click unsubscribe tokens. MUST be set in prod;
+    # if empty, unsubscribe links won't verify. Generate with:
+    #     python -c "import secrets; print(secrets.token_urlsafe(32))"
+    secret_key: str = ""
 
 
 settings = Settings()

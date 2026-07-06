@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
+from alerts.tokens import verify_unsubscribe_token
 from app.templating import templates
 from db.models import Alert, Product
 from db.session import get_session
@@ -52,4 +53,34 @@ def create_alert(
         request,
         "partials/_alert_confirm.html",
         {"product": product, "email": email, "target": target},
+    )
+
+
+@router.get("/alerts/unsubscribe/{token}", response_class=HTMLResponse)
+def unsubscribe(
+    token: str,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """One-click unsubscribe from a single alert.
+
+    Token is HMAC-signed with `settings.secret_key` (see `alerts.tokens`), so
+    invalid tokens 400 without touching the DB. Idempotent — visiting the
+    link twice just leaves the alert inactive.
+    """
+    alert_id = verify_unsubscribe_token(token)
+    if alert_id is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired unsubscribe link")
+    alert = session.get(Alert, alert_id)
+    product = None
+    if alert:
+        product = session.get(Product, alert.product_id)
+        if alert.active:
+            alert.active = False
+            session.add(alert)
+            session.commit()
+    return templates.TemplateResponse(
+        request,
+        "unsubscribed.html",
+        {"product": product},
     )

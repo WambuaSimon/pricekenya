@@ -12,12 +12,18 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.7
       - key: BASE_URL
-        value: https://pricekenya.onrender.com
+        value: https://pricekenya.co.ke
       - key: SCRAPER_USER_AGENT
-        value: PriceKenyaBot/0.1 (+https://pricekenya.onrender.com)
+        value: PriceKenyaBot/0.1 (+https://pricekenya.co.ke)
       - key: SCRAPER_REQUEST_DELAY_SECONDS
         value: "2"
+      - key: ALERTS_FROM_EMAIL
+        value: PriceKenya Alerts <alerts@pricekenya.co.ke>
       - key: JUMIA_AFFILIATE_ID
         sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SECRET_KEY
         sync: false
