@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Listing, Merchant, PriceHistory, Product
+from db.models import Click, Listing, Merchant, PriceHistory, Product
 from db.session import get_session
 
 router = APIRouter()
@@ -74,5 +74,8 @@ def out(listing_id: int, session: Session = Depends(get_session)):
     if not row:
         raise HTTPException(status_code=404)
     listing, merchant = row
-    # v1: log the click for analytics + revenue attribution.
+    # Log the click for interest-signal + eventual revenue attribution. No
+    # PII: only the listing id and timestamp. See Privacy Policy §6.
+    session.add(Click(listing_id=listing.id))
+    session.commit()
     return RedirectResponse(url=_affiliate_url(merchant, listing.url), status_code=302)

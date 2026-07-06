@@ -1,4 +1,24 @@
 {% extends "base.html" %}
+{% block head_extra %}
+{# WebSite + SearchAction: tells Google to render the sitelinks search box
+   under the pricekenya.co.ke result, pointing at our /search endpoint. #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "PriceKenya",
+  "url": "{{ request.base_url._url.rstrip('/') if request else '' }}/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "{{ request.base_url._url.rstrip('/') if request else '' }}/search?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{% endblock %}
 {% block content %}
   <h1 class="text-2xl font-semibold mb-1">Compare prices across Kenya</h1>
   <p class="text-slate-600 mb-6 dark:text-slate-400">Phones, laptops, TVs and more from Jumia, Kilimall and other Kenyan merchants.</p>

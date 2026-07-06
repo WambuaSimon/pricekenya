@@ -4,12 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}PriceKenya — compare prices in Kenya{% endblock %}</title>
-  <meta name="description" content="{% block description %}Compare prices from Jumia, Kilimall and more across Kenya. See price history and get drop alerts.{% endblock %}">
+  <meta name="description" content="{% block description %}Compare prices from Jumia, Kilimall, Carrefour, Quickmart, Naivas and more across Kenya. See price history and get drop alerts.{% endblock %}">
+  <link rel="canonical" href="{% block canonical %}{{ (request.url._url.split('?')[0]) if request else '' }}{% endblock %}">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.svg">
   <link rel="mask-icon" href="/static/favicon.svg" color="#059669">
   <meta name="theme-color" content="#059669" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+
+  {# Open Graph — controls WhatsApp / Twitter / Facebook link previews. #}
+  <meta property="og:site_name" content="PriceKenya">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ self.description() }}{% endblock %}">
+  <meta property="og:image" content="{% block og_image %}/static/apple-touch-icon.svg{% endblock %}">
+  <meta property="og:url" content="{% block og_url %}{{ self.canonical() }}{% endblock %}">
+  <meta property="og:locale" content="en_KE">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ self.og_title() }}">
+  <meta name="twitter:description" content="{{ self.og_description() }}">
+  <meta name="twitter:image" content="{{ self.og_image() }}">
   <script>
     // Apply saved (or system) theme before first paint to avoid FOUC.
     (function () {

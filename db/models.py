@@ -76,6 +76,20 @@ class PriceHistory(SQLModel, table=True):
     observed_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class Click(SQLModel, table=True):
+    """One row per outbound click at `/out/{listing_id}`.
+
+    Enables us to query things like "top clicked listings this week", "top
+    merchants by click volume", or "click-through rate per product page view"
+    once we start logging views too. Deliberately does NOT store IP, email,
+    or any user identifier — the Privacy Policy commits to that.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    listing_id: int = Field(foreign_key="listing.id", index=True)
+    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 class Alert(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="product.id", index=True)

@@ -1,20 +1,34 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title }} price in Kenya — PriceKenya{% endblock %}
 {% block description %}Compare {{ product.title }} prices across Kenyan merchants. Best price from {{ min_price | kes }}.{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{{ product.image_url or '/static/apple-touch-icon.svg' }}{% endblock %}
 {% block head_extra %}
+  {# Product JSON-LD. Using |tojson for every string keeps us safe from titles
+     that contain quotes, </script>, or any other injection surface. #}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Product",
-    "name": "{{ product.title }}",
-    "brand": "{{ product.brand | title }}",
-    {% if product.image_url %}"image": "{{ product.image_url }}",{% endif %}
+    "name": {{ product.title | tojson }},
+    "brand": {{ (product.brand or "") | title | tojson }}{% if product.image_url %},
+    "image": {{ product.image_url | tojson }}{% endif %},
     "offers": {
       "@type": "AggregateOffer",
       "priceCurrency": "KES",
       {% if min_price %}"lowPrice": "{{ min_price }}",{% endif %}
       "offerCount": {{ offers | length }}
     }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Home", "item": {{ (request.base_url._url.rstrip('/') + '/') | tojson }}},
+      {"@type": "ListItem", "position": 2, "name": {{ product.title | tojson }}, "item": {{ (request.base_url._url.rstrip('/') + '/p/' + product.slug) | tojson }}}
+    ]
   }
   </script>
 {% endblock %}
