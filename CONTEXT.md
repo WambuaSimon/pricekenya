@@ -2,7 +2,7 @@
 
 The canonical document for *why* this project exists, *what* it is, and *how* decisions were made. Update this when you learn something material — it's how future-you (and any agent) gets up to speed without re-doing research.
 
-Last updated: 2026-07-01
+Last updated: 2026-07-06
 
 ---
 
@@ -92,6 +92,40 @@ Ran `python -m scrapers.ingest jumia-phones` against live Jumia for the first ti
 - **Cross-merchant merges: 5.** All from seed; no scraped Jumia phone happens to match a seed model. Validates that we can't demonstrate the core "compare prices" value prop with one merchant — need Kilimall next.
 
 **Kilimall scraper landed 2026-07-01:** Category pages return 500, but `/search?q=smartphone` server-renders 36 clean cards/page as a Nuxt app. 60 listings ingested. **13 products now carry both Jumia + Kilimall offers** — the core "compare prices" value prop is now demonstrable on real data. Biggest observed gap: Samsung A07 4/128GB shows 38% price difference (likely bad Kilimall data — motivates the counterfeit/lowball flag from the v1 roadmap). Known gap: Kilimall images are lazy-loaded and not in initial HTML; listings from Kilimall show no thumbnail until we either parse `window.__NUXT__` state or hit product detail pages.
+
+## 8b. Merchant expansion sprint (2026-07-05 → 2026-07-06)
+
+Grew merchant coverage from 2 → 12 across two sessions. All numbers are local sqlite listing counts after the matcher runs.
+
+| # | Merchant | Slug | Scraper approach | Listings | Session added |
+|---|---|---|---|---|---|
+| 1 | Jumia Kenya | `jumia-ke` | httpx + selectolax, category pages | 1024 | prior |
+| 2 | Kilimall Kenya | `kilimall-ke` | httpx + Nuxt hydration parse, `/search?q=` | 774 | prior |
+| 3 | Naivas | `naivas-ke` | curl_cffi + Livewire `wire:snapshot` regex | 121 | 2026-07-05 |
+| 4 | Phone Place Kenya | `phoneplace-ke` | curl_cffi + WooCommerce `.product-wrapper` | 163 | 2026-07-05 |
+| 5 | Phones Store Kenya | `phonesstore-ke` | httpx + same WooCommerce theme (no CF wall) | 37 | 2026-07-05 |
+| 6 | Quickmart | `quickmart-ke` | curl_cffi + Growcer PHP, `/4301` bootstrap cookie | 165 | 2026-07-06 |
+| 7 | Carrefour Kenya | `carrefour-ke` | curl_cffi + Next.js RSC escaped-JSON parse | 135 | 2026-07-06 |
+| 8 | Xiaomi Kenya | `xiaomi-ke` | curl_cffi + custom WooCommerce, `product_cat-*` routing | 48 | 2026-07-06 |
+
+**Multi-offer products across the site: 280 → 414 (+134 = +48%).** That's the number of Product rows carrying offers from >1 merchant — the core "compare prices" story. Two products now show side-by-side offers from 4 merchants each (e.g. Redmi 15C: Jumia + Kilimall + Quickmart + Xiaomi Kenya).
+
+**Key infra added:** `curl_cffi>=0.7` + a new `CffiPoliteClient` in `scrapers/common/base.py`. Chrome TLS impersonation defeats Cloudflare (Naivas, Phone Place) and Akamai (Carrefour) cleanly; ~2s polite delay retained. Plain `httpx.PoliteClient` still fine for unshielded merchants (Kilimall, Phones Store).
+
+**Site-specific quirks worth remembering:**
+- **QuickMart** uses `?page-N` (hyphen, not `=`) — Growcer/Yo!Grocery pagination. Standard `?page=2` silently re-serves page 1 (cost 30 minutes to discover).
+- **Carrefour** is a Next.js SPA; parse the escaped-JSON RSC payload (`\"productId\":`), not the visual HTML — prices come as integers, no comma parsing.
+- **Xiaomi Kenya** (`xiaomistores.co.ke`) has flat product URLs (`/redmi-15c/`), NOT `/product/<slug>/` like most WooCommerce sites. Category routing via `product_cat-<slug>` classes on the `<li>`, specificity-ordered (model-family first, generic last).
+- **Naivas** encodes product cards in Livewire `wire:snapshot` markers; anchor tags span multiple lines so regex needs `re.DOTALL`.
+
+**Blocked/deferred:**
+- **mi.com/ke** stays an SPA shell (no KSh in HTML shell); **xiaomi-store.co.ke** stays 403-blocked even with Chrome impersonation. `xiaomistores.co.ke` is the cleanest Xiaomi source available.
+- **Carrefour phones/tablets/wearables** live under a *separate* top-level category tree (not `NFKEN4000000`) — v0 only covers the Electronics & Appliances parent. Tree ID capture needed.
+- Older merchant scrapers (Hotpoint, Ramtons, Avechi, iStore, Gadget World, Masoko) have code but 0 rows in local sqlite. May be producing on prod Neon via the GitHub Actions cron — not investigated yet.
+
+## 8c. Frontend polish (2026-07-06)
+
+- **Dark mode**: Tailwind CDN configured with `darkMode: 'class'`. Small no-FOUC boot script reads `localStorage.theme` and system preference before first paint. Sun/moon toggle in header persists the choice. All templates got `dark:` variants (backgrounds, borders, text hierarchy, price-history canvas stroke).
 
 ## 9. Roadmap
 
