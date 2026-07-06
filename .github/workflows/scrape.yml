@@ -68,6 +68,12 @@ jobs:
           - all-gadgetworld     # 1 category
           - all-ramtons         # 7 categories
           - all-masoko          # 3 categories
+          - all-naivas          # Livewire + curl_cffi (CF wall)
+          - all-phoneplace      # WooCommerce + curl_cffi (CF wall)
+          - all-phonesstore     # WooCommerce (no wall)
+          - all-quickmart       # Growcer PHP + curl_cffi, hyphen paging
+          - all-carrefour       # Next.js RSC parse + curl_cffi (Akamai wall)
+          - all-xiaomi          # WooCommerce, xiaomistores.co.ke
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
