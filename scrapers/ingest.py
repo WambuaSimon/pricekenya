@@ -610,6 +610,16 @@ def _run_quickmart_all() -> None:
     run_quickmart_electronics()
 
 
+# Carrefour KE (MAF Next.js storefront, RSC payload parsed for structured products)
+def run_carrefour_electronics() -> None:
+    from scrapers.merchants.carrefour import MERCHANT_META, fetch_electronics
+    asyncio.run(_consume(fetch_electronics(), MERCHANT_META))
+
+
+def _run_carrefour_all() -> None:
+    run_carrefour_electronics()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -645,6 +655,7 @@ def _run_all() -> None:
     _run_phoneplace_all()
     _run_phonesstore_all()
     _run_quickmart_all()
+    _run_carrefour_all()
 
 
 TARGETS = {
@@ -748,6 +759,8 @@ TARGETS = {
     "all-phonesstore": _run_phonesstore_all,
     "quickmart-electronics": run_quickmart_electronics,
     "all-quickmart": _run_quickmart_all,
+    "carrefour-electronics": run_carrefour_electronics,
+    "all-carrefour": _run_carrefour_all,
     "all": _run_all,
 }
 
