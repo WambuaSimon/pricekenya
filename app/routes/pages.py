@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, func, select
 
 from app.templating import templates
-from db.models import Listing, Product
+from db.models import Click, Listing, Product
 from db.session import get_session
 
 router = APIRouter()
@@ -11,9 +13,23 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, session: Session = Depends(get_session)):
-    # Multi-offer first — the home page should showcase what the site is
-    # actually for (price comparison), not the most-recently-crawled long
-    # tail. Recency is only the tie-breaker.
+    # Ranking:
+    #   1. offer_count DESC — showcase what the site is for (price comparison).
+    #   2. clicks over the last 7d DESC — real-user signal on which listings
+    #      matter, computed as a correlated scalar subquery so the main
+    #      GROUP BY on Product.id stays clean (a JOIN through Click would
+    #      multiply the min-price / offer-count aggregates).
+    #   3. last_checked_at DESC — final tiebreak so untouched products don't
+    #      tie forever.
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    clicks_7d = (
+        select(func.count(Click.id))
+        .join(Listing, Listing.id == Click.listing_id)
+        .where(Listing.product_id == Product.id)
+        .where(Click.occurred_at >= week_ago)
+        .correlate(Product)
+        .scalar_subquery()
+    )
     rows = session.exec(
         select(
             Product,
@@ -24,6 +40,7 @@ def home(request: Request, session: Session = Depends(get_session)):
         .group_by(Product.id)
         .order_by(
             func.count(Listing.id).desc(),
+            clicks_7d.desc(),
             func.max(Listing.last_checked_at).desc(),
         )
         .limit(24)
