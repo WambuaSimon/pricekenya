@@ -2,7 +2,7 @@ services:
   - type: web
     name: pricekenya
     runtime: python
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
     buildCommand: pip install -e .
