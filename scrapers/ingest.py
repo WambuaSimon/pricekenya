@@ -620,6 +620,16 @@ def _run_carrefour_all() -> None:
     run_carrefour_electronics()
 
 
+# Xiaomi Kenya (customised WooCommerce, single /shop/ feed → matcher routes by product_cat class)
+def run_xiaomi_all() -> None:
+    from scrapers.merchants.xiaomi import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
+def _run_xiaomi_all() -> None:
+    run_xiaomi_all()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -656,6 +666,7 @@ def _run_all() -> None:
     _run_phonesstore_all()
     _run_quickmart_all()
     _run_carrefour_all()
+    _run_xiaomi_all()
 
 
 TARGETS = {
@@ -761,6 +772,8 @@ TARGETS = {
     "all-quickmart": _run_quickmart_all,
     "carrefour-electronics": run_carrefour_electronics,
     "all-carrefour": _run_carrefour_all,
+    "xiaomi-all": run_xiaomi_all,
+    "all-xiaomi": _run_xiaomi_all,
     "all": _run_all,
 }
 
