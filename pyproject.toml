@@ -3,6 +3,8 @@ name = "pricekenya"
 version = "0.1.0"
 description = "Price comparison for the Kenyan market"
 requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",

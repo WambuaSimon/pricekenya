@@ -81,3 +81,7 @@ Set `DATABASE_URL` to the Neon connection string. Use a GitHub Action that runs 
 - Ads / affiliate tracking dashboard
 
 These are listed in [CONTEXT.md](./CONTEXT.md) under "Roadmap".
+
+## License
+
+[AGPL-3.0-or-later](./LICENSE). If you run a modified version of this code as a public network service, you must publish the modified source under the same license. See [gnu.org/licenses/agpl-3.0](https://www.gnu.org/licenses/agpl-3.0.html) for the full terms.
