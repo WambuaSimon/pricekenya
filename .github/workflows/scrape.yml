@@ -80,6 +80,7 @@ jobs:
           - all-quickmart       # Growcer PHP + curl_cffi, hyphen paging
           - all-carrefour       # Next.js RSC parse + curl_cffi (Akamai wall)
           - all-xiaomi          # WooCommerce, xiaomistores.co.ke
+          - all-mybigorder      # Kenyan marketplace, plain httpx, per-subcategory
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

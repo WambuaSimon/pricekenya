@@ -139,6 +139,17 @@ Round of fixes from 5 testing buddies. Shipped:
 
 Deferred (v2 territory): visitor reviews, merchant self-serve JSON/XML feed, home page grouped-by-category top-3 layout.
 
+## 8e. MyBigOrder scraper (2026-07-07)
+
+Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (mybigorder.com). Server-rendered PHP (Active eCommerce CMS template family). No Cloudflare, uses plain `PoliteClient`. Prices already in KSh.
+
+- One URL per PriceKenya leaf: `phones`, `tablets`, `phone-tablet-accessories`, `laptops`, `tvs`, `cameras`, `audio`, `cooking` — set `category_slug` at fetch time.
+- Two mixed appliance buckets (`large-appliances-txwkq`, `small-appliances-zf9qd`) — route by title keyword (kettles/toasters/blenders/irons for small; refrigerators/freezers/washers/water-dispensers for large).
+- Pagination via `?page=N`. Site's own paginator only exposes page=2, but higher pages return a "featured" bloc of ~36 products that all appear on page 1 too. Scraper dedupes by URL and stops when a page adds zero new URLs (with a 20-page safety cap).
+- Card regex parses container `.col.border-right.border-bottom.has-transition.hov-shadow-out.z-1`, then extracts `<a href="/product/...">`, image url + alt for title, `addToWishList(<id>)` for SKU, and `<span class="fw-700 text-primary">KSh<amount>` for price.
+- Registered as `mybigorder-all` / `all-mybigorder` in `TARGETS`, added to `_run_all`, added `all-mybigorder` row to the GH Actions scrape matrix.
+- Dry run on Simon's local: parser handled the real HTML cleanly; 4 categories yielded 200 listings before the sample cutoff (phones 37, tablets 16, phone-tablet-accessories 35, laptops 112). Laptops on mybigorder includes chargers/adapters — the downstream matcher will drop the ones that don't parse as brand+model.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible

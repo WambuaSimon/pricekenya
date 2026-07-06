@@ -630,6 +630,17 @@ def _run_xiaomi_all() -> None:
     run_xiaomi_all()
 
 
+# MyBigOrder (Kenyan multi-vendor marketplace, one URL per subcategory + two
+# mixed appliance buckets routed by title)
+def run_mybigorder_all() -> None:
+    from scrapers.merchants.mybigorder import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
+def _run_mybigorder_all() -> None:
+    run_mybigorder_all()
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -667,6 +678,7 @@ def _run_all() -> None:
     _run_quickmart_all()
     _run_carrefour_all()
     _run_xiaomi_all()
+    _run_mybigorder_all()
 
 
 TARGETS = {
@@ -774,6 +786,8 @@ TARGETS = {
     "all-carrefour": _run_carrefour_all,
     "xiaomi-all": run_xiaomi_all,
     "all-xiaomi": _run_xiaomi_all,
+    "mybigorder-all": run_mybigorder_all,
+    "all-mybigorder": _run_mybigorder_all,
     "all": _run_all,
 }
 
