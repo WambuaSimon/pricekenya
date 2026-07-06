@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ q }} — PriceKenya{% endblock %}
+{% block title %}{% if q %}{{ q }} — {% endif %}PriceKenya{% endblock %}
 {% block content %}
-  <h1 class="text-xl font-semibold mb-4">Results for "{{ q }}"</h1>
+  <h1 class="text-xl font-semibold mb-4">
+    {% if q %}Results for "{{ q }}"{% else %}Popular products{% endif %}
+  </h1>
   <div id="results">
     {% include "partials/_product_grid.html" %}
   </div>

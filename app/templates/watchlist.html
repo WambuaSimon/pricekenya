@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}My Watchlist — PriceKenya{% endblock %}
+{% block description %}Products you're tracking for price drops on PriceKenya.{% endblock %}
+{% block content %}
+  <h1 class="text-lg font-semibold mb-1">My Watchlist</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
+    Products you've asked us to watch. Kept in a cookie on this browser — no account needed.
+  </p>
+
+  {% if items %}
+    <ul class="space-y-3">
+      {% for item in items %}
+        <li class="bg-white border rounded-lg p-3 flex items-center gap-4 dark:bg-slate-900 dark:border-slate-800">
+          <a href="/p/{{ item.product.slug }}" class="shrink-0 w-16 h-16 bg-slate-100 rounded flex items-center justify-center overflow-hidden dark:bg-slate-800">
+            {% if item.product.image_url %}
+              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="object-contain w-full h-full">
+            {% else %}
+              <span class="text-slate-300 text-[10px] dark:text-slate-600">no image</span>
+            {% endif %}
+          </a>
+          <div class="min-w-0 flex-1">
+            <a href="/p/{{ item.product.slug }}" class="text-sm font-medium line-clamp-1 hover:underline">{{ item.product.title }}</a>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {% if item.min_price %}
+                Best price: <span class="font-semibold text-slate-700 dark:text-slate-200">{{ item.min_price | kes }}</span>
+                · {{ item.offer_count }} offer{{ '' if item.offer_count == 1 else 's' }}
+              {% else %}
+                No current offers
+              {% endif %}
+            </div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {% if item.alert.target_price_kes %}
+                Alert at {{ item.alert.target_price_kes | kes }}
+              {% else %}
+                Alert on any drop
+              {% endif %}
+              {% if not item.alert.active %}
+                · <span class="text-slate-400 dark:text-slate-500">unsubscribed</span>
+              {% endif %}
+            </div>
+          </div>
+          <a href="/p/{{ item.product.slug }}" class="shrink-0 text-xs rounded border px-2 py-1 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">View</a>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="text-xs text-slate-500 dark:text-slate-400 mt-6">
+      To stop tracking a product, use the unsubscribe link at the bottom of any alert email you received for it.
+    </p>
+  {% else %}
+    <div class="bg-white border rounded-lg p-8 text-center text-sm text-slate-500 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">
+      Your watchlist is empty. Open any product page and click <span class="font-medium">Watch price</span> to start tracking.
+    </div>
+  {% endif %}
+{% endblock %}

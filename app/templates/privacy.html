@@ -60,12 +60,26 @@
   </ul>
 
   <h2 class="text-lg font-semibold mt-8 mb-3">6. Cookies and analytics</h2>
-  <p class="mb-4">
-    We do not set any tracking or advertising cookies. The only browser storage the site uses
-    is a single <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">theme</code>
-    entry in localStorage to remember whether you selected dark mode. It's read only by the
-    site and never transmitted.
+  <p class="mb-2">
+    We do not set any tracking or advertising cookies. The site uses only the following
+    strictly-necessary browser storage, all of which is optional:
   </p>
+  <ul class="list-disc pl-6 space-y-2 mb-4">
+    <li>
+      A <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">theme</code>
+      entry in localStorage to remember whether you selected dark mode. Read only by the
+      site and never transmitted.
+    </li>
+    <li>
+      A <code class="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">watchlist</code>
+      cookie (HttpOnly, Secure, SameSite=Lax) that stores the IDs of price alerts you
+      created so we can show them back to you at
+      <a href="/watchlist" class="underline hover:text-slate-700 dark:hover:text-slate-300">/watchlist</a>.
+      The value is signed with an HMAC so it can't be forged. Clearing your cookies
+      clears the list; the underlying alerts (and your email address on them) are only
+      removed when you use the unsubscribe link.
+    </li>
+  </ul>
 
   <h2 class="text-lg font-semibold mt-8 mb-3">7. Your rights</h2>
   <p class="mb-3">Under s.26 of the Kenya Data Protection Act, you have the right to:</p>

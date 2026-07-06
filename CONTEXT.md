@@ -127,6 +127,18 @@ Grew merchant coverage from 2 → 12 across two sessions. All numbers are local 
 
 - **Dark mode**: Tailwind CDN configured with `darkMode: 'class'`. Small no-FOUC boot script reads `localStorage.theme` and system preference before first paint. Sun/moon toggle in header persists the choice. All templates got `dark:` variants (backgrounds, borders, text hierarchy, price-history canvas stroke).
 
+## 8d. Tester feedback pass (2026-07-07)
+
+Round of fixes from 5 testing buddies. Shipped:
+
+- **Search empty-state**: clearing the search box now returns the multi-offer showcase (same query as home page), not a blank grid. `app/routes/pages.py` — with LIKE-arg escaping added while I was there.
+- **"Best price" badge**: cheapest offer on `/p/*` now gets a green tint + `Best price` chip. Offers were already sorted `price_kes ASC` in `products.py`, so it's purely a template change (`{% if loop.first %}`).
+- **Cookie-based watchlist**: HMAC-signed `watchlist` cookie stores the alert IDs a browser has created (HttpOnly, Secure, SameSite=Lax, 1yr). New `GET /watchlist` route + template lists the tracked products. Sidebar and header gain a Watchlist link only when the cookie is present. Unsubscribe endpoint prunes the id from the cookie too. Signing key = `SECRET_KEY` (shared with unsubscribe tokens). Privacy Policy §6 updated to disclose it.
+- **Product description**: added `Product.description TEXT NULL` (migration `add_product_description.py`), rendered on `/p/*` as "About this product", included in Product JSON-LD when present. Scrapers still to be updated per-merchant.
+- **Left sidebar nav** (mobile UX): horizontal scroll-to-hidden-items nav replaced with off-canvas sidebar. Desktop (md+) shows a persistent 224px column on the left; mobile shows a hamburger in the header that toggles a slide-in drawer with backdrop + ESC/click-out to close. `_category_nav.html` deleted, `_sidebar_nav.html` added. Outer wrapper widened to `max-w-7xl` to make room for the column.
+
+Deferred (v2 territory): visitor reviews, merchant self-serve JSON/XML feed, home page grouped-by-category top-3 layout.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible

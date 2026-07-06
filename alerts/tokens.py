@@ -47,3 +47,36 @@ def verify_unsubscribe_token(token: str) -> int | None:
         return int(payload)
     except ValueError:
         return None
+
+
+def make_watchlist_cookie(alert_ids: list[int]) -> str:
+    """Signed cookie value listing the alerts a browser has created.
+
+    Format: `<comma-separated-ids>.<hmac>`. Signing prevents a user from
+    hand-editing the cookie to see someone else's alerts. Empty list is
+    represented as `""` (an empty cookie is safer than absent).
+    """
+    payload = ",".join(str(i) for i in sorted(set(alert_ids)))
+    return f"{payload}.{_sig(payload)}"
+
+
+def verify_watchlist_cookie(cookie_value: str) -> list[int]:
+    """Parse a watchlist cookie back to its alert-id list.
+
+    Returns `[]` for missing, malformed, or tampered cookies — never raises.
+    """
+    if not cookie_value:
+        return []
+    try:
+        payload, sig = cookie_value.rsplit(".", 1)
+    except ValueError:
+        return []
+    if not hmac.compare_digest(sig, _sig(payload)):
+        return []
+    ids: list[int] = []
+    for part in payload.split(","):
+        try:
+            ids.append(int(part))
+        except ValueError:
+            continue
+    return ids

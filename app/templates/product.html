@@ -12,7 +12,8 @@
     "@type": "Product",
     "name": {{ product.title | tojson }},
     "brand": {{ (product.brand or "") | title | tojson }}{% if product.image_url %},
-    "image": {{ product.image_url | tojson }}{% endif %},
+    "image": {{ product.image_url | tojson }}{% endif %}{% if product.description %},
+    "description": {{ product.description | tojson }}{% endif %},
     "offers": {
       "@type": "AggregateOffer",
       "priceCurrency": "KES",
@@ -85,14 +86,19 @@
         <div class="px-4 py-3 border-b text-sm font-medium dark:border-slate-800">Where to buy</div>
         <ul class="divide-y dark:divide-slate-800">
           {% for offer in offers %}
-            <li class="flex items-center justify-between gap-4 px-4 py-3">
+            <li class="flex items-center justify-between gap-4 px-4 py-3 {% if loop.first %}bg-emerald-50/60 dark:bg-emerald-950/30{% endif %}">
               <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium">{{ offer.merchant.name }}</div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium">{{ offer.merchant.name }}</span>
+                  {% if loop.first %}
+                    <span class="inline-block text-[10px] uppercase tracking-wide font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded dark:bg-emerald-900 dark:text-emerald-200">Best price</span>
+                  {% endif %}
+                </div>
                 <div class="text-xs text-slate-500 line-clamp-1 dark:text-slate-400">{{ offer.listing.title_on_merchant }}</div>
                 <div class="text-xs text-slate-400 dark:text-slate-500">last checked {{ offer.listing.last_checked_at.strftime('%Y-%m-%d %H:%M') }} UTC</div>
               </div>
               <div class="text-right shrink-0">
-                <div class="font-semibold whitespace-nowrap">{{ offer.listing.price_kes | kes }}</div>
+                <div class="font-semibold whitespace-nowrap {% if loop.first %}text-emerald-700 dark:text-emerald-300{% endif %}">{{ offer.listing.price_kes | kes }}</div>
                 <a href="{{ offer.out_url }}" rel="nofollow sponsored" target="_blank"
                    class="inline-block mt-1 rounded bg-emerald-600 text-white text-xs px-3 py-1 whitespace-nowrap hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">Go to shop</a>
               </div>
@@ -102,6 +108,13 @@
           {% endfor %}
         </ul>
       </div>
+
+      {% if product.description %}
+        <div class="bg-white border rounded-lg mt-4 p-4 dark:bg-slate-900 dark:border-slate-800">
+          <div class="text-sm font-medium mb-2">About this product</div>
+          <div class="prose prose-sm max-w-none text-slate-700 whitespace-pre-line dark:text-slate-300">{{ product.description }}</div>
+        </div>
+      {% endif %}
 
       {% if history %}
         <div class="bg-white border rounded-lg mt-4 p-4 dark:bg-slate-900 dark:border-slate-800">

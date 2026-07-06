@@ -34,9 +34,11 @@ def home(request: Request, session: Session = Depends(get_session)):
 @router.get("/search", response_class=HTMLResponse)
 def search(request: Request, q: str = "", session: Session = Depends(get_session)):
     q_clean = (q or "").strip()
-    rows = []
     if q_clean:
-        like = f"%{q_clean.lower()}%"
+        # LIKE wildcards from user input are escaped so `_` and `%` don't
+        # explode query cost or leak into pattern semantics.
+        like_arg = q_clean.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like = f"%{like_arg}%"
         rows = session.exec(
             select(
                 Product,
@@ -47,6 +49,24 @@ def search(request: Request, q: str = "", session: Session = Depends(get_session
             .where(func.lower(Product.title).like(like))
             .group_by(Product.id)
             .limit(50)
+        ).all()
+    else:
+        # Empty query — fall back to the multi-offer-first showcase used on
+        # the home page. Better UX than a blank state when a user clears
+        # the search box.
+        rows = session.exec(
+            select(
+                Product,
+                func.min(Listing.price_kes).label("min_price"),
+                func.count(Listing.id).label("offer_count"),
+            )
+            .join(Listing, Listing.product_id == Product.id)
+            .group_by(Product.id)
+            .order_by(
+                func.count(Listing.id).desc(),
+                func.max(Listing.last_checked_at).desc(),
+            )
+            .limit(24)
         ).all()
     # HTMX requests get just the results fragment
     if request.headers.get("HX-Request"):

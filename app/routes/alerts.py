@@ -2,14 +2,21 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
-from alerts.tokens import verify_unsubscribe_token
+from alerts.tokens import (
+    make_watchlist_cookie,
+    verify_unsubscribe_token,
+    verify_watchlist_cookie,
+)
 from app.templating import templates
-from db.models import Alert, Product
+from db.models import Alert, Listing, Product
 from db.session import get_session
 
 router = APIRouter()
+
+# 1-year expiry: watchlist should feel persistent, but not eternal.
+_WATCHLIST_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 
 @router.post("/alerts", response_class=HTMLResponse)
@@ -47,22 +54,83 @@ def create_alert(
         if opt_in:
             existing.marketing_opt_in = True
         session.add(existing)
+        session.commit()
+        alert_id = existing.id
     else:
-        session.add(
-            Alert(
-                product_id=product_id,
-                email=email.lower().strip(),
-                target_price_kes=target,
-                active=True,
-                marketing_opt_in=opt_in,
-            )
+        new_alert = Alert(
+            product_id=product_id,
+            email=email.lower().strip(),
+            target_price_kes=target,
+            active=True,
+            marketing_opt_in=opt_in,
         )
-    session.commit()
+        session.add(new_alert)
+        session.commit()
+        alert_id = new_alert.id
 
-    return templates.TemplateResponse(
+    # Add this alert to the anonymous watchlist cookie so the user can find
+    # their tracked products later without an account. Signed with SECRET_KEY
+    # so a user can't fake other people's alert IDs into the list.
+    existing_ids = verify_watchlist_cookie(request.cookies.get("watchlist", ""))
+    if alert_id is not None and alert_id not in existing_ids:
+        existing_ids.append(alert_id)
+    new_cookie = make_watchlist_cookie(existing_ids)
+
+    response = templates.TemplateResponse(
         request,
         "partials/_alert_confirm.html",
         {"product": product, "email": email, "target": target},
+    )
+    response.set_cookie(
+        "watchlist",
+        new_cookie,
+        max_age=_WATCHLIST_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
+@router.get("/watchlist", response_class=HTMLResponse)
+def watchlist(request: Request, session: Session = Depends(get_session)):
+    """List the alerts this browser has created.
+
+    Cookie-based (no account). If someone clears cookies or switches
+    browsers/devices, they lose the view — that's the tradeoff for skipping
+    auth. The unsubscribe email each user gets is the durable record.
+    """
+    ids = verify_watchlist_cookie(request.cookies.get("watchlist", ""))
+    items: list[dict] = []
+    if ids:
+        rows = session.exec(
+            select(
+                Alert,
+                Product,
+                func.min(Listing.price_kes).label("min_price"),
+                func.count(Listing.id).label("offer_count"),
+            )
+            .join(Product, Product.id == Alert.product_id)
+            .join(Listing, Listing.product_id == Product.id, isouter=True)
+            .where(Alert.id.in_(ids))
+            .group_by(Alert.id, Product.id)
+        ).all()
+        for alert, product, min_price, offer_count in rows:
+            items.append(
+                {
+                    "alert": alert,
+                    "product": product,
+                    "min_price": min_price,
+                    "offer_count": offer_count or 0,
+                }
+            )
+        # Sort active first, then by most-recently-created.
+        items.sort(key=lambda i: (not i["alert"].active, -(i["alert"].id or 0)))
+    return templates.TemplateResponse(
+        request,
+        "watchlist.html",
+        {"items": items},
     )
 
 
@@ -89,8 +157,24 @@ def unsubscribe(
             alert.active = False
             session.add(alert)
             session.commit()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "unsubscribed.html",
         {"product": product},
     )
+    # Prune the id from the browser's watchlist cookie so the unsubscribed
+    # alert stops showing up on /watchlist. Only touches this browser — other
+    # devices tracking the same alert lose it via the DB flip above.
+    existing_ids = verify_watchlist_cookie(request.cookies.get("watchlist", ""))
+    if alert_id in existing_ids:
+        existing_ids = [i for i in existing_ids if i != alert_id]
+        response.set_cookie(
+            "watchlist",
+            make_watchlist_cookie(existing_ids),
+            max_age=_WATCHLIST_COOKIE_MAX_AGE,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/",
+        )
+    return response

@@ -1,0 +1,55 @@
+{# Category sidebar. On desktop (md+) it sits inline as a fixed-width column;
+   on mobile it's an off-canvas drawer toggled by the hamburger button in the
+   header. The `data-sidebar` attribute is the toggle target — JS in base.html
+   flips its `-translate-x-full` class. #}
+<aside
+  data-sidebar
+  aria-label="Categories"
+  class="fixed inset-y-0 left-0 z-40 w-72 bg-white border-r shadow-lg transform -translate-x-full transition-transform duration-200
+         dark:bg-slate-900 dark:border-slate-800
+         md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0 md:translate-x-0 md:shadow-none">
+  <div class="h-full overflow-y-auto p-4">
+    <div class="flex items-center justify-between mb-4 md:hidden">
+      <span class="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Categories</span>
+      <button data-sidebar-close type="button" aria-label="Close menu"
+              class="inline-flex items-center justify-center w-8 h-8 rounded text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </button>
+    </div>
+    <span class="hidden md:block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Browse</span>
+    <ul class="space-y-1">
+      {% set active_slug = get_active_top_slug(request) %}
+      <li>
+        {% set on_home = (request.url.path == '/') %}
+        <a href="/"
+           class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                  {% if on_home %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300
+                  {% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100{% endif %}">
+          <span class="text-lg leading-none">🏠</span>
+          <span>Home</span>
+        </a>
+      </li>
+      {% for cat in nav_categories() %}
+        {% set is_active = (active_slug == cat.slug) %}
+        <li>
+          <a href="/c/{{ cat.slug }}"
+             class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                    {% if is_active %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300
+                    {% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100{% endif %}">
+            {% if cat.icon %}<span class="text-lg leading-none">{{ cat.icon }}</span>{% endif %}
+            <span>{{ cat.name }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if request and request.cookies.get('watchlist') %}
+      <div class="mt-6 pt-4 border-t dark:border-slate-800">
+        <a href="/watchlist"
+           class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100">
+          <span class="text-lg leading-none">⭐</span>
+          <span>My Watchlist</span>
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</aside>

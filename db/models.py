@@ -48,6 +48,10 @@ class Product(SQLModel, table=True):
     # for phones; {"screen_inches": 55, "resolution": "4K"} for TVs). The
     # matcher populates these per category.
     specs: dict | None = Field(default=None, sa_column=Column(JSON))
+    # Human-readable description (plain text; may span paragraphs). Scrapers
+    # populate this per-merchant when the source page carries one; the first
+    # scraper to see the product wins, later scrapers don't overwrite.
+    description: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     listings: list["Listing"] = Relationship(back_populates="product")

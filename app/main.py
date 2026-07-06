@@ -20,9 +20,14 @@ async def lifespan(_app: FastAPI):
     # migration is a one-shot ADD-COLUMN-IF-NOT-EXISTS or CREATE-TABLE-IF-
     # NOT-EXISTS. Safe to run every boot because each script no-ops when
     # its change already exists.
-    from db.migrations import add_click_table, add_marketing_opt_in
+    from db.migrations import (
+        add_click_table,
+        add_marketing_opt_in,
+        add_product_description,
+    )
     add_marketing_opt_in.run()
     add_click_table.run()
+    add_product_description.run()
     yield
 
 
