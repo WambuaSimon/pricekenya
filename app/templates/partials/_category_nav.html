@@ -1,4 +1,4 @@
-<nav class="bg-white border-b shadow-sm sticky top-0 z-10">
+<nav class="bg-white border-b shadow-sm sticky top-0 z-10 dark:bg-slate-900 dark:border-slate-800">
   <div class="max-w-5xl mx-auto px-4">
     <div class="flex gap-1 overflow-x-auto">
       {% set active_slug = get_active_top_slug(request) %}
@@ -6,8 +6,8 @@
         {% set is_active = (active_slug == cat.slug) %}
         <a href="/c/{{ cat.slug }}"
            class="flex items-center gap-2 whitespace-nowrap px-3 md:px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                  {% if is_active %}text-slate-900 border-emerald-600
-                  {% else %}text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-50{% endif %}">
+                  {% if is_active %}text-slate-900 border-emerald-600 dark:text-slate-100
+                  {% else %}text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800{% endif %}">
           {% if cat.icon %}<span class="text-lg leading-none">{{ cat.icon }}</span>{% endif %}
           <span>{{ cat.name }}</span>
         </a>

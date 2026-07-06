@@ -3,12 +3,12 @@
 {% block description %}Compare {{ category.name }} prices across Kenyan merchants.{% endblock %}
 {% block content %}
   <h1 class="text-2xl font-semibold mb-1">{{ category.name }}</h1>
-  <p class="text-slate-600 mb-6">Compare prices across Kenyan merchants.</p>
+  <p class="text-slate-600 mb-6 dark:text-slate-400">Compare prices across Kenyan merchants.</p>
 
   {% if children %}
     <div class="flex flex-wrap gap-2 mb-6">
       {% for child in children %}
-        <a href="/c/{{ child.slug }}" class="text-sm rounded-full border px-3 py-1 bg-white hover:bg-slate-50">
+        <a href="/c/{{ child.slug }}" class="text-sm rounded-full border px-3 py-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700">
           {{ child.name }}
         </a>
       {% endfor %}
@@ -18,7 +18,7 @@
   {% if rows %}
     {% include "partials/_product_grid.html" %}
   {% else %}
-    <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm">
+    <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">
       No products in this category yet — check back soon.
     </div>
   {% endif %}
