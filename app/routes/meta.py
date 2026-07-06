@@ -19,6 +19,22 @@ def healthz() -> str:
     return "ok"
 
 
+# Search-engine verification files that must live at the site root.
+# These are one-shot tokens issued when we added the site to each service;
+# safe to keep serving indefinitely — the search engines re-check on renewal.
+_BING_SITE_AUTH = (
+    '<?xml version="1.0"?>\n'
+    "<users>\n"
+    "\t<user>126891E5EB8D417E2E837EBB0E60F2BF</user>\n"
+    "</users>"
+)
+
+
+@router.get("/BingSiteAuth.xml")
+def bing_site_auth() -> Response:
+    return Response(_BING_SITE_AUTH, media_type="application/xml")
+
+
 @router.get("/privacy", response_class=HTMLResponse)
 def privacy(request: Request):
     """Kenya DPA privacy policy. Static template — no DB access."""
