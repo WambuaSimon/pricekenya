@@ -60,7 +60,7 @@ ACCESSORY_BRANDS: set[str] = {
     "corsair", "fantech", "redragon", "havit", "blackshark",
     "8bitdo",
     # Peripherals
-    "logitech", "hp", "lenovo", "dell", "asus", "microsoft", "genius",
+    "logitech", "hp", "lenovo", "dell", "asus", "genius",
     "zebronics", "iball",
 }
 

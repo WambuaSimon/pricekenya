@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, func, select
 
 from app.templating import templates
-from db.models import Click, Listing, Merchant, Product
+from db.models import Click, Listing, Product
 from db.session import get_session
 
 router = APIRouter()
