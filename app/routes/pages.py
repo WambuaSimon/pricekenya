@@ -5,10 +5,27 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, func, select
 
 from app.templating import templates
-from db.models import Click, Listing, Product
+from db.models import Click, Listing, Merchant, Product
 from db.session import get_session
 
 router = APIRouter()
+
+
+def _humanize_ago(ts: datetime | None) -> str:
+    """Short compact ago-string for the homepage stats chip. Naive UTC in,
+    "12m ago" / "3h ago" / "2d ago" out. Only used for display — precision
+    beyond the current bucket doesn't matter."""
+    if ts is None:
+        return "—"
+    delta = datetime.utcnow() - ts
+    secs = int(delta.total_seconds())
+    if secs < 60:
+        return "just now"
+    if secs < 3600:
+        return f"{secs // 60}m ago"
+    if secs < 86400:
+        return f"{secs // 3600}h ago"
+    return f"{secs // 86400}d ago"
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -45,7 +62,26 @@ def home(request: Request, session: Session = Depends(get_session)):
         )
         .limit(24)
     ).all()
-    return templates.TemplateResponse(request, "home.html", {"rows": rows})
+
+    # Hero stats — cheap counts + one MAX(). All three land in the same
+    # gradient card at the top of home.html. Merchant count is limited to
+    # merchants that actually have listings, so the number reflects live
+    # coverage rather than the seed catalog.
+    product_count = session.exec(select(func.count(Product.id))).one()
+    merchant_count = session.exec(
+        select(func.count(func.distinct(Listing.merchant_id)))
+    ).one()
+    last_listing_check = session.exec(select(func.max(Listing.last_checked_at))).one()
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        {
+            "rows": rows,
+            "product_count": product_count or 0,
+            "merchant_count": merchant_count or 0,
+            "last_updated_ago": _humanize_ago(last_listing_check),
+        },
+    )
 
 
 @router.get("/search", response_class=HTMLResponse)

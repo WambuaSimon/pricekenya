@@ -20,8 +20,39 @@
 </script>
 {% endblock %}
 {% block content %}
-  <h1 class="text-2xl font-semibold mb-1">Compare prices across Kenya</h1>
-  <p class="text-slate-600 mb-6 dark:text-slate-400">Phones, laptops, TVs and more from Jumia, Kilimall and other Kenyan merchants.</p>
+  {# Emerald gradient hero. Two absolute-positioned blurred circles create
+     a soft radial glow so the card doesn't read as a flat rectangle. Three
+     live-data chips underneath make the site feel alive without any JS. #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 sm:p-10 mb-8 shadow-lg shadow-emerald-900/10 dark:shadow-emerald-950/40">
+    <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/25 blur-3xl"></div>
+    <div class="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-teal-300/30 blur-3xl"></div>
+
+    <div class="relative">
+      <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight tracking-tight">
+        Compare prices<br class="hidden sm:inline"> across Kenya.
+      </h1>
+      <p class="mt-3 max-w-xl text-emerald-50/90 text-sm sm:text-base">
+        The fastest way to see who's cheapest on phones, TVs, appliances and more.
+      </p>
+
+      <div class="mt-6 grid grid-cols-3 gap-2 sm:gap-3 sm:max-w-md">
+        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(product_count) }}</div>
+          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Products</div>
+        </div>
+        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ merchant_count }}</div>
+          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Merchants</div>
+        </div>
+        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ last_updated_ago }}</div>
+          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Last updated</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <h2 class="text-lg font-semibold mb-3">Best deals right now</h2>
   <div id="results">
     {% include "partials/_product_grid.html" %}
   </div>
