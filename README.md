@@ -19,6 +19,10 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env
 
+# Enable the pre-push hook so `git push` runs the same ruff + pytest
+# checks CI runs. Skip in emergencies with `git push --no-verify`.
+git config core.hooksPath .githooks
+
 # Load merchants + sample products + 30 days of fake price history
 python -m seed.load
 

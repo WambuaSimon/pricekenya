@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Pre-push hook: mirror what CI runs so a broken push never leaves your
+# machine. Install once with `git config core.hooksPath .githooks` — see
+# README's "Development setup" section.
+#
+# Skip in emergencies with `git push --no-verify` (rare — CI is fast).
+set -eu
+
+# Prefer the project venv's Ruff/pytest if it exists; otherwise trust PATH.
+if [ -x .venv/bin/ruff ] && [ -x .venv/bin/pytest ]; then
+  RUFF=".venv/bin/ruff"
+  PYTEST=".venv/bin/pytest"
+else
+  RUFF="ruff"
+  PYTEST="pytest"
+fi
+
+echo "› ruff check ."
+$RUFF check .
+
+echo "› pytest -q"
+$PYTEST -q
+
+echo "✓ pre-push checks passed"
