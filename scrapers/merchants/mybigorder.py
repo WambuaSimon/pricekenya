@@ -203,11 +203,14 @@ async def _fetch_category(
         page_url = url if page == 1 else f"{url}?page={page}"
         try:
             resp = await client.get(page_url)
-        except Exception:  # noqa: BLE001
-            # Any transient failure on a non-first page — stop this category
-            # rather than blow up the whole crawl.
-            if page == 1:
-                raise
+        except Exception as e:  # noqa: BLE001
+            # Any failure — 4xx/5xx after retries, network timeout, whatever
+            # — is scoped to this category. Log and move on. Killing the whole
+            # `all-mybigorder` matrix job because one subcategory got removed
+            # or throttled is a bigger problem than losing that subcategory's
+            # data for one cron cycle.
+            print(f"mybigorder: {slug} page {page} failed ({e.__class__.__name__}); "
+                  f"skipping rest of this category")
             return
         listings = _parse_cards(resp.text, fixed_category_slug=fixed_category_slug)
         new_this_page = 0
