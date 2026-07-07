@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.config import settings
 from app.templating import templates
@@ -50,13 +50,39 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             .order_by(PriceHistory.observed_at.asc())
         ).all()
 
+    min_price = offers[0]["listing"].price_kes if offers else None
+    max_price = offers[-1]["listing"].price_kes if offers else None
+
+    # Related: same category, ordered by absolute price proximity to this
+    # product's best price. Price-proximity is the axis shoppers actually
+    # compare on — same-brand alternatives feel repetitive on a
+    # price-comparison site. Shape matches _product_grid.html: (product,
+    # min_price, offer_count).
+    related: list = []
+    if min_price is not None:
+        related = session.exec(
+            select(
+                Product,
+                func.min(Listing.price_kes).label("min_price"),
+                func.count(Listing.id).label("offer_count"),
+            )
+            .join(Listing, Listing.product_id == Product.id)
+            .where(Product.category_slug == product.category_slug)
+            .where(Product.id != product.id)
+            .group_by(Product.id)
+            .order_by(func.abs(func.min(Listing.price_kes) - float(min_price)).asc())
+            .limit(6)
+        ).all()
+
     return templates.TemplateResponse(
         request,
         "product.html",
         {
             "product": product,
             "offers": offers,
-            "min_price": offers[0]["listing"].price_kes if offers else None,
+            "min_price": min_price,
+            "max_price": max_price,
+            "related": related,
             "history": [
                 {"t": h.observed_at.isoformat(), "p": float(h.price_kes)} for h in history
             ],

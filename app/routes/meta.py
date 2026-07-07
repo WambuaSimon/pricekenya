@@ -65,34 +65,66 @@ def robots() -> str:
 
 @router.get("/sitemap.xml")
 def sitemap(session: Session = Depends(get_session)) -> Response:
+    from datetime import datetime
     from xml.sax.saxutils import escape as xml_escape
 
-    from db.models import Category
+    from sqlalchemy import func
+
+    from db.models import Category, Listing
 
     base = settings.base_url.rstrip("/")
 
-    # ordered: high-value + evergreen first (root + categories), then long-tail
-    # (products). Static legal pages last — indexable but not priority-boosted.
-    entries: list[tuple[str, str, str]] = []  # (loc, changefreq, priority)
-    entries.append((f"{base}/", "daily", "1.0"))
+    # Google publicly ignores <changefreq>/<priority>; <lastmod> is the only
+    # attribute that meaningfully affects re-crawl scheduling. Per-product
+    # lastmod = max(Listing.last_checked_at) across its listings, so price/
+    # stock refreshes signal a re-crawl. Site-wide max serves as lastmod for
+    # the homepage and category pages — a safe over-estimate (worst case
+    # Google re-crawls category pages slightly more often than needed).
+    site_lastmod: datetime | None = session.exec(select(func.max(Listing.last_checked_at))).one()
+
+    def fmt(ts: datetime | None) -> str | None:
+        return ts.strftime("%Y-%m-%dT%H:%M:%SZ") if ts else None
+
+    site_lastmod_str = fmt(site_lastmod)
+
+    # (loc, lastmod, image_url). image_url only set for product URLs.
+    entries: list[tuple[str, str | None, str | None]] = []
+    entries.append((f"{base}/", site_lastmod_str, None))
     for slug in session.exec(select(Category.slug).order_by(Category.sort_order)).all():
-        entries.append((f"{base}/c/{slug}", "daily", "0.8"))
-    for slug in session.exec(select(Product.slug)).all():
-        entries.append((f"{base}/p/{slug}", "weekly", "0.6"))
-    entries.append((f"{base}/privacy", "yearly", "0.2"))
-    entries.append((f"{base}/terms", "yearly", "0.2"))
+        entries.append((f"{base}/c/{slug}", site_lastmod_str, None))
+
+    # One query for all products with their freshest listing timestamp and image.
+    # Ordered freshest-first so Google prioritizes recently-changed pages when
+    # it only reads part of the sitemap.
+    product_rows = session.exec(
+        select(
+            Product.slug,
+            Product.image_url,
+            func.coalesce(func.max(Listing.last_checked_at), Product.created_at).label("lastmod"),
+        )
+        .join(Listing, Listing.product_id == Product.id, isouter=True)
+        .group_by(Product.id)
+        .order_by(func.coalesce(func.max(Listing.last_checked_at), Product.created_at).desc())
+    ).all()
+    for slug, image_url, lastmod in product_rows:
+        entries.append((f"{base}/p/{slug}", fmt(lastmod), image_url))
+
+    entries.append((f"{base}/privacy", None, None))
+    entries.append((f"{base}/terms", None, None))
 
     body = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+        ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
     ]
-    for loc, freq, prio in entries:
-        body.append(
-            "  <url>"
-            f"<loc>{xml_escape(loc)}</loc>"
-            f"<changefreq>{freq}</changefreq>"
-            f"<priority>{prio}</priority>"
-            "</url>"
-        )
+    for loc, lastmod, image_url in entries:
+        parts = [f"<loc>{xml_escape(loc)}</loc>"]
+        if lastmod:
+            parts.append(f"<lastmod>{lastmod}</lastmod>")
+        if image_url:
+            parts.append(
+                f"<image:image><image:loc>{xml_escape(image_url)}</image:loc></image:image>"
+            )
+        body.append("  <url>" + "".join(parts) + "</url>")
     body.append("</urlset>")
     return Response("\n".join(body), media_type="application/xml")

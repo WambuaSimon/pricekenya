@@ -5,20 +5,38 @@
 {% block og_image %}{{ product.image_url or '/static/apple-touch-icon.svg' }}{% endblock %}
 {% block head_extra %}
   {# Product JSON-LD. Using |tojson for every string keeps us safe from titles
-     that contain quotes, </script>, or any other injection surface. #}
+     that contain quotes, </script>, or any other injection surface.
+     brand is an object (schema.org preferred form). sku/productID use
+     canonical_key so Google can dedupe across our own crawls. AggregateOffer
+     carries lowPrice+highPrice for the SERP price-range chip; the nested
+     offers[] array unlocks the merchant-listing rich result (the one that
+     shows "from Jumia · Kilimall · Carrefour" under the product). #}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": {{ product.title | tojson }},
-    "brand": {{ (product.brand or "") | title | tojson }}{% if product.image_url %},
+    "brand": {"@type": "Brand", "name": {{ (product.brand or "") | title | tojson }}},
+    "sku": {{ product.canonical_key | tojson }},
+    "productID": {{ product.canonical_key | tojson }}{% if product.image_url %},
     "image": {{ product.image_url | tojson }}{% endif %}{% if product.description %},
     "description": {{ product.description | tojson }}{% endif %},
     "offers": {
       "@type": "AggregateOffer",
       "priceCurrency": "KES",
-      {% if min_price %}"lowPrice": "{{ min_price }}",{% endif %}
-      "offerCount": {{ offers | length }}
+      {% if min_price %}"lowPrice": {{ (min_price | float) | tojson }},{% endif %}
+      {% if max_price %}"highPrice": {{ (max_price | float) | tojson }},{% endif %}
+      "offerCount": {{ offers | length }}{% if offers %},
+      "offers": [
+        {% for offer in offers %}{
+          "@type": "Offer",
+          "priceCurrency": "KES",
+          "price": {{ (offer.listing.price_kes | float) | tojson }},
+          "availability": {{ ("https://schema.org/InStock" if offer.listing.in_stock else "https://schema.org/OutOfStock") | tojson }},
+          "url": {{ (request.base_url._url.rstrip('/') + offer.out_url) | tojson }},
+          "seller": {"@type": "Organization", "name": {{ offer.merchant.name | tojson }}}
+        }{% if not loop.last %},{% endif %}{% endfor %}
+      ]{% endif %}
     }
   }
   </script>
@@ -147,4 +165,13 @@
       {% endif %}
     </div>
   </div>
+
+  {% if related %}
+    <section class="mt-10">
+      <h2 class="text-lg font-semibold mb-3">Related products</h2>
+      {% with rows = related %}
+        {% include "partials/_product_grid.html" %}
+      {% endwith %}
+    </section>
+  {% endif %}
 {% endblock %}
