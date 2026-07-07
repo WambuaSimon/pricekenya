@@ -72,8 +72,31 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
         .limit(48)
     ).all()
 
+    # Hero stats — one query, one row. Counts and price extremes over every
+    # product in this category tree. Everything nullable so an empty category
+    # still renders the hero (just without a price-range chip).
+    stats = session.exec(
+        select(
+            func.count(func.distinct(Product.id)),
+            func.count(func.distinct(Listing.merchant_id)),
+            func.min(Listing.price_kes),
+            func.max(Listing.price_kes),
+        )
+        .join(Listing, Listing.product_id == Product.id)
+        .where(Product.category_slug.in_(slugs))
+    ).one()
+    product_count, merchant_count, min_price, max_price = stats
+
     return templates.TemplateResponse(
         request,
         "category.html",
-        {"category": category, "children": children, "rows": rows},
+        {
+            "category": category,
+            "children": children,
+            "rows": rows,
+            "product_count": product_count or 0,
+            "merchant_count": merchant_count or 0,
+            "min_price": min_price,
+            "max_price": max_price,
+        },
     )

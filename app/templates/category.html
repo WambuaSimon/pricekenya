@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}{{ category.name }} in Kenya — PriceKenya{% endblock %}
-{% block description %}Compare {{ category.name }} prices across Kenyan merchants.{% endblock %}
+{% block title %}{{ category.name }} in Kenya — compare prices — PriceKenya{% endblock %}
+{% block description %}Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants{% if min_price %}. Prices from {{ min_price | kes }}{% endif %}.{% endblock %}
 {% block head_extra %}
 <script type="application/ld+json">
 {
@@ -12,10 +12,61 @@
   ]
 }
 </script>
+{% if rows %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "numberOfItems": {{ product_count }},
+  "itemListElement": [
+    {% for product, _min, _n in rows %}{
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "url": {{ (request.base_url._url.rstrip('/') + '/p/' + product.slug) | tojson }}
+    }{% if not loop.last %},{% endif %}{% endfor %}
+  ]
+}
+</script>
+{% endif %}
 {% endblock %}
 {% block content %}
-  <h1 class="text-2xl font-semibold mb-1">{{ category.name }}</h1>
-  <p class="text-slate-600 mb-6 dark:text-slate-400">Compare prices across Kenyan merchants.</p>
+  {# Same emerald gradient hero as the homepage — visual coherence across
+     landing pages. Category-specific stats (products / merchants / price
+     range) make the hero informative, not just decorative. #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 sm:p-8 mb-6 shadow-lg shadow-emerald-900/10 dark:shadow-emerald-950/40">
+    <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/25 blur-3xl"></div>
+    <div class="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-teal-300/30 blur-3xl"></div>
+
+    <div class="relative">
+      <h1 class="text-2xl sm:text-3xl font-bold text-white leading-tight tracking-tight">
+        {{ category.name }} in Kenya
+      </h1>
+      <p class="mt-2 max-w-xl text-emerald-50/90 text-sm sm:text-base">
+        {% if product_count %}
+          Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants — updated regularly.
+        {% else %}
+          We're building out this category — check back soon.
+        {% endif %}
+      </p>
+
+      {% if product_count %}
+        <div class="mt-5 grid grid-cols-3 gap-2 sm:gap-3 sm:max-w-xl">
+          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(product_count) }}</div>
+            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Products</div>
+          </div>
+          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ merchant_count }}</div>
+            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Merchants</div>
+          </div>
+          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+            <div class="text-sm sm:text-lg font-bold text-white leading-tight whitespace-nowrap">{{ "{:,}".format(min_price | int) }}–{{ "{:,}".format(max_price | int) }}</div>
+            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Price range (KES)</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
 
   {% if children %}
     <div class="flex flex-wrap gap-2 mb-6">
