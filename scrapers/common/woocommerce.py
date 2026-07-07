@@ -21,7 +21,7 @@ from decimal import Decimal
 
 from selectolax.parser import HTMLParser
 
-from scrapers.common.base import PoliteClient, RawListing
+from scrapers.common.base import CffiPoliteClient, PoliteClient, RawListing
 
 _PRICE_RE = re.compile(r"[\d,]+")
 
@@ -100,13 +100,18 @@ async def fetch_woocommerce_category(
     merchant_slug: str,
     category_slug: str,
     site_base_url: str,
+    client_type: str = "polite",
 ) -> AsyncIterator[RawListing]:
     """Iterate a WooCommerce category page + `/page/N/` up to `max_pages`.
 
     Yields RawListing for each product card found. Silently stops when a
     page returns no cards (layout drift or last-page-reached).
+
+    `client_type="cffi"` switches to CffiPoliteClient for Cloudflare-shielded
+    merchants that fingerprint TLS (403 on plain httpx). Default stays polite
+    httpx so existing callers don't change behaviour.
     """
-    client = PoliteClient()
+    client = CffiPoliteClient() if client_type == "cffi" else PoliteClient()
     try:
         for page in range(1, max_pages + 1):
             url = category_base_url.rstrip("/") + "/"

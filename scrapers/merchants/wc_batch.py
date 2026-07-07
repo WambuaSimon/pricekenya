@@ -30,6 +30,7 @@ async def fetch_all_leaves(merchant_slug: str) -> AsyncIterator[RawListing]:
     meta = cfg["meta"]
     slug = meta["slug"]
     base = meta["base_url"]
+    client_type = cfg.get("client_type", "polite")
     seen: set[str] = set()
     for leaf, urls in cfg["leaf_to_urls"].items():
         for url in urls:
@@ -39,6 +40,7 @@ async def fetch_all_leaves(merchant_slug: str) -> AsyncIterator[RawListing]:
                 merchant_slug=slug,
                 category_slug=leaf,
                 site_base_url=base,
+                client_type=client_type,
             ):
                 if r.url in seen:
                     continue
