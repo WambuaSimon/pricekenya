@@ -85,6 +85,8 @@ jobs:
           - all-carrefour       # Next.js RSC parse + curl_cffi (Akamai wall)
           - all-xiaomi          # WooCommerce, xiaomistores.co.ke
           - all-mybigorder      # Kenyan marketplace, plain httpx, per-subcategory
+          - all-wc              # 14 WooCommerce merchants driven from config
+          - all-shopify         # 2 Shopify stores via /products.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
