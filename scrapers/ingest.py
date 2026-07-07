@@ -934,8 +934,38 @@ for _slug in _WC_MERCHANTS:
 TARGETS["all-wc"] = _run_all_wc
 
 
+# Shopify batch — same pattern, driven by scrapers/config/shopify_merchants.py.
+def run_shopify_merchant(merchant_slug: str) -> None:
+    from scrapers.config.shopify_merchants import SHOPIFY_MERCHANTS
+    from scrapers.merchants.shopify_batch import fetch_all
+
+    cfg = SHOPIFY_MERCHANTS[merchant_slug]
+    asyncio.run(_consume(fetch_all(merchant_slug), cfg["meta"]))
+
+
+def _run_all_shopify() -> None:
+    from scrapers.config.shopify_merchants import SHOPIFY_MERCHANTS
+
+    for slug in SHOPIFY_MERCHANTS:
+        run_shopify_merchant(slug)
+
+
+from scrapers.config.shopify_merchants import SHOPIFY_MERCHANTS as _SHOPIFY_MERCHANTS  # noqa: E402
+
+for _slug in _SHOPIFY_MERCHANTS:
+    TARGETS[f"shopify-{_slug}"] = (lambda slug=_slug: run_shopify_merchant(slug))
+TARGETS["all-shopify"] = _run_all_shopify
+
+
 if __name__ == "__main__":
     import sys
+
+    # Allow the embedding module to load its heavy deps in this process.
+    # The FastAPI web app never calls this, so PyTorch stays out of the
+    # web tier — see matching/embeddings.py.
+    from matching import embeddings as _embeddings
+
+    _embeddings.allow_encode()
 
     target = sys.argv[1] if len(sys.argv) > 1 else "jumia-phones"
     fn = TARGETS.get(target)
