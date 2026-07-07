@@ -52,6 +52,17 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
 
     min_price = offers[0]["listing"].price_kes if offers else None
     max_price = offers[-1]["listing"].price_kes if offers else None
+    # When every merchant lists the same price, "Best price" is misleading —
+    # nothing is "best" if the value equals every other value. The template
+    # uses these to hide the badge, background highlight, and emerald price
+    # color, and to swap "best price across N merchants" for "same price at
+    # N merchants" in the subtitle.
+    best_price_count = (
+        sum(1 for o in offers if o["listing"].price_kes == min_price)
+        if offers and min_price is not None
+        else 0
+    )
+    all_tied = bool(offers) and best_price_count == len(offers)
 
     # Related: same category, ordered by absolute price proximity to this
     # product's best price. Price-proximity is the axis shoppers actually
@@ -82,6 +93,8 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             "offers": offers,
             "min_price": min_price,
             "max_price": max_price,
+            "best_price_count": best_price_count,
+            "all_tied": all_tied,
             "related": related,
             "history": [
                 {"t": h.observed_at.isoformat(), "p": float(h.price_kes)} for h in history
