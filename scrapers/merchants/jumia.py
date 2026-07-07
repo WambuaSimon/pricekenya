@@ -199,3 +199,49 @@ async def fetch_irons() -> AsyncIterator[RawListing]:
         "https://www.jumia.co.ke/irons/?page={page}", 6, "ironing-laundry"
     ):
         yield r
+
+
+async def fetch_inverters() -> AsyncIterator[RawListing]:
+    """Jumia has a dedicated /inverters/ landing. Solar-focused inverters also
+    surface via search — we hit both so we get the specialist listings that
+    the flat category page doesn't rank."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/inverters/?page={page}", 6, "inverters"
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/catalog/?q=solar+inverter&page={page}",
+        4,
+        "inverters",
+    ):
+        yield r
+
+
+async def fetch_solar_panels() -> AsyncIterator[RawListing]:
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/solar-panels/?page={page}", 6, "solar-panels"
+    ):
+        yield r
+
+
+async def fetch_solar_batteries() -> AsyncIterator[RawListing]:
+    """No dedicated Jumia category for solar batteries — we rely on catalog
+    search. Matcher rejects car / AA / cmos batteries so the noise is bounded."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/catalog/?q=solar+battery&page={page}",
+        4,
+        "solar-batteries",
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/catalog/?q=lithium+battery&page={page}",
+        4,
+        "solar-batteries",
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/catalog/?q=deep+cycle+battery&page={page}",
+        4,
+        "solar-batteries",
+    ):
+        yield r

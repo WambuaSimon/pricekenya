@@ -203,3 +203,21 @@ async def fetch_kettles() -> AsyncIterator[RawListing]:
 async def fetch_irons() -> AsyncIterator[RawListing]:
     async for r in _fetch_search("clothes iron", 4, "ironing-laundry"):
         yield r
+
+
+async def fetch_inverters() -> AsyncIterator[RawListing]:
+    for query in ("solar inverter", "pure sine wave inverter", "hybrid inverter"):
+        async for r in _fetch_search(query, 4, "inverters"):
+            yield r
+
+
+async def fetch_solar_panels() -> AsyncIterator[RawListing]:
+    for query in ("solar panel", "monocrystalline solar panel"):
+        async for r in _fetch_search(query, 4, "solar-panels"):
+            yield r
+
+
+async def fetch_solar_batteries() -> AsyncIterator[RawListing]:
+    for query in ("solar battery", "lithium battery", "deep cycle battery"):
+        async for r in _fetch_search(query, 4, "solar-batteries"):
+            yield r

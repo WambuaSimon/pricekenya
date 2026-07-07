@@ -51,6 +51,13 @@ CATEGORY_TREE: list[tuple[str, str, list]] = [
             ("console-accessories", "Console Accessories", []),
             ("games-digital-cards", "Games & Digital Cards", []),
         ]),
+        # Solar & backup power — Kenya-specific opportunity; grid reliability
+        # + off-grid rural market make this the highest-intent new vertical.
+        ("power-energy", "Solar & Power", [
+            ("inverters", "Inverters", []),
+            ("solar-panels", "Solar Panels", []),
+            ("solar-batteries", "Solar Batteries", []),
+        ]),
     ]),
 ]
 

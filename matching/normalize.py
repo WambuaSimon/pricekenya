@@ -17,6 +17,7 @@ from matching import (
     phone,
     refrigerator,
     small_appliances,
+    solar_energy,
     tv,
     washer,
 )
@@ -40,6 +41,10 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "toasters": lambda t: small_appliances.parse_title(t, expected_type="toaster"),
     "kettles": lambda t: small_appliances.parse_title(t, expected_type="kettle"),
     "ironing-laundry": lambda t: small_appliances.parse_title(t, expected_type="iron"),
+    # Solar / power-backup — shared matcher module, expected_type distinguishes.
+    "inverters": lambda t: solar_energy.parse_title(t, expected_type="inverter"),
+    "solar-panels": lambda t: solar_energy.parse_title(t, expected_type="solar-panel"),
+    "solar-batteries": lambda t: solar_energy.parse_title(t, expected_type="solar-battery"),
 }
 
 

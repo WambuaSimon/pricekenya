@@ -240,10 +240,46 @@ def run_jumia_irons() -> None:
     asyncio.run(_consume(fetch_irons(), MERCHANT_META))
 
 
+def run_jumia_inverters() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_inverters
+
+    asyncio.run(_consume(fetch_inverters(), MERCHANT_META))
+
+
+def run_jumia_solar_panels() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_solar_panels
+
+    asyncio.run(_consume(fetch_solar_panels(), MERCHANT_META))
+
+
+def run_jumia_solar_batteries() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_solar_batteries
+
+    asyncio.run(_consume(fetch_solar_batteries(), MERCHANT_META))
+
+
 def run_kilimall_irons() -> None:
     from scrapers.merchants.kilimall import MERCHANT_META, fetch_irons
 
     asyncio.run(_consume(fetch_irons(), MERCHANT_META))
+
+
+def run_kilimall_inverters() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_inverters
+
+    asyncio.run(_consume(fetch_inverters(), MERCHANT_META))
+
+
+def run_kilimall_solar_panels() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_solar_panels
+
+    asyncio.run(_consume(fetch_solar_panels(), MERCHANT_META))
+
+
+def run_kilimall_solar_batteries() -> None:
+    from scrapers.merchants.kilimall import MERCHANT_META, fetch_solar_batteries
+
+    asyncio.run(_consume(fetch_solar_batteries(), MERCHANT_META))
 
 
 # Hotpoint — one fetch per leaf, all through the same merchant module.
@@ -292,6 +328,21 @@ def run_hotpoint_irons() -> None:
     asyncio.run(_consume(fetch_irons(), MERCHANT_META))
 
 
+def run_hotpoint_inverters() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_inverters
+    asyncio.run(_consume(fetch_inverters(), MERCHANT_META))
+
+
+def run_hotpoint_solar_panels() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_solar_panels
+    asyncio.run(_consume(fetch_solar_panels(), MERCHANT_META))
+
+
+def run_hotpoint_solar_batteries() -> None:
+    from scrapers.merchants.hotpoint import MERCHANT_META, fetch_solar_batteries
+    asyncio.run(_consume(fetch_solar_batteries(), MERCHANT_META))
+
+
 def _run_hotpoint_all() -> None:
     run_hotpoint_tvs()
     run_hotpoint_refrigerators()
@@ -302,6 +353,8 @@ def _run_hotpoint_all() -> None:
     run_hotpoint_toasters()
     run_hotpoint_kettles()
     run_hotpoint_irons()
+    # Solar categories excluded until Hotpoint restocks the vertical — their
+    # /solar-*/ URLs return 200 but the listings are empty as of 2026-07-07.
 
 
 # Avechi (WooCommerce)
@@ -666,6 +719,12 @@ def _run_all() -> None:
     run_kilimall_kettles()
     run_jumia_irons()
     run_kilimall_irons()
+    run_jumia_inverters()
+    run_kilimall_inverters()
+    run_jumia_solar_panels()
+    run_kilimall_solar_panels()
+    run_jumia_solar_batteries()
+    run_kilimall_solar_batteries()
     _run_hotpoint_all()
     _run_avechi_all()
     _run_istore_all()
@@ -718,6 +777,27 @@ TARGETS = {
     "all-toasters": lambda: (run_jumia_toasters(), run_kilimall_toasters()),
     "all-kettles": lambda: (run_jumia_kettles(), run_kilimall_kettles()),
     "all-irons": lambda: (run_jumia_irons(), run_kilimall_irons()),
+    "jumia-inverters": run_jumia_inverters,
+    "kilimall-inverters": run_kilimall_inverters,
+    "jumia-solar-panels": run_jumia_solar_panels,
+    "kilimall-solar-panels": run_kilimall_solar_panels,
+    "jumia-solar-batteries": run_jumia_solar_batteries,
+    "kilimall-solar-batteries": run_kilimall_solar_batteries,
+    # Hotpoint solar categories return empty as of 2026-07-07 — Jumia +
+    # Kilimall only for now. Add hotpoint back once they restock (their
+    # fetch_inverters/solar_panels/solar_batteries fns are still wired).
+    "all-inverters": lambda: (
+        run_jumia_inverters(),
+        run_kilimall_inverters(),
+    ),
+    "all-solar-panels": lambda: (
+        run_jumia_solar_panels(),
+        run_kilimall_solar_panels(),
+    ),
+    "all-solar-batteries": lambda: (
+        run_jumia_solar_batteries(),
+        run_kilimall_solar_batteries(),
+    ),
     "hotpoint-tvs": run_hotpoint_tvs,
     "hotpoint-refrigerators": run_hotpoint_refrigerators,
     "hotpoint-washers": run_hotpoint_washers,
@@ -727,6 +807,9 @@ TARGETS = {
     "hotpoint-toasters": run_hotpoint_toasters,
     "hotpoint-kettles": run_hotpoint_kettles,
     "hotpoint-irons": run_hotpoint_irons,
+    "hotpoint-inverters": run_hotpoint_inverters,
+    "hotpoint-solar-panels": run_hotpoint_solar_panels,
+    "hotpoint-solar-batteries": run_hotpoint_solar_batteries,
     "all-hotpoint": _run_hotpoint_all,
     "avechi-phones": run_avechi_phones,
     "avechi-laptops": run_avechi_laptops,

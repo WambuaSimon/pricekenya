@@ -17,6 +17,7 @@ NAV_ICONS: dict[str, str] = {
     "cameras": "📷",
     "appliances": "🍳",
     "gaming": "🎮",
+    "power-energy": "⚡",
 }
 
 

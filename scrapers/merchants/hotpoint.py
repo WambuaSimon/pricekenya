@@ -81,6 +81,10 @@ LEAF_TO_URLS: dict[str, list[str]] = {
         "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/dry-irons/",
         "https://hotpoint.co.ke/catalogue/category/kitchen-small-home-appliances/garment-care/garment-steamers/",
     ],
+    # Note: Hotpoint's /solar/ / /solar-inverters/ / /solar-panels/ / /batteries/
+    # URLs return 200 (Next.js catch-all) but the categories are empty as of
+    # 2026-07-07 — the site nav no longer surfaces solar. Re-enable if that
+    # changes. Left the fetch functions in place so it's a one-line flip.
 }
 
 # ListItem entries in the Next.js flight payload are doubly-escaped —
@@ -215,4 +219,19 @@ async def fetch_kettles() -> AsyncIterator[RawListing]:
 
 async def fetch_irons() -> AsyncIterator[RawListing]:
     async for r in _fetch_one("ironing-laundry"):
+        yield r
+
+
+async def fetch_inverters() -> AsyncIterator[RawListing]:
+    async for r in _fetch_one("inverters"):
+        yield r
+
+
+async def fetch_solar_panels() -> AsyncIterator[RawListing]:
+    async for r in _fetch_one("solar-panels"):
+        yield r
+
+
+async def fetch_solar_batteries() -> AsyncIterator[RawListing]:
+    async for r in _fetch_one("solar-batteries"):
         yield r

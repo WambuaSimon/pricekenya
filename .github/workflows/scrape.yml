@@ -68,7 +68,10 @@ jobs:
           - all-toasters
           - all-kettles
           - all-irons
-          - all-hotpoint        # Big — 9 categories × detail fetches
+          - all-inverters       # Jumia + Kilimall + Hotpoint solar inverters
+          - all-solar-panels    # Jumia + Kilimall + Hotpoint solar panels
+          - all-solar-batteries # Jumia + Kilimall + Hotpoint solar batteries
+          - all-hotpoint        # Big — 12 categories × detail fetches
           - all-avechi          # 6 categories
           - all-istore          # 2 categories
           - all-gadgetworld     # 1 category

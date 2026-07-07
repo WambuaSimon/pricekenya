@@ -139,6 +139,26 @@ Round of fixes from 5 testing buddies. Shipped:
 
 Deferred (v2 territory): visitor reviews, merchant self-serve JSON/XML feed, home page grouped-by-category top-3 layout.
 
+## 8f. Solar & power-backup MVP (2026-07-07)
+
+Added `power-energy` top-level category with 3 leaves: `inverters`, `solar-panels`, `solar-batteries`. Kenya-specific opportunity (unreliable grid + off-grid rural + boda charging), high AOV, brand+model canonical.
+
+- **Matcher** (`matching/solar_energy.py`) — one module, three `expected_type` variants (`inverter` / `solar-panel` / `solar-battery`). Canonical key formats:
+  - `inverter:<brand>:<watts>[:<topology>]` — watts required, topology (hybrid / pure-sine / modified / off-grid / grid-tie) optional.
+  - `panel:<brand>:<watts>[:<cell_type>]` — watts required, cell type (mono / poly / bifacial / thin-film) optional.
+  - `battery:<brand>:<capacity_ah>[:<chemistry>][:<voltage>v]` — at least one of {Ah, chemistry} required.
+  - Handles `kW`/`kVA`/`VA`/`W`/`watts` unit variants; rejects solar "kits" from all three leaves (kits are their own product category, not to be confused with pure panel/battery/inverter listings).
+  - Rejects the usual accessory noise (cables, connectors, brackets, MC4 connectors, car/AA/watch batteries, power banks).
+- **Scrapers**:
+  - **Jumia**: `/inverters/` (real category) + `/solar-panels/` (real category) + `/catalog/?q=solar+battery` / `?q=lithium+battery` / `?q=deep+cycle+battery` searches (no dedicated battery category).
+  - **Kilimall**: search-based (`solar inverter`, `pure sine wave inverter`, `hybrid inverter`, `solar panel`, `monocrystalline solar panel`, `solar battery`, `lithium battery`, `deep cycle battery`).
+  - **Hotpoint**: scaffolded (`fetch_inverters` / `fetch_solar_panels` / `fetch_solar_batteries`) but disabled because their /solar-*/ URLs return 200 with empty categories as of 2026-07-07 — site no longer surfaces solar in nav. One-line flip in `LEAF_TO_URLS` to re-enable when they restock.
+- **Ingest wiring**: `run_jumia_inverters` / `run_kilimall_inverters` etc.; combined `all-inverters` / `all-solar-panels` / `all-solar-batteries` targets (Jumia + Kilimall only for now). Added to `_run_all` and to the GH Actions `scrape.yml` matrix.
+- **Frontend**: `power-energy` top-level got a ⚡ icon in `NAV_ICONS` so it shows in the sidebar as soon as any listing lands.
+- **Dry-run parse rates** (40-listing samples): jumia-inverters 37 %, kilimall-inverters 30 %, jumia-panels 27 %, kilimall-panels 27 %, jumia-batteries 35 %, kilimall-batteries 37 %. Rejections are dominated by unknown brands (Kenyan-import OEMs), solar kits (correctly filtered), and products missing key specs. **Solarmax** dominates the Kenyan market and is well-covered.
+
+Next: run scrapers against Neon via GH Actions, watch how many multi-offer products materialise, iterate matcher brand list from unmatched titles.
+
 ## 8e. MyBigOrder scraper (2026-07-07)
 
 Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (mybigorder.com). Server-rendered PHP (Active eCommerce CMS template family). No Cloudflare, uses plain `PoliteClient`. Prices already in KSh.
