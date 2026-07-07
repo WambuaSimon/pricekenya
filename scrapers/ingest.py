@@ -605,6 +605,11 @@ def run_phoneplace_accessories() -> None:
     asyncio.run(_consume(fetch_accessories(), MERCHANT_META))
 
 
+def run_phoneplace_console_accessories() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_console_accessories
+    asyncio.run(_consume(fetch_console_accessories(), MERCHANT_META))
+
+
 def run_phoneplace_gaming() -> None:
     from scrapers.merchants.phone_place import MERCHANT_META, fetch_gaming
     asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
@@ -616,6 +621,7 @@ def _run_phoneplace_all() -> None:
     run_phoneplace_audio()
     run_phoneplace_cameras()
     run_phoneplace_accessories()
+    run_phoneplace_console_accessories()
     run_phoneplace_gaming()
 
 
@@ -650,6 +656,11 @@ def run_phonesstore_accessories() -> None:
     asyncio.run(_consume(fetch_accessories(), MERCHANT_META))
 
 
+def run_phonesstore_console_accessories() -> None:
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_console_accessories
+    asyncio.run(_consume(fetch_console_accessories(), MERCHANT_META))
+
+
 def run_phonesstore_gaming() -> None:
     from scrapers.merchants.phones_store import MERCHANT_META, fetch_gaming
     asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
@@ -662,6 +673,7 @@ def _run_phonesstore_all() -> None:
     run_phonesstore_audio()
     run_phonesstore_cameras()
     run_phonesstore_accessories()
+    run_phonesstore_console_accessories()
     run_phonesstore_gaming()
 
 
@@ -870,6 +882,7 @@ TARGETS = {
     "phoneplace-audio": run_phoneplace_audio,
     "phoneplace-cameras": run_phoneplace_cameras,
     "phoneplace-accessories": run_phoneplace_accessories,
+    "phoneplace-console-accessories": run_phoneplace_console_accessories,
     "phoneplace-gaming": run_phoneplace_gaming,
     "all-phoneplace": _run_phoneplace_all,
     "phonesstore-phones": run_phonesstore_phones,
@@ -878,6 +891,7 @@ TARGETS = {
     "phonesstore-audio": run_phonesstore_audio,
     "phonesstore-cameras": run_phonesstore_cameras,
     "phonesstore-accessories": run_phonesstore_accessories,
+    "phonesstore-console-accessories": run_phonesstore_console_accessories,
     "phonesstore-gaming": run_phonesstore_gaming,
     "all-phonesstore": _run_phonesstore_all,
     "quickmart-electronics": run_quickmart_electronics,

@@ -55,10 +55,15 @@ LEAF_TO_URLS: dict[str, list[str]] = {
         "https://phonesstorekenya.com/product-category/apple-iphone/apple-accessories/",
         "https://phonesstorekenya.com/product-category/apple-iphone/apple-pencil/",
     ],
-    "gaming": [
-        "https://phonesstorekenya.com/product-category/gaming/gaming-consoles/",
+    "console-accessories": [
         "https://phonesstorekenya.com/product-category/gaming/controller/",
         "https://phonesstorekenya.com/product-category/gaming/gaming-accessories/",
+    ],
+    # gaming-consoles is actual consoles, not accessories. Left here for a
+    # future gaming-consoles leaf; today no matcher exists for the "gaming"
+    # category so ingest silently drops.
+    "gaming": [
+        "https://phonesstorekenya.com/product-category/gaming/gaming-consoles/",
     ],
 }
 
@@ -196,6 +201,11 @@ async def fetch_cameras() -> AsyncIterator[RawListing]:
 
 async def fetch_accessories() -> AsyncIterator[RawListing]:
     async for r in _fetch_one("phone-tablet-accessories"):
+        yield r
+
+
+async def fetch_console_accessories() -> AsyncIterator[RawListing]:
+    async for r in _fetch_one("console-accessories"):
         yield r
 
 
