@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from matching import (
+    accessories,
     audio,
     camera,
     cooking,
@@ -47,6 +48,18 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "inverters": lambda t: solar_energy.parse_title(t, expected_type="inverter"),
     "solar-panels": lambda t: solar_energy.parse_title(t, expected_type="solar-panel"),
     "solar-batteries": lambda t: solar_energy.parse_title(t, expected_type="solar-battery"),
+    # Accessories — shared matcher module; expected_category maps each leaf
+    # to the type set it accepts (a gaming controller in phone-tablet-
+    # accessories, or a wall charger in console-accessories, gets rejected).
+    "phone-tablet-accessories": lambda t: accessories.parse_title(
+        t, expected_category="phone-tablet-accessories"
+    ),
+    "peripherals-accessories": lambda t: accessories.parse_title(
+        t, expected_category="peripherals-accessories"
+    ),
+    "console-accessories": lambda t: accessories.parse_title(
+        t, expected_category="console-accessories"
+    ),
 }
 
 
