@@ -2,7 +2,7 @@
 
 The canonical document for *why* this project exists, *what* it is, and *how* decisions were made. Update this when you learn something material — it's how future-you (and any agent) gets up to speed without re-doing research.
 
-Last updated: 2026-07-06
+Last updated: 2026-07-07
 
 ---
 
@@ -180,7 +180,7 @@ Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (my
 - Wire SMTP for real alert emails
 
 ### v1 — differentiators
-- LLM disambiguation queue for titles the regex can't parse
+- LLM disambiguation queue for titles the regex can't parse (see §12 for the plan)
 - Total-cost calculator (county + payment method)
 - Counterfeit/lowball flag from price history
 - Category expansion: tablets → laptops → TVs → home appliances → groceries
@@ -208,3 +208,76 @@ Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (my
 - This file is the canonical doc.
 - Memory: `~/.claude/projects/-Users-simonmuia/memory/project_kenya_price_comparison.md` and `reference_pricekenya_context_doc.md` point here.
 - External sources (used 2026-06-30): wecantrack.com on comparison-site revenue, Avecdo on Prisjakt feeds, mybigorder.com on Kenyan online stores, kwetucollections.co.ke on Jumia vs Kilimall, trade.gov Kenya eCommerce guide, Statista eCommerce Kenya.
+
+## 12. Tier 1 AI matching — plan (2026-07-07)
+
+Framing: of every AI feature we could bolt on, cross-merchant matching is the only one that's actually a moat. Chatbot / conversational search / recommendations either won't move the needle at Kenyan buyer intent or will be eaten by Google's AI Overviews. Matching compounds — every extra merchant match makes every product page more valuable, which strengthens SEO, which brings more traffic, which makes the next matching improvement more valuable.
+
+### 12.1 What we have today
+
+- 14 category parsers in `matching/*.py` (~2,700 LOC). Each extracts brand/model/specs from a merchant title via hand-tuned regex, produces `canonical_key = "brand|model|storage|ram"`, and inserts into `Product`.
+- Deterministic string-equality merge via `canonical_key`.
+- Silent drop at `matching/match.py:39` when the regex fails (`# v1 hook: drop into LLM disambiguation queue. For v0, just skip.`).
+
+### 12.2 Concrete gaps
+
+| Gap | Cost today |
+|---|---|
+| Regex-fail listings are dropped silently | Lost merchant coverage every scrape. Directly hurts value prop and SEO signal. |
+| `canonical_key` string-equality is brittle | Any brand-alias miss (e.g. "Apple iPhone 16" vs "iPhone 16") splits one product into two → fragments price data, weakens ranking, splits history. |
+| New category = 200-350 LOC hand-tuned parser | Coverage grows slowly. Every category rollout is a project, not a config change. |
+| No confidence signal from the parser | "Matched" is binary. No way to flag "parsed but suspicious" (e.g. two `128GB` mentions) for review. |
+
+### 12.3 Phase 0 — LLM fallback for extraction failures
+
+Replace the silent drop at `match.py:39` with a Claude Haiku 4.5 call.
+
+- New module `matching/llm_extract.py`, one function `extract(title, category) -> ParsedTitle | None`.
+- Structured output — JSON schema per category, mirrors `ParsedTitle.specs`. Forces Haiku to return only fields that exist.
+- Result flows back through the existing `canonical_key` construction; nothing downstream changes.
+- New table `LlmExtractionLog(title, category, response, latency, cost_usd, created_at)`. Every call logged. Turns the fallback into a free evaluation dataset.
+- Guardrails: 3s timeout; per-category rate limit (broken scraper can't blow up the bill); title-hash cache (same title from three merchants = one LLM call); prompt-cache the system prompt (~90% cost cut on repeat calls).
+- On failure (timeout, 5xx, unparseable JSON) → drop as today. Never worse than the status quo.
+
+**Cost math** (rough): assume ~100k listings/month ingested, ~10% currently regex-fail. That's ~10k LLM calls/month at ~400 input + 100 output tokens each. Haiku 4.5 at ~$1/M input, ~$5/M output → **~$0.90/month**. With prompt caching, **~$0.30/month**. Even 10× volume stays under $10/month.
+
+**Success metric:** count of listings that used to be dropped but now attach to a Product. Reported weekly. If <1% of ingested volume, we rip it out cheaply.
+
+### 12.4 Phase 1 — embedding-based reconciliation
+
+Only after Phase 0 has a month of data.
+
+- Add `Product.embedding` (blob, 384-dim float32) using `sentence-transformers/all-MiniLM-L6-v2`. Free, CPU, ~10ms per title.
+- Before creating a new Product: compute embedding, find nearest neighbor in same `category_slug`. If cosine > 0.90 and `canonical_key` differs → merge candidate. Auto-merge at >0.95, review queue for 0.90–0.95.
+- Catches the "same product, different canonical_key" bug class (brand aliases, alt spellings, spacing differences).
+- Storage: SQLite blob column is enough at current scale. Switch to pgvector when we migrate to Postgres.
+- Side benefit: Related Products (shipped 2026-07-07, currently sorted by absolute price distance) can switch to embedding cosine for smarter "similar" — better UX, better internal linking.
+
+Cost: zero API. One-time bulk-embed of existing products (~2k rows × 10ms = 20s). Adds ~10ms to ingest latency per listing.
+
+### 12.5 Phase 2 — replace category parsers entirely (contingent)
+
+Only if Phase 0 shows LLM extraction quality matches or beats regex parsers head-to-head on a labelled sample. If it does, swap `_PARSERS` entries in `matching/match.py:30` to point at the LLM extractor. Adding a new category becomes a one-line schema entry.
+
+Do not do this speculatively. Regex parsers are fast, deterministic, and free — the LLM has to earn the replacement.
+
+### 12.6 Explicitly not proposing
+
+- No vector DB (Pinecone / Weaviate). sqlite-vec or a blob column is enough.
+- No fine-tuning. Off-the-shelf embeddings + a small LLM cover this cleanly.
+- No chatbot / natural-language search / recommender. Different rabbit holes, different ROI curve.
+- No ripping the ingest architecture. Everything slots into the existing `matching/match.py` shape.
+
+### 12.7 Risks
+
+| Risk | Mitigation |
+|---|---|
+| LLM hallucinates a spec that doesn't exist | Structured output + per-category JSON schema + every call logged for review. |
+| Anthropic API outage | Ingest drops the listing exactly like today. No worse than v0. |
+| Cost surprise from a broken scraper | Per-category rate limit + hard daily cap in the Anthropic dashboard. |
+| Wrong auto-merge in Phase 1 | Conservative auto threshold (0.95+). 0.90–0.95 goes to a review inbox until we trust it. |
+
+### 12.8 Open decisions
+
+1. **Model:** Claude Haiku 4.5 (default — same ecosystem as Claude Code, first-class structured output) or Gemini Flash / GPT-4o-mini?
+2. **Phase 0 scope:** just the LLM fallback, or bundle Phase 1 embeddings in the first PR? Default: ship Phase 0 alone. A month of data tells us whether Phase 1 is even needed.
