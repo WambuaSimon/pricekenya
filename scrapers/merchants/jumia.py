@@ -89,6 +89,19 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
         yield r
 
 
+async def fetch_tablets() -> AsyncIterator[RawListing]:
+    """Jumia files tablets under two URLs — /other-tablets/ (Android + generic)
+    and /ipads/ (Apple). We hit both; matcher dedupes by canonical_key."""
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/other-tablets/?page={page}", 6, "tablets"
+    ):
+        yield r
+    async for r in _fetch_category(
+        "https://www.jumia.co.ke/ipads/?page={page}", 4, "tablets"
+    ):
+        yield r
+
+
 async def fetch_laptops() -> AsyncIterator[RawListing]:
     async for r in _fetch_category("https://www.jumia.co.ke/laptops/?page={page}", 8, "laptops"):
         yield r

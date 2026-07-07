@@ -38,9 +38,20 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
         raise HTTPException(status_code=404)
 
     slugs = _descendant_slugs(session, category)
+
+    # Sub-nav strategy: prefer the current category's own children (drill down).
+    # If it's a leaf, show the parent's children instead so the nav doesn't
+    # collapse — this lets a user on `/c/tablets` jump directly to Phones or
+    # Accessories without navigating back up to the parent.
     children = session.exec(
         select(Category).where(Category.parent_id == category.id).order_by(Category.sort_order)
     ).all()
+    if not children and category.parent_id is not None:
+        children = session.exec(
+            select(Category)
+            .where(Category.parent_id == category.parent_id)
+            .order_by(Category.sort_order)
+        ).all()
 
     # Prioritise multi-offer products: this is a price-comparison site, so
     # anything with 2+ merchants stocking it should show up first regardless

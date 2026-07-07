@@ -20,7 +20,11 @@
   {% if children %}
     <div class="flex flex-wrap gap-2 mb-6">
       {% for child in children %}
-        <a href="/c/{{ child.slug }}" class="text-sm rounded-full border px-3 py-1 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700">
+        {% set is_current = (child.slug == category.slug) %}
+        <a href="/c/{{ child.slug }}"
+           class="text-sm rounded-full border px-3 py-1
+                  {% if is_current %}bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:border-emerald-500 dark:hover:bg-emerald-400
+                  {% else %}bg-white hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700{% endif %}">
           {{ child.name }}
         </a>
       {% endfor %}

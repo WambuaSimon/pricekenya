@@ -57,6 +57,7 @@ jobs:
       matrix:
         target:
           - all-phones          # Jumia + Kilimall phones
+          - all-tablets         # Jumia + Kilimall tablets
           - all-laptops         # Jumia + Kilimall laptops
           - all-tvs             # Jumia + Kilimall TVs
           - all-refrigerators

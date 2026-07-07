@@ -142,6 +142,12 @@ async def fetch_phones() -> AsyncIterator[RawListing]:
         yield r
 
 
+async def fetch_tablets() -> AsyncIterator[RawListing]:
+    for query in ("tablet", "ipad", "galaxy tab"):
+        async for r in _fetch_search(query, 4, "tablets"):
+            yield r
+
+
 async def fetch_laptops() -> AsyncIterator[RawListing]:
     async for r in _fetch_search("laptop", 6, "laptops"):
         yield r

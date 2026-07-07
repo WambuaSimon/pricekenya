@@ -18,6 +18,7 @@ from matching import (
     refrigerator,
     small_appliances,
     solar_energy,
+    tablet,
     tv,
     washer,
 )
@@ -28,6 +29,7 @@ from matching.base import ParsedTitle
 # empty ParsedTitle (ingest will drop the listing until we ship a parser).
 _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "phones": phone.parse_title,
+    "tablets": tablet.parse_title,
     "laptops": laptop.parse_title,
     "tvs": tv.parse_title,
     "refrigerators": refrigerator.parse_title,
