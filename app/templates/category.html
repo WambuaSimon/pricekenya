@@ -59,9 +59,27 @@
             <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ merchant_count }}</div>
             <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Merchants</div>
           </div>
-          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-            <div class="text-sm sm:text-lg font-bold text-white leading-tight whitespace-nowrap">{{ "{:,}".format(min_price | int) }}–{{ "{:,}".format(max_price | int) }}</div>
-            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Price range (KES)</div>
+          {# "Compared" is the site's actual value prop — showing the count
+             of products with 2+ merchants tells shoppers how much of this
+             category they can genuinely cross-shop. Info button expands an
+             in-chip explanation on click; the section is overflow-hidden so
+             we grow the chip inline rather than absolutely-positioning a
+             popover that would clip. #}
+          <div data-info-chip class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
+            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(compared_count) }}</div>
+            <div class="mt-1 flex items-center gap-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">
+              <span>Compared</span>
+              <button
+                type="button"
+                data-info-toggle
+                aria-label="What does compared mean?"
+                class="inline-flex w-3.5 h-3.5 sm:w-4 sm:h-4 items-center justify-center rounded-full border border-emerald-50/60 text-emerald-50 text-[9px] font-bold normal-case leading-none hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 transition">
+                i
+              </button>
+            </div>
+            <div data-info-body hidden class="mt-2 text-[10px] sm:text-xs normal-case tracking-normal font-normal text-emerald-50/90 leading-snug">
+              Products with prices from 2 or more merchants — the ones you can actually cross-shop for the best deal.
+            </div>
           </div>
         </div>
       {% endif %}
@@ -89,4 +107,26 @@
       No products in this category yet — check back soon.
     </div>
   {% endif %}
+
+  {# Single delegated click handler for any [data-info-chip] on the page.
+     Click the (i) → toggle its sibling explanation. Click anywhere else →
+     close any open explanation. Keeps the interaction accessible without
+     dragging in Alpine. #}
+  <script>
+    (function () {
+      document.addEventListener('click', function (e) {
+        var toggle = e.target.closest('[data-info-toggle]');
+        if (toggle) {
+          var chip = toggle.closest('[data-info-chip]');
+          var body = chip && chip.querySelector('[data-info-body]');
+          if (body) body.toggleAttribute('hidden');
+          e.stopPropagation();
+          return;
+        }
+        document.querySelectorAll('[data-info-body]:not([hidden])').forEach(function (b) {
+          if (!b.contains(e.target)) b.setAttribute('hidden', '');
+        });
+      });
+    })();
+  </script>
 {% endblock %}

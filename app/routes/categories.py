@@ -72,20 +72,34 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
         .limit(48)
     ).all()
 
-    # Hero stats — one query, one row. Counts and price extremes over every
-    # product in this category tree. Everything nullable so an empty category
-    # still renders the hero (just without a price-range chip).
-    stats = session.exec(
+    # Hero stats — cheap counts over the category tree. product/merchant
+    # totals + a "compared" count (products with 2+ merchants) which is the
+    # single stat that directly showcases the site's value prop: how much of
+    # this category you can actually cross-shop. We drop the price-range and
+    # floor-price stats — the former was noise on wide categories, the
+    # latter is redundant with the products themselves.
+    counts = session.exec(
         select(
             func.count(func.distinct(Product.id)),
             func.count(func.distinct(Listing.merchant_id)),
-            func.min(Listing.price_kes),
-            func.max(Listing.price_kes),
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
     ).one()
-    product_count, merchant_count, min_price, max_price = stats
+    product_count, merchant_count = counts
+
+    # "Compared" = products with listings from 2+ distinct merchants.
+    compared_subq = (
+        select(Product.id)
+        .join(Listing, Listing.product_id == Product.id)
+        .where(Product.category_slug.in_(slugs))
+        .group_by(Product.id)
+        .having(func.count(func.distinct(Listing.merchant_id)) >= 2)
+        .subquery()
+    )
+    compared_count = session.exec(
+        select(func.count()).select_from(compared_subq)
+    ).one() or 0
 
     return templates.TemplateResponse(
         request,
@@ -96,7 +110,6 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
             "rows": rows,
             "product_count": product_count or 0,
             "merchant_count": merchant_count or 0,
-            "min_price": min_price,
-            "max_price": max_price,
+            "compared_count": compared_count,
         },
     )
