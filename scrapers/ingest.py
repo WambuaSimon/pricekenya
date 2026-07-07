@@ -960,13 +960,6 @@ TARGETS["all-shopify"] = _run_all_shopify
 if __name__ == "__main__":
     import sys
 
-    # Allow the embedding module to load its heavy deps in this process.
-    # The FastAPI web app never calls this, so PyTorch stays out of the
-    # web tier — see matching/embeddings.py.
-    from matching import embeddings as _embeddings
-
-    _embeddings.allow_encode()
-
     target = sys.argv[1] if len(sys.argv) > 1 else "jumia-phones"
     fn = TARGETS.get(target)
     if not fn:
