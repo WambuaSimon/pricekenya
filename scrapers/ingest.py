@@ -906,6 +906,34 @@ TARGETS = {
 }
 
 
+# WooCommerce batch — one runner per config-driven merchant. See
+# scrapers/config/wc_merchants.py for the merchant list; adding a merchant
+# is a config-only change. Job names are `wc-<merchant-slug>` and `all-wc`.
+def run_wc_merchant(merchant_slug: str) -> None:
+    from scrapers.config.wc_merchants import WC_MERCHANTS
+    from scrapers.merchants.wc_batch import fetch_all_leaves
+
+    cfg = WC_MERCHANTS[merchant_slug]
+    asyncio.run(_consume(fetch_all_leaves(merchant_slug), cfg["meta"]))
+
+
+def _run_all_wc() -> None:
+    from scrapers.config.wc_merchants import WC_MERCHANTS
+
+    for slug in WC_MERCHANTS:
+        run_wc_merchant(slug)
+
+
+# Register `wc-<merchant>` targets programmatically from the config so we
+# don't hand-maintain 14 entries. `slug=slug` in the lambda freezes the loop
+# variable per iteration (classic closure trap otherwise).
+from scrapers.config.wc_merchants import WC_MERCHANTS as _WC_MERCHANTS  # noqa: E402
+
+for _slug in _WC_MERCHANTS:
+    TARGETS[f"wc-{_slug}"] = (lambda slug=_slug: run_wc_merchant(slug))
+TARGETS["all-wc"] = _run_all_wc
+
+
 if __name__ == "__main__":
     import sys
 
