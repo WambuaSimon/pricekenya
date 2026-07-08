@@ -85,8 +85,23 @@ jobs:
           - all-carrefour       # Next.js RSC parse + curl_cffi (Akamai wall)
           - all-xiaomi          # WooCommerce, xiaomistores.co.ke
           - all-mybigorder      # Kenyan marketplace, plain httpx, per-subcategory
-          - all-wc              # 14 WooCommerce merchants driven from config
-          - all-shopify         # 2 Shopify stores via /products.json
+          # WooCommerce batch — one leg per merchant so each gets its own
+          # 30-min budget. Bundled `all-wc` hit the timeout at 14 merchants.
+          - wc-dixons-ke
+          - wc-finetech-ke
+          - wc-fivestar-ke
+          - wc-jojabo-ke
+          - wc-le-ke
+          - wc-megatech-ke
+          - wc-nairobitvshop-ke
+          - wc-pixels-ke
+          - wc-quest-ke
+          - wc-smartdevices-ke
+          - wc-smartphoneskenya-ke
+          - wc-tclke-ke
+          - wc-techonline-ke
+          - wc-zurimall-ke
+          - all-shopify         # 2 Shopify stores via /products.json (fits easily)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
