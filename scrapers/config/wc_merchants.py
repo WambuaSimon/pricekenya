@@ -111,7 +111,7 @@ WC_MERCHANTS: dict[str, dict] = {
         "leaf_to_urls": {
             "audio": ["https://megatechelectronics.co.ke/product-category/audio", "https://megatechelectronics.co.ke/product-category/audio/earbuds-audio", "https://megatechelectronics.co.ke/product-category/audio/earphones"],
             "cameras": ["https://megatechelectronics.co.ke/product-category/cameras", "https://megatechelectronics.co.ke/product-category/cameras/insta-cameras"],
-            "console-accessories": ["https://megatechelectronics.co.ke/product-category/gaming/controllers"],
+            "console-accessories": ["https://megatechelectronics.co.ke/product-category/gaming/controllers", "https://megatechelectronics.co.ke/product-category/gaming/accessories-gaming", "https://megatechelectronics.co.ke/product-category/gaming/headsets-gaming"],
             "phone-tablet-accessories": ["https://megatechelectronics.co.ke/product-category/accessories", "https://megatechelectronics.co.ke/product-category/accessories/car-chargers", "https://megatechelectronics.co.ke/product-category/accessories/chargers"],
             "phones": ["https://megatechelectronics.co.ke/product-category/audio/microphones", "https://megatechelectronics.co.ke/product-category/smartphones", "https://megatechelectronics.co.ke/product-category/smartphones/iphone"],
             "tablets": ["https://megatechelectronics.co.ke/product-category/tablets", "https://megatechelectronics.co.ke/product-category/tablets/infinix-tablet", "https://megatechelectronics.co.ke/product-category/tablets/oppo-tablets"],
@@ -122,7 +122,7 @@ WC_MERCHANTS: dict[str, dict] = {
         "leaf_to_urls": {
             "audio": ["https://zurimall.co.ke/product-category/tvs-hometheaters/soundbars"],
             "cameras": ["https://zurimall.co.ke/product-category/accessories/cameras", "https://zurimall.co.ke/product-category/accessories/cctv-cameras"],
-            "laptops": ["https://zurimall.co.ke/product-category/all-laptops", "https://zurimall.co.ke/product-category/all-laptops-filters", "https://zurimall.co.ke/product-category/all-laptops-prices-filter"],
+            "laptops": ["https://zurimall.co.ke/product-category/all-laptops", "https://zurimall.co.ke/product-category/all-laptops-filters", "https://zurimall.co.ke/product-category/all-laptops-prices-filter", "https://zurimall.co.ke/product-category/accessories/gaming"],
             "phone-tablet-accessories": ["https://zurimall.co.ke/product-category/accessories", "https://zurimall.co.ke/product-category/accessories/networking-cables"],
             "phones": ["https://zurimall.co.ke/product-category/iphones", "https://zurimall.co.ke/product-category/phones", "https://zurimall.co.ke/product-category/phones/iphone"],
             "tvs": ["https://zurimall.co.ke/product-category/tvs-hometheaters", "https://zurimall.co.ke/product-category/tvs-hometheaters/hisense-tvs", "https://zurimall.co.ke/product-category/tvs-hometheaters/lg-tvs"],
@@ -132,7 +132,7 @@ WC_MERCHANTS: dict[str, dict] = {
         "meta": {"slug": "pixels-ke", "name": "Pixels Electronics", "base_url": "https://pixelselectronics.co.ke"},
         "leaf_to_urls": {
             "cameras": ["https://pixelselectronics.co.ke/product-category/photo-video/cameras-drones"],
-            "laptops": ["https://pixelselectronics.co.ke/product-category/computer-office", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/laptops", "https://pixelselectronics.co.ke/product-category/laptops/apple-macbook"],
+            "laptops": ["https://pixelselectronics.co.ke/product-category/computer-office", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/laptops", "https://pixelselectronics.co.ke/product-category/laptops/apple-macbook", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/laptops/gaming-laptop"],
             "phones": ["https://pixelselectronics.co.ke/product-category/cell-phones-accessories/cell-phones", "https://pixelselectronics.co.ke/product-category/smartphones", "https://pixelselectronics.co.ke/product-category/smartphones/mobile-phones"],
             "tablets": ["https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/tablets", "https://pixelselectronics.co.ke/product-category/tablets/apple-ipad"],
         },
@@ -159,6 +159,9 @@ WC_MERCHANTS: dict[str, dict] = {
         "leaf_to_urls": {
             "audio": ["https://www.smartdeviceskenya.co.ke/product-category/audio", "https://www.smartdeviceskenya.co.ke/product-category/audio/soundbars", "https://www.smartdeviceskenya.co.ke/product-category/tv-audio"],
             "cooking": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/cookers", "https://www.smartdeviceskenya.co.ke/product-category/home-appliances/microwaves"],
+            "inverters": ["https://www.smartdeviceskenya.co.ke/product-category/inverters"],
+            "solar-panels": ["https://www.smartdeviceskenya.co.ke/product-category/solar-panels"],
+            "solar-batteries": ["https://www.smartdeviceskenya.co.ke/product-category/solar-batteries"],
             "laptops": ["https://www.smartdeviceskenya.co.ke/product-category/computers-printers/computer-desktops", "https://www.smartdeviceskenya.co.ke/product-category/computers-printers/laptops"],
             "phone-tablet-accessories": ["https://www.smartdeviceskenya.co.ke/product-category/power-banks"],
             "phones": ["https://www.smartdeviceskenya.co.ke/product-category/smartphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/apple-iphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/google-pixel-phones"],
