@@ -127,4 +127,13 @@ def sitemap(session: Session = Depends(get_session)) -> Response:
             )
         body.append("  <url>" + "".join(parts) + "</url>")
     body.append("</urlset>")
-    return Response("\n".join(body), media_type="application/xml")
+    # Cache at Cloudflare's edge for an hour so Googlebot never hits a cold
+    # Render container while the sitemap query rebuilds. s-maxage targets
+    # the CDN; browsers still respect max-age for their own cache. Search
+    # engines re-fetch on their own schedule (Google every 1–3 days for a
+    # site our size), so an hour of staleness is invisible to indexing.
+    return Response(
+        "\n".join(body),
+        media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=3600, s-maxage=3600"},
+    )
