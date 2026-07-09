@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from sqlmodel import Session, select
 
 from app.config import settings
 from app.templating import templates
 from db.models import Product
 from db.session import get_session
+
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 router = APIRouter()
 
@@ -33,6 +37,19 @@ _BING_SITE_AUTH = (
 @router.get("/BingSiteAuth.xml")
 def bing_site_auth() -> Response:
     return Response(_BING_SITE_AUTH, media_type="application/xml")
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+def favicon() -> FileResponse:
+    """Browsers and crawlers probe /favicon.ico even when <link rel="icon">
+    points elsewhere. Serve the multi-size ICO with a long CDN cache so
+    Google's favicon-picker gets the raster it wants without a per-request
+    hop to Render."""
+    return FileResponse(
+        _STATIC_DIR / "favicon.ico",
+        media_type="image/x-icon",
+        headers={"Cache-Control": "public, max-age=86400, s-maxage=604800"},
+    )
 
 
 @router.get("/privacy", response_class=HTMLResponse)
