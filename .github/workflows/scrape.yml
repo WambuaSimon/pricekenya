@@ -101,7 +101,15 @@ jobs:
           - wc-tclke-ke
           - wc-techonline-ke
           - wc-zurimall-ke
-          - all-shopify         # 2 Shopify stores via /products.json (fits easily)
+          - wc-patabay-ke
+          - wc-zuka-ke
+          - wc-techstore-ke
+          - wc-devicestech-ke
+          - wc-nairobilaptops-ke
+          - wc-solarshop-ke     # solar specialist: inverters + batteries
+          - wc-solarstore-ke    # solar specialist: hybrid inverters
+          - wc-sollatek-ke      # solar specialist: inverters + batteries
+          - all-shopify         # Shopify batch (auto-picks all merchants from config)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

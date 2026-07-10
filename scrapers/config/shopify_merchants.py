@@ -24,4 +24,18 @@ SHOPIFY_MERCHANTS: dict[str, dict] = {
             "base_url": "https://zentechelectronics.com",
         },
     },
+    "digitalstore-ke": {
+        "meta": {
+            "slug": "digitalstore-ke",
+            "name": "Digital Store",
+            "base_url": "https://www.digitalstore.co.ke",
+        },
+    },
+    "samsung-brandcart-ke": {
+        "meta": {
+            "slug": "samsung-brandcart-ke",
+            "name": "Samsung BrandCart Kenya",
+            "base_url": "https://samsung.brandcart.co.ke",
+        },
+    },
 }

@@ -182,6 +182,90 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://smartphoneskenya.co.ke/product-category/televisions"],
         },
     },
+    "patabay-ke": {
+        "meta": {"slug": "patabay-ke", "name": "Patabay Kenya", "base_url": "https://patabay.co.ke"},
+        "leaf_to_urls": {
+            "laptops": ["https://patabay.co.ke/product-category/office-appliances/laptop"],
+            "phones": ["https://patabay.co.ke/product-category/phones-and-tablets/smartphones"],
+            "refrigerators": ["https://patabay.co.ke/product-category/tcl-refrigerators"],
+            "solar-panels": ["https://patabay.co.ke/product-category/home-appliances/solar"],
+            "tablets": ["https://patabay.co.ke/product-category/kids-tablets-in-kenya", "https://patabay.co.ke/product-category/phones-and-tablets/tablets"],
+            "tvs": ["https://patabay.co.ke/product-category/televisions-and-entertainment/televisions", "https://patabay.co.ke/product-category/televisions-2"],
+        },
+    },
+    "zuka-ke": {
+        "meta": {"slug": "zuka-ke", "name": "Zuka Electronics", "base_url": "https://zuka.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://zuka.co.ke/product-category/sound-systems/bluetooth-speakers"],
+            "blenders": ["https://zuka.co.ke/product-category/blenders"],
+            "cooking": ["https://zuka.co.ke/product-category/cookers", "https://zuka.co.ke/product-category/hobs", "https://zuka.co.ke/product-category/in-built-cookers"],
+            "phone-tablet-accessories": ["https://zuka.co.ke/product-category/accessories"],
+            "phones": ["https://zuka.co.ke/product-category/mobile-phones"],
+            # showcase-chillers is a display fridge category despite the "case" substring
+            # tripping the accessories keyword — route to refrigerators.
+            "refrigerators": ["https://zuka.co.ke/product-category/freezer", "https://zuka.co.ke/product-category/showcase-chillers"],
+            "tvs": ["https://zuka.co.ke/product-category/televisions"],
+            "washers-dryers": ["https://zuka.co.ke/product-category/washing-machines"],
+        },
+    },
+    "techstore-ke": {
+        "meta": {"slug": "techstore-ke", "name": "Tech Store Kenya", "base_url": "https://techstore.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://techstore.co.ke/product-category/headphones"],
+            "cameras": ["https://techstore.co.ke/product-category/drones"],
+            "phone-tablet-accessories": ["https://techstore.co.ke/product-category/mobile/accessories", "https://techstore.co.ke/product-category/watches"],
+            "phones": ["https://techstore.co.ke/product-category/mobile/mobiles"],
+            "tablets": ["https://techstore.co.ke/product-category/mobile/tablets"],
+        },
+    },
+    "devicestech-ke": {
+        "meta": {"slug": "devicestech-ke", "name": "Devices Technology Store", "base_url": "https://www.devicestech.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://www.devicestech.co.ke/product-category/computer-accessories/audio-speakers", "https://www.devicestech.co.ke/product-category/computer-accessories/earphones", "https://www.devicestech.co.ke/product-category/computer-accessories/headphones"],
+            "cameras": ["https://www.devicestech.co.ke/product-category/cctv-cameras/hd-cameras", "https://www.devicestech.co.ke/product-category/cctv-cameras/ip-cameras"],
+            "laptops": ["https://www.devicestech.co.ke/product-category/computer-accessories/docking-stations-computer-accessories"],
+            "peripherals-accessories": ["https://www.devicestech.co.ke/product-category/computer-accessories/keyboards", "https://www.devicestech.co.ke/product-category/computer-accessories/mouse", "https://www.devicestech.co.ke/product-category/computer-accessories/usb-hub"],
+            "phone-tablet-accessories": ["https://www.devicestech.co.ke/product-category/computer-accessories/cables", "https://www.devicestech.co.ke/product-category/computer-accessories/laptop-chargers"],
+            "tablets": ["https://www.devicestech.co.ke/product-category/tablets"],
+            "tvs": ["https://www.devicestech.co.ke/product-category/tvs"],
+        },
+    },
+    "nairobilaptops-ke": {
+        "meta": {"slug": "nairobilaptops-ke", "name": "Nairobi Laptops", "base_url": "https://nairobilaptops.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://nairobilaptops.co.ke/product-category/soundbars"],
+            "cameras": ["https://nairobilaptops.co.ke/product-category/camera", "https://nairobilaptops.co.ke/product-category/cctv"],
+            "laptops": ["https://nairobilaptops.co.ke/product-category/desktops", "https://nairobilaptops.co.ke/product-category/laptops"],
+            "phones": ["https://nairobilaptops.co.ke/product-category/phones"],
+            "tvs": ["https://nairobilaptops.co.ke/product-category/televisions"],
+        },
+    },
+    "solarshop-ke": {
+        "meta": {"slug": "solarshop-ke", "name": "SolarShop Africa", "base_url": "https://solarshop.co.ke"},
+        # Solar-focused specialist. Dropping /solar-charge-controllers/ URLs
+        # (my keyword discovery routed them to console-accessories because
+        # "controller" is in the leaf keyword — that's for PS5/Xbox pads,
+        # not power electronics; no matcher covers charge controllers yet).
+        # Also dropping /solar-dc-cables-accessories/ and outdoor-lights.
+        "leaf_to_urls": {
+            "inverters": ["https://solarshop.co.ke/product-category/solar-inverters"],
+            "solar-batteries": ["https://solarshop.co.ke/product-category/solar-batteries", "https://solarshop.co.ke/product-category/solar-batteries/lithium-ion-batteries"],
+        },
+    },
+    "solarstore-ke": {
+        "meta": {"slug": "solarstore-ke", "name": "Solar Store East Africa", "base_url": "https://solarstore.co.ke"},
+        "leaf_to_urls": {
+            "inverters": ["https://solarstore.co.ke/product-category/solar-inverters", "https://solarstore.co.ke/product-category/solar-inverters/hybrid-inverters"],
+        },
+    },
+    "sollatek-ke": {
+        "meta": {"slug": "sollatek-ke", "name": "Sollatek", "base_url": "https://sollatek.co.ke"},
+        # Same charge-controller / cables cleanup as solarshop.
+        "leaf_to_urls": {
+            "inverters": ["https://sollatek.co.ke/product-category/solar-systems-appliances/inverter"],
+            "solar-batteries": ["https://sollatek.co.ke/product-category/solar-systems-appliances/solar-batteries"],
+        },
+    },
     "nairobitvshop-ke": {
         "meta": {"slug": "nairobitvshop-ke", "name": "Nairobi TV Shop", "base_url": "https://nairobitvshop.co.ke"},
         "leaf_to_urls": {
