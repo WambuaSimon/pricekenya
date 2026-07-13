@@ -38,4 +38,25 @@ SHOPIFY_MERCHANTS: dict[str, dict] = {
             "base_url": "https://samsung.brandcart.co.ke",
         },
     },
+    "laptopclinic-ke": {
+        "meta": {
+            "slug": "laptopclinic-ke",
+            "name": "Laptop Clinic Kenya",
+            "base_url": "https://laptopclinic.co.ke",
+        },
+    },
+    "vividgold-ke": {
+        "meta": {
+            "slug": "vividgold-ke",
+            "name": "Vivid Gold (Video Game Outlet)",
+            "base_url": "https://vividgold.co.ke",
+        },
+    },
+    "badili-ke": {
+        "meta": {
+            "slug": "badili-ke",
+            "name": "Badili Kenya",
+            "base_url": "https://badili.ke",
+        },
+    },
 }

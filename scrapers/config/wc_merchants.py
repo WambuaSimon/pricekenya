@@ -266,6 +266,108 @@ WC_MERCHANTS: dict[str, dict] = {
             "solar-batteries": ["https://sollatek.co.ke/product-category/solar-systems-appliances/solar-batteries"],
         },
     },
+    "audiocom-ke": {
+        "meta": {"slug": "audiocom-ke", "name": "Audiocom Kenya", "base_url": "https://www.audiocomkenya.co.ke"},
+        # Pro-audio specialist. Discovery mis-routed DJ controllers to
+        # console-accessories, digital mixers to blenders, MIDI keyboards to
+        # peripherals-accessories, microphone-accessories to phone-tablet-
+        # accessories. Only keeping the amplifier URLs on the audio leaf —
+        # the rest wouldn't survive the consumer-electronics matchers.
+        "leaf_to_urls": {
+            "audio": ["https://www.audiocomkenya.co.ke/product-category/amplifier", "https://www.audiocomkenya.co.ke/product-category/amplifier-2", "https://www.audiocomkenya.co.ke/product-category/guitar-amplifiers"],
+        },
+    },
+    "camerastore-ke": {
+        "meta": {"slug": "camerastore-ke", "name": "Camera Store Kenya", "base_url": "https://camerastoreke.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://camerastoreke.co.ke/product-category/headphones", "https://camerastoreke.co.ke/product-category/headphones/boya-headphones", "https://camerastoreke.co.ke/product-category/headphones/maono-headphones"],
+            "cameras": ["https://camerastoreke.co.ke/product-category/camera-lens/canon-camera-lens", "https://camerastoreke.co.ke/product-category/camera-lens/nikon-camera-lens", "https://camerastoreke.co.ke/product-category/camera-lens/sony-camera-lens"],
+        },
+    },
+    "eamobitech-ke": {
+        "meta": {"slug": "eamobitech-ke", "name": "EAM Mobitech", "base_url": "https://eamobitech.com"},
+        "leaf_to_urls": {
+            "audio": ["https://eamobitech.com/product-category/audio-podcast", "https://eamobitech.com/product-category/audio-podcast/dynamic-microphones"],
+            "cameras": ["https://eamobitech.com/product-category/camera-video", "https://eamobitech.com/product-category/camera-video-accessories"],
+            "laptops": ["https://eamobitech.com/product-category/apple-store/macbook", "https://eamobitech.com/product-category/computers"],
+            "peripherals-accessories": ["https://eamobitech.com/product-category/computers/keyboards-mice", "https://eamobitech.com/product-category/computers/webcams-accessories"],
+            "phones": ["https://eamobitech.com/product-category/apple-store/iphones", "https://eamobitech.com/product-category/smartphones-tablets"],
+            "tablets": ["https://eamobitech.com/product-category/apple-store/ipads"],
+            "tvs": ["https://eamobitech.com/product-category/tvs-and-hometheatres", "https://eamobitech.com/product-category/tvs-entertainment"],
+        },
+    },
+    "housewife-ke": {
+        "meta": {"slug": "housewife-ke", "name": "Housewife's Paradise", "base_url": "https://housewifesparadise.com"},
+        "leaf_to_urls": {
+            "audio": ["https://housewifesparadise.com/product-category/bluetooth-speakers"],
+            "blenders": ["https://housewifesparadise.com/product-category/small-domestic-appliances/blenders", "https://housewifesparadise.com/product-category/small-domestic-appliances/hand-mixers", "https://housewifesparadise.com/product-category/small-domestic-appliances/juicers"],
+            "cooking": ["https://housewifesparadise.com/product-category/cookers", "https://housewifesparadise.com/product-category/cookers/samsung-cookers", "https://housewifesparadise.com/product-category/cookers/scl-cookers"],
+            "ironing-laundry": ["https://housewifesparadise.com/product-category/small-domestic-appliances/garment-steamers", "https://housewifesparadise.com/product-category/small-domestic-appliances/iron-boxes"],
+            "kettles": ["https://housewifesparadise.com/product-category/small-domestic-appliances/kettles"],
+            "phones": ["https://housewifesparadise.com/product-category/mobile-phones"],
+            "refrigerators": ["https://housewifesparadise.com/product-category/refrigerators-freezers", "https://housewifesparadise.com/product-category/refrigerators-freezers/lg-bottom-mount-refrigerators"],
+            "toasters": ["https://housewifesparadise.com/product-category/small-domestic-appliances/sandwich-makers", "https://housewifesparadise.com/product-category/small-domestic-appliances/toasters"],
+            "tvs": ["https://housewifesparadise.com/product-category/tvs"],
+            "washers-dryers": ["https://housewifesparadise.com/product-category/home-appliances/lg-dishwashers", "https://housewifesparadise.com/product-category/washing-machines"],
+        },
+    },
+    "armco-ke": {
+        "meta": {"slug": "armco-ke", "name": "Armco Kenya", "base_url": "https://armcokenya.com"},
+        "leaf_to_urls": {
+            "audio": ["https://armcokenya.com/product-category/home-entertainment/soundbars-and-boom-boxes-kenya"],
+            "blenders": ["https://armcokenya.com/product-category/kitchen-appliances/blenders", "https://armcokenya.com/product-category/kitchen-appliances/food-processors", "https://armcokenya.com/product-category/kitchen-appliances/hand-mixers"],
+            "cooking": ["https://armcokenya.com/product-category/kitchen-appliances/microwaves", "https://armcokenya.com/product-category/kitchen-appliances/portable-cookers", "https://armcokenya.com/product-category/kitchen-appliances/table-top-cooker"],
+            "ironing-laundry": ["https://armcokenya.com/product-category/small-appliances/irons"],
+            "kettles": ["https://armcokenya.com/product-category/kitchen-appliances/kettles", "https://armcokenya.com/product-category/small-appliances/kettles"],
+            "refrigerators": ["https://armcokenya.com/product-category/large-appliances/chest-freezers", "https://armcokenya.com/product-category/large-appliances/refrigerators"],
+            "toasters": ["https://armcokenya.com/product-category/kitchen-appliances/toaster"],
+            "tvs": ["https://armcokenya.com/product-category/home-entertainment/televisions"],
+            "washers-dryers": ["https://armcokenya.com/product-category/large-appliances/dryer", "https://armcokenya.com/product-category/large-appliances/washing-machines"],
+        },
+    },
+    "newmatic-ke": {
+        "meta": {"slug": "newmatic-ke", "name": "Newmatic Kenya", "base_url": "https://newmatic.com"},
+        "leaf_to_urls": {
+            "cooking": ["https://newmatic.com/product-category/hobs", "https://newmatic.com/product-category/hobs/gas-and-induction-hobs", "https://newmatic.com/product-category/hobs/gas-electric-hobs"],
+            "refrigerators": ["https://newmatic.com/product-category/built-in-fridges-and-freezers"],
+            "washers-dryers": ["https://newmatic.com/product-category/built-in-dishwashers"],
+        },
+    },
+    "nextbuy-ke": {
+        "meta": {"slug": "nextbuy-ke", "name": "NextBuy Kenya", "base_url": "https://nextbuy.co.ke"},
+        "leaf_to_urls": {
+            "phones": ["https://nextbuy.co.ke/product-category/phones-tablets/smartphones", "https://nextbuy.co.ke/product-category/like-new-electronics/certified-pre-owned-iphones", "https://nextbuy.co.ke/product-category/like-new-electronics/used-samsung-phones"],
+        },
+    },
+    "pricepoint-ke": {
+        "meta": {"slug": "pricepoint-ke", "name": "Price Point Kenya", "base_url": "https://www.pricepoint.co.ke"},
+        # Discovery routed audio/microphones and phone-cases to "phones"
+        # because the keyword "phone" appeared. Manually re-shelved those.
+        "leaf_to_urls": {
+            "audio": ["https://www.pricepoint.co.ke/product-category/audio/bluetooth-speakers", "https://www.pricepoint.co.ke/product-category/audio/headphones", "https://www.pricepoint.co.ke/product-category/audio/microphones"],
+            "cameras": ["https://www.pricepoint.co.ke/product-category/cameras", "https://www.pricepoint.co.ke/product-category/cameras/action-cameras", "https://www.pricepoint.co.ke/product-category/cameras/cinema-cameras"],
+            "console-accessories": ["https://www.pricepoint.co.ke/product-category/gaming/gaming-accessories"],
+            "laptops": ["https://www.pricepoint.co.ke/product-category/computers/laptops", "https://www.pricepoint.co.ke/product-category/gaming/gaming-laptops"],
+            "peripherals-accessories": ["https://www.pricepoint.co.ke/product-category/electronics-accessories/keyboards-mice"],
+            "phone-tablet-accessories": ["https://www.pricepoint.co.ke/product-category/electronics-accessories", "https://www.pricepoint.co.ke/product-category/electronics-accessories/cables", "https://www.pricepoint.co.ke/product-category/electronics-accessories/phone-cases"],
+            "phones": ["https://www.pricepoint.co.ke/product-category/phones-tablets/smartphones"],
+            "tablets": ["https://www.pricepoint.co.ke/product-category/phones-tablets/tablets"],
+            "tvs": ["https://www.pricepoint.co.ke/product-category/televisions", "https://www.pricepoint.co.ke/product-category/televisions/hisense-tvs", "https://www.pricepoint.co.ke/product-category/televisions/lg-tvs"],
+            "washers-dryers": ["https://www.pricepoint.co.ke/product-category/home-appliances/washing-machines"],
+        },
+    },
+    "phoneshop-ke": {
+        "meta": {"slug": "phoneshop-ke", "name": "Phone Shop Kenya", "base_url": "https://phoneshopkenya.co.ke"},
+        "leaf_to_urls": {
+            "audio": ["https://phoneshopkenya.co.ke/product-category/headphones"],
+            "cameras": ["https://phoneshopkenya.co.ke/product-category/content-creator-kit/cameras", "https://phoneshopkenya.co.ke/product-category/insta-360-cameras"],
+            "console-accessories": ["https://phoneshopkenya.co.ke/product-category/gaming-controllers", "https://phoneshopkenya.co.ke/product-category/gaming-headsets-2", "https://phoneshopkenya.co.ke/product-category/headphones/gaming-headsets"],
+            "laptops": ["https://phoneshopkenya.co.ke/product-category/macbook"],
+            "phone-tablet-accessories": ["https://phoneshopkenya.co.ke/product-category/accessories", "https://phoneshopkenya.co.ke/product-category/mobile-accessories"],
+            "phones": ["https://phoneshopkenya.co.ke/product-category/apple-phones", "https://phoneshopkenya.co.ke/product-category/asus-phones", "https://phoneshopkenya.co.ke/product-category/blackview-phones"],
+            "tablets": ["https://phoneshopkenya.co.ke/product-category/apple-ipad", "https://phoneshopkenya.co.ke/product-category/amazon-tablets", "https://phoneshopkenya.co.ke/product-category/galaxy-tablet"],
+        },
+    },
     "nairobitvshop-ke": {
         "meta": {"slug": "nairobitvshop-ke", "name": "Nairobi TV Shop", "base_url": "https://nairobitvshop.co.ke"},
         "leaf_to_urls": {

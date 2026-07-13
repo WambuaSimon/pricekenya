@@ -109,6 +109,15 @@ jobs:
           - wc-solarshop-ke     # solar specialist: inverters + batteries
           - wc-solarstore-ke    # solar specialist: hybrid inverters
           - wc-sollatek-ke      # solar specialist: inverters + batteries
+          - wc-audiocom-ke      # pro-audio specialist
+          - wc-camerastore-ke   # camera specialist
+          - wc-eamobitech-ke    # cameras + computers
+          - wc-housewife-ke     # kitchen appliances (long — may need retry)
+          - wc-armco-ke         # Kenyan brand appliances
+          - wc-newmatic-ke      # built-in kitchen appliances
+          - wc-nextbuy-ke       # refurbished phones
+          - wc-pricepoint-ke    # cameras / TVs / gaming
+          - wc-phoneshop-ke     # phones + gaming accessories
           - all-shopify         # Shopify batch (auto-picks all merchants from config)
     steps:
       - uses: actions/checkout@v4
