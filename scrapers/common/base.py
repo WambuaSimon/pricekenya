@@ -58,31 +58,40 @@ class PlaywrightPoliteClient:
     lazily on first use and is reused across .get() calls, so the browser
     startup cost is paid once per scrape run, not once per URL.
 
-    Not every shielded merchant is defeated by plain headless — the newer
-    Turnstile challenges fingerprint headless Chromium via navigator.webdriver
-    and other properties. When we hit one that stays 403 (Just a moment…)
-    the fix is `playwright-stealth`, added when a specific merchant needs it.
+    stealth=True applies playwright-stealth patches (hides navigator.web-
+    driver, adds missing plugins, spoofs webGL vendor etc.) to defeat the
+    newer Turnstile variants that fingerprint headless Chromium. Not every
+    merchant needs it — try without first because stealth adds ~1s startup
+    overhead per browser launch.
     """
 
-    def __init__(self, user_agent: str | None = None) -> None:
+    def __init__(self, user_agent: str | None = None, stealth: bool = False) -> None:
         self._ua = user_agent or (
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/131.0.0.0 Safari/537.36"
         )
+        self._stealth = stealth
         self._playwright = None
         self._browser = None
         self._context = None
+        self._pw_ctxmgr = None  # holds the async_playwright() ctx when stealth wraps it
         self._delay = settings.scraper_request_delay_seconds
 
     async def _ensure_browser(self) -> None:
         if self._context is not None:
             return
-        # Deferred import so environments without playwright installed can
+        # Deferred imports so environments without playwright installed can
         # still import this module (httpx-based scrapers keep working).
         from playwright.async_api import async_playwright
 
-        self._playwright = await async_playwright().start()
+        if self._stealth:
+            from playwright_stealth import Stealth
+
+            self._pw_ctxmgr = Stealth().use_async(async_playwright())
+            self._playwright = await self._pw_ctxmgr.__aenter__()
+        else:
+            self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(headless=True)
         self._context = await self._browser.new_context(user_agent=self._ua)
 
@@ -92,19 +101,29 @@ class PlaywrightPoliteClient:
         page = await self._context.new_page()
         try:
             resp = await page.goto(url, wait_until="domcontentloaded", timeout=45000)
-            # Give any JS challenge time to resolve. Cloudflare Turnstile's
-            # invisible-challenge flow typically clears 4-7s after DOM ready
-            # even under headless; then wait for the network to quiet down.
-            await asyncio.sleep(8)
+            # Give any JS challenge time to resolve. Turnstile's invisible-
+            # challenge flow usually clears in 2-4s. 4s is a generous median
+            # that keeps per-page cost bounded — with 3 pages × dozens of
+            # URLs, every extra second here compounds into a job timeout.
+            await asyncio.sleep(4)
             try:
-                await page.wait_for_load_state("networkidle", timeout=10000)
+                await page.wait_for_load_state("networkidle", timeout=6000)
             except Exception:  # noqa: BLE001
                 pass
             html = await page.content()
             status = resp.status if resp else 0
             await asyncio.sleep(self._delay)
-            if status >= 400:
-                raise RuntimeError(f"Playwright fetch {url} returned {status}")
+            # DO NOT reject on status alone. Cloudflare frequently serves
+            # the initial navigation with 403 while the Turnstile JS runs,
+            # then the browser reloads/re-renders with the real DOM. We
+            # care about the final DOM, not the first response's status.
+            # Only raise when we're still looking at the challenge page.
+            title = await page.title()
+            if title == "Just a moment..." or "cf-mitigated" in html.lower()[:5000]:
+                raise RuntimeError(
+                    f"Cloudflare challenge unresolved on {url} "
+                    f"(status={status}, title={title!r})"
+                )
             return _PWResponse(text=html, status_code=status)
         finally:
             await page.close()

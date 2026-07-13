@@ -31,12 +31,17 @@ async def fetch_all_leaves(merchant_slug: str) -> AsyncIterator[RawListing]:
     slug = meta["slug"]
     base = meta["base_url"]
     client_type = cfg.get("client_type", "polite")
+    # Playwright per-page cost is ~10-15s (goto + challenge wait + networkidle).
+    # Deep pagination × dozens of URLs × dozens of merchants blows past the
+    # matrix job timeout. Cap at 1 page for browser-driven fetches; drop to
+    # the standard 3 pages when we're on plain httpx.
+    max_pages = 1 if client_type in ("playwright", "playwright-stealth") else 3
     seen: set[str] = set()
     for leaf, urls in cfg["leaf_to_urls"].items():
         for url in urls:
             async for r in fetch_woocommerce_category(
                 url,
-                max_pages=3,
+                max_pages=max_pages,
                 merchant_slug=slug,
                 category_slug=leaf,
                 site_base_url=base,

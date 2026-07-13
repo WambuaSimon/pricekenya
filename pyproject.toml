@@ -20,6 +20,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "python-slugify>=8.0",
     "rapidfuzz>=3.10",
+    "google-genai>=0.3.0",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,17 @@ dev = [
 ]
 playwright = [
     "playwright>=1.48",
+    # Defeats navigator.webdriver + missing-plugins fingerprints that newer
+    # Cloudflare Turnstile variants use to flag plain headless. Only kicks
+    # in when a merchant sets client_type: "playwright-stealth".
+    "playwright-stealth>=1.0",
+]
+# MiniLM (~90MB + PyTorch) for cross-merchant product reconciliation.
+# Only imported from scrapers/scripts, never from the FastAPI web app —
+# keeps the Render web tier PyTorch-free.
+embeddings = [
+    "sentence-transformers>=3.0",
+    "numpy>=1.24",
 ]
 
 [build-system]
@@ -37,7 +49,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["app", "app.routes", "db", "db.migrations", "matching", "scrapers", "scrapers.common", "scrapers.merchants", "workers", "alerts", "seed"]
+packages = ["app", "app.routes", "db", "db.migrations", "matching", "scrapers", "scrapers.common", "scrapers.merchants", "workers", "alerts", "seed", "scripts"]
 
 [tool.ruff]
 line-length = 100

@@ -161,6 +161,8 @@ async def fetch_woocommerce_category(
     """
     if client_type == "playwright":
         client = PlaywrightPoliteClient()
+    elif client_type == "playwright-stealth":
+        client = PlaywrightPoliteClient(stealth=True)
     elif client_type == "cffi":
         client = CffiPoliteClient()
     else:

@@ -362,6 +362,13 @@ WC_MERCHANTS: dict[str, dict] = {
             "tablets": ["https://phoneshopkenya.co.ke/product-category/apple-ipad", "https://phoneshopkenya.co.ke/product-category/amazon-tablets", "https://phoneshopkenya.co.ke/product-category/galaxy-tablet"],
         },
     },
+    # bestbuyy-ke and tdk-ke deferred: their category pages trigger a
+    # stronger Cloudflare Turnstile than their homepages did, so Playwright
+    # hits the challenge repeatedly, exhausts retries, and blows the job
+    # timeout for a batch fetch. Bringing them online would need either
+    # residential-proxy Playwright or a per-URL warm-up phase; neither is
+    # worth the cost right now given the categories they cover already have
+    # heavy coverage from Jumia/Kilimall/Hotpoint/etc.
     "overtech-ke": {
         "meta": {"slug": "overtech-ke", "name": "Overtech Kenya", "base_url": "https://overtech.co.ke"},
         "client_type": "playwright",  # Cloudflare Turnstile — plain httpx returns 403
