@@ -171,10 +171,46 @@ class Review(SQLModel, table=True):
     pros: str | None = None
     cons: str | None = None
     verified_at: datetime | None = None
+    # Bumped by the route when a reviewer re-submits an existing review. The
+    # product page renders "Edited on YYYY-MM-DD" when this > verified_at so
+    # readers know the review may not reflect the initial impression.
+    edited_at: datetime | None = None
+    # Admin-hidden reviews stay in the DB (audit trail + preserved history
+    # of what was hidden and when) but never render publicly and are
+    # excluded from AggregateRating math + JSON-LD. Different from delete —
+    # delete drops the row entirely.
+    hidden_at: datetime | None = None
+    hidden_reason: str | None = None
+    # Separate opt-in for non-transactional outreach (product updates, site
+    # announcements). Kenya DPA + GDPR both require this to be a distinct
+    # consent — cannot be inferred from submitting the review itself.
+    # Mirrors Alert.marketing_opt_in.
+    marketing_opt_in: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("product_id", "email", name="uq_review_product_email"),
+    )
+
+
+class ReviewReport(SQLModel, table=True):
+    """User-generated flag on a review. Surfaces in the admin queue for
+    moderator triage. One report per (review, reporter_ip_hash) so a
+    single reader can't inflate a review's report count.
+
+    reporter_ip_hash = sha256(client_ip + SECRET_KEY) truncated to 16 hex
+    chars — enough to dedupe without storing an identifiable IP. See
+    Privacy Policy §6.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    review_id: int = Field(foreign_key="review.id", index=True)
+    reason: str | None = None
+    reporter_ip_hash: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("review_id", "reporter_ip_hash", name="uq_report_reviewer"),
     )
 
 

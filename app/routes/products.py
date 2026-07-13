@@ -85,12 +85,17 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             .limit(6)
         ).all()
 
-    # Verified reviews only — unverified rows are pending magic-link click
-    # and never render publicly. Aggregate rating is computed here too so
-    # the template + JSON-LD share the same numbers.
+    # Verified reviews only, and never rows the admin has hidden.
+    # Unverified rows are pending magic-link click and never render
+    # publicly. Aggregate rating is computed here so template + JSON-LD
+    # share the same numbers.
     reviews = session.exec(
         select(Review)
-        .where(Review.product_id == product.id, Review.verified_at.is_not(None))
+        .where(
+            Review.product_id == product.id,
+            Review.verified_at.is_not(None),
+            Review.hidden_at.is_(None),
+        )
         .order_by(Review.created_at.desc())
     ).all()
     review_count = len(reviews)

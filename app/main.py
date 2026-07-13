@@ -27,6 +27,7 @@ async def lifespan(_app: FastAPI):
         add_product_description,
         add_product_embedding,
         add_product_merge_candidate_table,
+        add_review_moderation,
         add_reviews_table,
     )
     add_marketing_opt_in.run()
@@ -36,6 +37,7 @@ async def lifespan(_app: FastAPI):
     add_product_embedding.run()
     add_product_merge_candidate_table.run()
     add_reviews_table.run()
+    add_review_moderation.run()
     yield
 
 

@@ -227,6 +227,18 @@
               <span class="text-sm font-medium">{{ r.display_name }}</span>
               <span class="text-xs text-slate-500 dark:text-slate-400">· {{ r.verified_at.strftime('%Y-%m-%d') if r.verified_at else r.created_at.strftime('%Y-%m-%d') }}</span>
               <span class="inline-block text-[10px] uppercase tracking-wide bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300">Email confirmed</span>
+              {% if r.edited_at and r.verified_at and r.edited_at > r.verified_at %}
+                <span class="inline-block text-[10px] uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded dark:bg-amber-900 dark:text-amber-200" title="This review was edited after being published">Edited {{ r.edited_at.strftime('%Y-%m-%d') }}</span>
+              {% endif %}
+              <button
+                hx-post="/reviews/{{ r.id }}/report"
+                hx-target="closest .report-slot"
+                hx-swap="innerHTML"
+                class="ml-auto text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
+                title="Report this review">
+                Report
+              </button>
+              <span class="report-slot"></span>
             </div>
             {% if r.title %}<div class="mt-2 font-medium">{{ r.title }}</div>{% endif %}
             <p class="mt-1 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line">{{ r.body }}</p>
@@ -288,13 +300,20 @@
             class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
         </div>
 
+        <label class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+          <input type="checkbox" name="marketing_opt_in" value="1"
+            class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800">
+          <span>Also email me occasional PriceKenya updates (optional).</span>
+        </label>
+
         <button class="rounded bg-emerald-600 text-white text-sm px-4 py-1.5 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
           Submit review
         </button>
         <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
           We'll email you a link to confirm your review before it's published.
           By submitting, you agree to our
-          <a href="/privacy" class="underline">Privacy Policy</a> and
+          <a href="/reviews-policy" class="underline">review guidelines</a>,
+          <a href="/privacy" class="underline">Privacy Policy</a>, and
           <a href="/terms" class="underline">Terms</a>.
         </p>
       </form>

@@ -58,6 +58,14 @@ def privacy(request: Request):
     return templates.TemplateResponse(request, "privacy.html", {})
 
 
+@router.get("/reviews-policy", response_class=HTMLResponse)
+def reviews_policy(request: Request):
+    """Public rules page for user reviews. Static template — no DB access.
+    Linked from every review form so shoppers know the ground rules before
+    submitting."""
+    return templates.TemplateResponse(request, "reviews_policy.html", {})
+
+
 @router.get("/terms", response_class=HTMLResponse)
 def terms(request: Request):
     """Terms of use. Static template — no DB access."""

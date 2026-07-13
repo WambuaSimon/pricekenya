@@ -189,3 +189,152 @@ def _get_pending_id(email: str) -> int:
         rv = s.exec(select(Review).where(Review.email == email)).first()
         assert rv is not None, f"no review found for {email}"
         return rv.id
+
+
+# ---------------------------------------------------------------------------
+# Moderation + reports
+# ---------------------------------------------------------------------------
+
+
+def _publish_review(email: str, product_id: int, rating: int = 5) -> int:
+    """Submit + verify in one call — helper for moderation tests."""
+    c = TestClient(app)
+    c.post(
+        "/reviews",
+        data={
+            "product_id": product_id,
+            "email": email,
+            "display_name": "Test",
+            "rating": rating,
+            "body": "Long enough body so the min-char gate lets us through.",
+        },
+    )
+    rid = _get_pending_id(email)
+    c.get(f"/reviews/verify/{make_review_verify_token(rid)}", follow_redirects=False)
+    return rid
+
+
+def test_hidden_review_not_rendered_and_excluded_from_aggregate(product_id: int) -> None:
+    c = TestClient(app)
+    good = _publish_review("frank@test.review.local", product_id, rating=5)
+    bad = _publish_review("greta@test.review.local", product_id, rating=1)
+
+    with Session(engine) as s:
+        r = s.get(Review, bad)
+        from datetime import datetime as _dt
+        r.hidden_at = _dt.utcnow()
+        r.hidden_reason = "spam"
+        s.add(r)
+        s.commit()
+
+    product = _get_product(product_id)
+    page = c.get(f"/p/{product.slug}").text
+    with Session(engine) as s:
+        good_row = s.get(Review, good)
+    # Good review still visible…
+    assert good_row.display_name in page
+    # …and the aggregate is now 5.0 / 1 review (bad excluded).
+    m = re.search(r'"aggregateRating":\s*(\{[^}]+\})', page)
+    assert m
+    ar = json.loads(m.group(1))
+    assert ar["ratingValue"] == 5.0
+    assert ar["reviewCount"] == 1
+
+
+def test_report_flags_review_once_per_ip(product_id: int) -> None:
+    from db.models import ReviewReport
+
+    c = TestClient(app)
+    rid = _publish_review("holly@test.review.local", product_id)
+
+    r1 = c.post(f"/reviews/{rid}/report", data={"reason": "spam"})
+    assert r1.status_code == 200
+    r2 = c.post(f"/reviews/{rid}/report", data={"reason": "duplicate"})
+    assert r2.status_code == 200
+
+    # Second POST from the same IP is deduped — still exactly one row.
+    with Session(engine) as s:
+        rows = s.exec(select(ReviewReport).where(ReviewReport.review_id == rid)).all()
+        assert len(rows) == 1
+        # And the row is on file for the admin dashboard.
+        assert rows[0].reason == "spam"
+    # Cleanup so subsequent tests don't inherit the report row.
+    with Session(engine) as s:
+        for row in s.exec(select(ReviewReport).where(ReviewReport.review_id == rid)).all():
+            s.delete(row)
+        s.commit()
+
+
+def test_reviews_policy_page_renders() -> None:
+    r = TestClient(app).get("/reviews-policy")
+    assert r.status_code == 200
+    text = r.text.lower()
+    # Sanity: the page mentions the key rules the form links to.
+    assert "review guidelines" in text
+    assert "publish" in text
+    assert "moderate" in text
+
+
+def test_admin_reviews_requires_key() -> None:
+    r = TestClient(app).get("/admin/reviews")
+    # 404 when admin_key is unset (dev), 401 when set but not provided.
+    assert r.status_code in (404, 401)
+
+
+def test_edited_at_bumped_on_resubmit(product_id: int) -> None:
+    c = TestClient(app)
+    email = "ivy@test.review.local"
+    _publish_review(email, product_id, rating=5)
+    rid = _get_pending_id(email)
+    # Second submit
+    c.post(
+        "/reviews",
+        data={
+            "product_id": product_id,
+            "email": email,
+            "display_name": "Ivy",
+            "rating": 3,
+            "body": "Updated body after some real usage of the product for a week.",
+        },
+    )
+    with Session(engine) as s:
+        r = s.get(Review, rid)
+        assert r.verified_at is None  # resubmit invalidates old verification
+        assert r.edited_at is not None
+        assert r.rating == 3
+
+
+def test_marketing_opt_in_stored_when_checked(product_id: int) -> None:
+    c = TestClient(app)
+    c.post(
+        "/reviews",
+        data={
+            "product_id": product_id,
+            "email": "jane@test.review.local",
+            "display_name": "Jane",
+            "rating": 4,
+            "body": "Solid enough phone, no complaints from me about the daily use.",
+            "marketing_opt_in": "1",
+        },
+    )
+    with Session(engine) as s:
+        r = s.exec(select(Review).where(Review.email == "jane@test.review.local")).first()
+        assert r.marketing_opt_in is True
+
+
+def test_marketing_opt_in_off_by_default(product_id: int) -> None:
+    c = TestClient(app)
+    c.post(
+        "/reviews",
+        data={
+            "product_id": product_id,
+            "email": "kyle@test.review.local",
+            "display_name": "Kyle",
+            "rating": 5,
+            "body": "Battery is decent, screen is bright, works as advertised.",
+            # marketing_opt_in omitted entirely
+        },
+    )
+    with Session(engine) as s:
+        r = s.exec(select(Review).where(Review.email == "kyle@test.review.local")).first()
+        assert r.marketing_opt_in is False
