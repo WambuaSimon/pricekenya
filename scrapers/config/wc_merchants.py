@@ -182,17 +182,11 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://smartphoneskenya.co.ke/product-category/televisions"],
         },
     },
-    "patabay-ke": {
-        "meta": {"slug": "patabay-ke", "name": "Patabay Kenya", "base_url": "https://patabay.co.ke"},
-        "leaf_to_urls": {
-            "laptops": ["https://patabay.co.ke/product-category/office-appliances/laptop"],
-            "phones": ["https://patabay.co.ke/product-category/phones-and-tablets/smartphones"],
-            "refrigerators": ["https://patabay.co.ke/product-category/tcl-refrigerators"],
-            "solar-panels": ["https://patabay.co.ke/product-category/home-appliances/solar"],
-            "tablets": ["https://patabay.co.ke/product-category/kids-tablets-in-kenya", "https://patabay.co.ke/product-category/phones-and-tablets/tablets"],
-            "tvs": ["https://patabay.co.ke/product-category/televisions-and-entertainment/televisions", "https://patabay.co.ke/product-category/televisions-2"],
-        },
-    },
+    # patabay-ke removed: their custom WC theme hides prices from category
+    # cards entirely — the price only renders on the product detail page.
+    # The shared fetch_woocommerce_category helper works off the card, so
+    # every listing dropped for lack of a .price element. Bringing this
+    # merchant online would need a per-product-page fetcher (Hotpoint style).
     "zuka-ke": {
         "meta": {"slug": "zuka-ke", "name": "Zuka Electronics", "base_url": "https://zuka.co.ke"},
         "leaf_to_urls": {

@@ -43,7 +43,9 @@ def _extract_product(card, base_url: str, merchant_slug: str, category_slug: str
     # WooCommerce default is .woocommerce-loop-product__title (h2), but themes
     # customize this heavily. Avechi uses h3.product-name, iStore uses the
     # default, Gadget World is close to default. Try known customizations
-    # before falling back to any h2/h3 in the card.
+    # before falling back to any h2/h3 in the card, and as a last resort the
+    # img alt attribute — Patabay's theme (and Phone Place's card variant)
+    # ship the visible product name only via img alt, no text-title element.
     title_node = (
         card.css_first(".woocommerce-loop-product__title")
         or card.css_first(".product-name")
@@ -58,11 +60,13 @@ def _extract_product(card, base_url: str, merchant_slug: str, category_slug: str
         or card.css_first(".price")
     )
     img = card.css_first("img")
-    if not (a and title_node and price_node):
+    if not (a and price_node):
         return None
     href = a.attributes.get("href", "")
     product_url = href if href.startswith("http") else base_url.rstrip("/") + href
-    title = title_node.text(strip=True)
+    title = title_node.text(strip=True) if title_node else ""
+    if not title and img:
+        title = (img.attributes.get("alt") or "").strip()
     if not title:
         return None
     price = _parse_price(price_node.text(strip=True))
