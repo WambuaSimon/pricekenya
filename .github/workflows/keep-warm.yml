@@ -1,0 +1,40 @@
+name: Keep-warm ping
+
+# Every 10 minutes, hit /healthz to keep the Render Starter container
+# from spinning down. Also warms the Cloudflare edge cache for /sitemap.xml
+# (2nd curl) so Googlebot never lands on a cold-start 524.
+#
+# Schedule is offset off the top-of-hour rush (5,15,…,55) — GitHub Actions'
+# cron gets rate-delayed at :00 across the platform.
+#
+# Failures propagate as workflow failures → GH sends the repo owner an
+# email. That doubles as a downtime alert. If the alerts get noisy during
+# a Render outage, mute this workflow in the Actions settings.
+
+on:
+  schedule:
+    - cron: '5,15,25,35,45,55 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /healthz
+        run: |
+          curl -sSf https://www.pricekenya.co.ke/healthz \
+            --max-time 30 --retry 2 --retry-delay 5 \
+            -o /dev/null
+      - name: Warm /sitemap.xml at Cloudflare edge
+        # -sS = quiet, -f = fail on 4xx/5xx, no --fail-with-body needed.
+        # We don't retry here — Cloudflare's own edge cache is our safety net;
+        # this step's job is to *prime* it, not diagnose it.
+        run: |
+          curl -sSf https://www.pricekenya.co.ke/sitemap.xml \
+            --max-time 60 \
+            -o /dev/null
