@@ -20,22 +20,20 @@ async def lifespan(_app: FastAPI):
     # migration is a one-shot ADD-COLUMN-IF-NOT-EXISTS or CREATE-TABLE-IF-
     # NOT-EXISTS. Safe to run every boot because each script no-ops when
     # its change already exists.
+    # add_llm_extraction_log_table, add_product_embedding, and
+    # add_product_merge_candidate_table are Simon's Phase 0/1 WIP; the
+    # migration files live locally but haven't been committed yet. When
+    # they land in HEAD, re-import + re-run them here.
     from db.migrations import (
         add_click_table,
-        add_llm_extraction_log_table,
         add_marketing_opt_in,
         add_product_description,
-        add_product_embedding,
-        add_product_merge_candidate_table,
         add_review_moderation,
         add_reviews_table,
     )
     add_marketing_opt_in.run()
     add_click_table.run()
     add_product_description.run()
-    add_llm_extraction_log_table.run()
-    add_product_embedding.run()
-    add_product_merge_candidate_table.run()
     add_reviews_table.run()
     add_review_moderation.run()
     yield
