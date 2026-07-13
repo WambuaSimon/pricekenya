@@ -25,6 +25,7 @@ async def lifespan(_app: FastAPI):
     # migration files live locally but haven't been committed yet. When
     # they land in HEAD, re-import + re-run them here.
     from db.migrations import (
+        add_cached_sitemap_table,
         add_click_table,
         add_marketing_opt_in,
         add_product_description,
@@ -36,6 +37,7 @@ async def lifespan(_app: FastAPI):
     add_product_description.run()
     add_reviews_table.run()
     add_review_moderation.run()
+    add_cached_sitemap_table.run()
     yield
 
 

@@ -88,9 +88,26 @@ def robots() -> str:
     )
 
 
-@router.get("/sitemap.xml")
-def sitemap(session: Session = Depends(get_session)) -> Response:
-    from datetime import datetime
+# How stale can the cached sitemap get before we regenerate on the next
+# request? Six hours is a very safe over-estimate: Google re-fetches a
+# sitemap this size every 1-3 days, so six hours of staleness is invisible
+# to indexing. Meanwhile it caps how often we hit the expensive
+# product+listing join on a Render Starter dyno.
+_SITEMAP_CACHE_TTL_HOURS = 6
+
+# Response headers applied to every /sitemap.xml response, whether it
+# came from cache or was just built. `s-maxage` targets Cloudflare's edge.
+_SITEMAP_HEADERS = {"Cache-Control": "public, max-age=3600, s-maxage=3600"}
+
+
+def _build_sitemap_xml(session: Session) -> tuple[str, int]:
+    """Build the full urlset. Returns (xml_body, url_count).
+
+    Expensive: iterates every Product + joins Listing to get the freshest
+    last_checked_at + serializes the whole thing into 1MB+ of XML. Only
+    called from the /sitemap.xml route when the cache is missing or
+    stale (see the SITEMAP_CACHE_TTL_HOURS constant)."""
+    from datetime import datetime as _datetime
     from xml.sax.saxutils import escape as xml_escape
 
     from sqlalchemy import func
@@ -103,24 +120,21 @@ def sitemap(session: Session = Depends(get_session)) -> Response:
     # attribute that meaningfully affects re-crawl scheduling. Per-product
     # lastmod = max(Listing.last_checked_at) across its listings, so price/
     # stock refreshes signal a re-crawl. Site-wide max serves as lastmod for
-    # the homepage and category pages — a safe over-estimate (worst case
-    # Google re-crawls category pages slightly more often than needed).
-    site_lastmod: datetime | None = session.exec(select(func.max(Listing.last_checked_at))).one()
+    # the homepage and category pages — a safe over-estimate.
+    site_lastmod: _datetime | None = session.exec(
+        select(func.max(Listing.last_checked_at))
+    ).one()
 
-    def fmt(ts: datetime | None) -> str | None:
+    def fmt(ts: _datetime | None) -> str | None:
         return ts.strftime("%Y-%m-%dT%H:%M:%SZ") if ts else None
 
     site_lastmod_str = fmt(site_lastmod)
 
-    # (loc, lastmod, image_url). image_url only set for product URLs.
     entries: list[tuple[str, str | None, str | None]] = []
     entries.append((f"{base}/", site_lastmod_str, None))
     for slug in session.exec(select(Category.slug).order_by(Category.sort_order)).all():
         entries.append((f"{base}/c/{slug}", site_lastmod_str, None))
 
-    # One query for all products with their freshest listing timestamp and image.
-    # Ordered freshest-first so Google prioritizes recently-changed pages when
-    # it only reads part of the sitemap.
     product_rows = session.exec(
         select(
             Product.slug,
@@ -137,28 +151,56 @@ def sitemap(session: Session = Depends(get_session)) -> Response:
     entries.append((f"{base}/privacy", None, None))
     entries.append((f"{base}/terms", None, None))
 
-    body = [
+    parts_out = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
         ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
     ]
     for loc, lastmod, image_url in entries:
-        parts = [f"<loc>{xml_escape(loc)}</loc>"]
+        row = [f"<loc>{xml_escape(loc)}</loc>"]
         if lastmod:
-            parts.append(f"<lastmod>{lastmod}</lastmod>")
+            row.append(f"<lastmod>{lastmod}</lastmod>")
         if image_url:
-            parts.append(
+            row.append(
                 f"<image:image><image:loc>{xml_escape(image_url)}</image:loc></image:image>"
             )
-        body.append("  <url>" + "".join(parts) + "</url>")
-    body.append("</urlset>")
-    # Cache at Cloudflare's edge for an hour so Googlebot never hits a cold
-    # Render container while the sitemap query rebuilds. s-maxage targets
-    # the CDN; browsers still respect max-age for their own cache. Search
-    # engines re-fetch on their own schedule (Google every 1–3 days for a
-    # site our size), so an hour of staleness is invisible to indexing.
-    return Response(
-        "\n".join(body),
-        media_type="application/xml",
-        headers={"Cache-Control": "public, max-age=3600, s-maxage=3600"},
-    )
+        parts_out.append("  <url>" + "".join(row) + "</url>")
+    parts_out.append("</urlset>")
+    return "\n".join(parts_out), len(entries)
+
+
+@router.get("/sitemap.xml")
+def sitemap(session: Session = Depends(get_session)) -> Response:
+    """Cache-first sitemap. First request in every _SITEMAP_CACHE_TTL_HOURS
+    window pays the ~5k-URL build cost + writes the result to
+    CachedSitemap(id=1); every subsequent request in that window is a
+    single-row SELECT plus a 1MB Response. The Cloudflare edge cache
+    (`s-maxage=3600`) makes the middle layer of the sandwich even cheaper.
+
+    On cold DB (no cached row yet) we build inline and cache the result.
+    Deliberately no admin auth on the fallback build — it's the same route
+    Googlebot hits."""
+    from datetime import datetime as _datetime
+    from datetime import timedelta as _timedelta
+
+    from db.models import CachedSitemap
+
+    now = _datetime.utcnow()
+    ttl = _timedelta(hours=_SITEMAP_CACHE_TTL_HOURS)
+
+    cached = session.get(CachedSitemap, 1)
+    if cached and (now - cached.generated_at) < ttl:
+        return Response(cached.body, media_type="application/xml", headers=_SITEMAP_HEADERS)
+
+    body, url_count = _build_sitemap_xml(session)
+
+    if cached:
+        cached.body = body
+        cached.generated_at = now
+        cached.url_count = url_count
+        session.add(cached)
+    else:
+        session.add(CachedSitemap(id=1, body=body, generated_at=now, url_count=url_count))
+    session.commit()
+
+    return Response(body, media_type="application/xml", headers=_SITEMAP_HEADERS)

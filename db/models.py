@@ -214,6 +214,29 @@ class ReviewReport(SQLModel, table=True):
     )
 
 
+class CachedSitemap(SQLModel, table=True):
+    """Single-row table (id=1) holding the last-generated sitemap XML.
+
+    Building the sitemap iterates every Product row + joins Listing for the
+    freshest last_checked_at + serializes 5k+ URLs into 1MB+ of XML. On a
+    Render Starter dyno (0.5 CPU) that can push past Cloudflare's 100s
+    origin timeout — Google sees a 524 error and the "sitemap could not be
+    read" warning in Search Console. Serving from this cache turns the
+    request into a single-row SELECT.
+
+    See app/routes/meta.py for the cache-first / live-fallback logic. The
+    cache is refreshed lazily: when the current row is older than
+    SITEMAP_CACHE_TTL_HOURS (see the route), the next request regenerates
+    it inline and writes the new row. `id` is fixed to 1 so we never grow
+    beyond one row.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    body: str
+    generated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    url_count: int = 0
+
+
 class Alert(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="product.id", index=True)
