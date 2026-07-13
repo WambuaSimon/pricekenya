@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Index, LargeBinary, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -52,6 +52,11 @@ class Product(SQLModel, table=True):
     # populate this per-merchant when the source page carries one; the first
     # scraper to see the product wins, later scrapers don't overwrite.
     description: str | None = None
+    # MiniLM 384-dim float32 (1536 bytes). NULL until a scraper/CLI path
+    # embeds the product; the web app never computes new embeddings.
+    embedding: bytes | None = Field(
+        default=None, sa_column=Column(LargeBinary, nullable=True)
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     listings: list["Listing"] = Relationship(back_populates="product")
@@ -92,6 +97,85 @@ class Click(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     listing_id: int = Field(foreign_key="listing.id", index=True)
     occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class LlmExtractionLog(SQLModel, table=True):
+    """One row per LLM extraction attempt (Phase 0 fallback).
+
+    Doubles as a title-hash cache: the extractor short-circuits when a recent
+    successful row for the same `title_hash` exists, so the same title from N
+    merchants costs one API call. Also the source-of-truth for the per-category
+    daily cap check.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    title_hash: str = Field(index=True)  # 16-char sha256 hex prefix
+    category: str = Field(index=True)
+    response_json: dict | None = Field(default=None, sa_column=Column(JSON))
+    parsed_ok: bool = False
+    latency_ms: int = 0
+    error: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+    __table_args__ = (Index("ix_llm_cat_created", "category", "created_at"),)
+
+
+class ProductMergeCandidate(SQLModel, table=True):
+    """Two near-duplicate products flagged by the embedding merger (Phase 1).
+
+    Written when cosine ∈ [0.90, 0.95). Below 0.90 no candidate is written;
+    at or above 0.95 the auto-merge branch fires and no candidate is written
+    either. Reviewer decides via /admin/merge-review.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    source_product_id: int = Field(foreign_key="product.id", index=True)
+    target_product_id: int = Field(foreign_key="product.id", index=True)
+    similarity: float
+    source_title: str
+    source_specs: dict | None = Field(default=None, sa_column=Column(JSON))
+    status: str = Field(default="pending", index=True)  # pending | approved | rejected
+    reviewed_at: datetime | None = None
+    reviewer_note: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("source_product_id", "target_product_id", name="uq_merge_pair"),
+    )
+
+
+class Review(SQLModel, table=True):
+    """User-submitted rating + text review for a Product.
+
+    Reviews are `verified_at IS NULL` (pending, invisible on the product page)
+    until the reviewer clicks a magic link sent to their email — that's the
+    only anti-spam gate. Aggregate rating + JSON-LD Review objects on the
+    product page count only verified rows; unverified ones never render.
+    Prisjakt's model is fully unverified; we add the email verification because
+    Kenya has real counterfeit-review concern (CONTEXT.md §10) and the
+    verification token pattern is already sitting in alerts/tokens.py.
+
+    One review per (product, email) — someone can edit their review by
+    resubmitting; a fresh magic link goes out and only re-publishes when
+    they click it again.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    email: str = Field(index=True)
+    display_name: str
+    rating: int  # constrained to 1..5 at the form + template level
+    title: str | None = None
+    body: str
+    pros: str | None = None
+    cons: str | None = None
+    verified_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("product_id", "email", name="uq_review_product_email"),
+    )
 
 
 class Alert(SQLModel, table=True):

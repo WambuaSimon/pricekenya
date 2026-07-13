@@ -37,7 +37,21 @@
           "seller": {"@type": "Organization", "name": {{ offer.merchant.name | tojson }}}
         }{% if not loop.last %},{% endif %}{% endfor %}
       ]{% endif %}
-    }
+    }{% if review_count %},
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": {{ avg_rating | tojson }},
+      "reviewCount": {{ review_count | tojson }}
+    },
+    "review": [
+      {% for r in reviews[:10] %}{
+        "@type": "Review",
+        "author": {"@type": "Person", "name": {{ r.display_name | tojson }}},
+        "reviewRating": {"@type": "Rating", "ratingValue": {{ r.rating | tojson }}, "bestRating": 5, "worstRating": 1},
+        "reviewBody": {{ r.body | tojson }},
+        "datePublished": {{ (r.verified_at or r.created_at).strftime('%Y-%m-%d') | tojson }}
+      }{% if not loop.last %},{% endif %}{% endfor %}
+    ]{% endif %}
   }
   </script>
   <script type="application/ld+json">
@@ -57,13 +71,25 @@
       <div class="bg-white border rounded-lg p-4 dark:bg-slate-900 dark:border-slate-800">
         <div class="aspect-square bg-slate-100 rounded mb-3 flex items-center justify-center overflow-hidden dark:bg-slate-800">
           {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.title }}" class="object-contain w-full h-full">
+            <img src="{{ product.image_url }}" alt="{{ product.title }}"
+              class="object-contain w-full h-full"
+              onerror="this.style.display='none'">
           {% else %}
-            <span class="text-slate-300 text-xs dark:text-slate-600">no image</span>
+            <span class="text-slate-400 text-sm dark:text-slate-500">no image yet</span>
           {% endif %}
         </div>
         <h1 class="text-lg font-semibold">{{ product.title }}</h1>
         <div class="text-sm text-slate-500 mt-1 dark:text-slate-400">{{ product.brand | title }}{% if product.model and product.model != "unknown" %} · {{ product.model | title }}{% endif %}</div>
+        {% if review_count %}
+          <a href="#reviews" class="mt-2 inline-flex items-center gap-1 text-sm text-slate-700 dark:text-slate-200 hover:underline">
+            <span class="text-amber-500" aria-hidden="true">
+              {% set full = avg_rating | int %}
+              {% for _ in range(full) %}★{% endfor %}{% for _ in range(5 - full) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
+            </span>
+            <span class="font-medium">{{ avg_rating }}</span>
+            <span class="text-slate-500 dark:text-slate-400">· {{ review_count }} review{% if review_count != 1 %}s{% endif %}</span>
+          </a>
+        {% endif %}
         {% if min_price %}
           <div class="mt-3 text-2xl font-bold">{{ min_price | kes }}</div>
           <div class="text-xs text-slate-500 dark:text-slate-400">
@@ -173,6 +199,107 @@
       {% endif %}
     </div>
   </div>
+
+  <section id="reviews" class="mt-10">
+    <div class="flex items-baseline justify-between gap-4 mb-4">
+      <h2 class="text-lg font-semibold">
+        Reviews{% if review_count %} <span class="text-slate-500 dark:text-slate-400 font-normal">({{ review_count }})</span>{% endif %}
+      </h2>
+      {% if review_count %}
+        <div class="text-sm text-slate-700 dark:text-slate-200">
+          <span class="text-amber-500" aria-hidden="true">
+            {% set full = avg_rating | int %}
+            {% for _ in range(full) %}★{% endfor %}{% for _ in range(5 - full) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
+          </span>
+          <span class="font-medium ml-1">{{ avg_rating }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if reviews %}
+      <ul class="space-y-4 mb-6">
+        {% for r in reviews %}
+          <li class="rounded-lg border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-amber-500 text-sm" aria-hidden="true">
+                {% for _ in range(r.rating) %}★{% endfor %}{% for _ in range(5 - r.rating) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
+              </span>
+              <span class="text-sm font-medium">{{ r.display_name }}</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">· {{ r.verified_at.strftime('%Y-%m-%d') if r.verified_at else r.created_at.strftime('%Y-%m-%d') }}</span>
+              <span class="inline-block text-[10px] uppercase tracking-wide bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300">Email confirmed</span>
+            </div>
+            {% if r.title %}<div class="mt-2 font-medium">{{ r.title }}</div>{% endif %}
+            <p class="mt-1 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line">{{ r.body }}</p>
+            {% if r.pros or r.cons %}
+              <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {% if r.pros %}<div><span class="font-medium text-emerald-700 dark:text-emerald-400">Pros:</span> {{ r.pros }}</div>{% endif %}
+                {% if r.cons %}<div><span class="font-medium text-rose-700 dark:text-rose-400">Cons:</span> {{ r.cons }}</div>{% endif %}
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
+        No reviews yet. Be the first to share your experience with this product.
+      </p>
+    {% endif %}
+
+    <details class="rounded-lg border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
+      <summary class="cursor-pointer text-sm font-medium select-none">Write a review</summary>
+      <form
+        hx-post="/reviews"
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="mt-3 space-y-3">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+
+        <div>
+          <label class="block text-xs font-medium mb-1">Your rating</label>
+          <div class="flex gap-1">
+            {% for i in range(1, 6) %}
+              <label class="cursor-pointer">
+                <input type="radio" name="rating" value="{{ i }}" required class="peer sr-only">
+                <span class="text-2xl text-slate-300 peer-checked:text-amber-500 dark:text-slate-600 hover:text-amber-400" aria-hidden="true">★</span>
+                <span class="sr-only">{{ i }} star{% if i != 1 %}s{% endif %}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="text" name="display_name" required maxlength="40" placeholder="Your name"
+            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+          <input type="email" name="email" required placeholder="you@example.com"
+            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+        </div>
+
+        <input type="text" name="title" maxlength="80" placeholder="Review title (optional)"
+          class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+
+        <textarea name="body" required minlength="30" maxlength="3000" rows="4"
+          placeholder="What did you think? Minimum 30 characters."
+          class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"></textarea>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="text" name="pros" maxlength="200" placeholder="Pros (optional)"
+            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+          <input type="text" name="cons" maxlength="200" placeholder="Cons (optional)"
+            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+        </div>
+
+        <button class="rounded bg-emerald-600 text-white text-sm px-4 py-1.5 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+          Submit review
+        </button>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+          We'll email you a link to confirm your review before it's published.
+          By submitting, you agree to our
+          <a href="/privacy" class="underline">Privacy Policy</a> and
+          <a href="/terms" class="underline">Terms</a>.
+        </p>
+      </form>
+    </details>
+  </section>
 
   {% if related %}
     <section class="mt-10">

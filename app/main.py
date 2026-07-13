@@ -4,8 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.routes import admin, categories, meta, pages, products, reviews
 from app.routes import alerts as alerts_routes
-from app.routes import categories, meta, pages, products
 from db.session import init_db
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -22,12 +22,20 @@ async def lifespan(_app: FastAPI):
     # its change already exists.
     from db.migrations import (
         add_click_table,
+        add_llm_extraction_log_table,
         add_marketing_opt_in,
         add_product_description,
+        add_product_embedding,
+        add_product_merge_candidate_table,
+        add_reviews_table,
     )
     add_marketing_opt_in.run()
     add_click_table.run()
     add_product_description.run()
+    add_llm_extraction_log_table.run()
+    add_product_embedding.run()
+    add_product_merge_candidate_table.run()
+    add_reviews_table.run()
     yield
 
 
@@ -37,5 +45,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(pages.router)
 app.include_router(products.router)
 app.include_router(alerts_routes.router)
+app.include_router(reviews.router)
 app.include_router(categories.router)
 app.include_router(meta.router)
+app.include_router(admin.router)

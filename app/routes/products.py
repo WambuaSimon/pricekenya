@@ -4,7 +4,7 @@ from sqlmodel import Session, func, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Click, Listing, Merchant, PriceHistory, Product
+from db.models import Click, Listing, Merchant, PriceHistory, Product, Review
 from db.session import get_session
 
 router = APIRouter()
@@ -85,6 +85,21 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             .limit(6)
         ).all()
 
+    # Verified reviews only — unverified rows are pending magic-link click
+    # and never render publicly. Aggregate rating is computed here too so
+    # the template + JSON-LD share the same numbers.
+    reviews = session.exec(
+        select(Review)
+        .where(Review.product_id == product.id, Review.verified_at.is_not(None))
+        .order_by(Review.created_at.desc())
+    ).all()
+    review_count = len(reviews)
+    avg_rating = (
+        round(sum(r.rating for r in reviews) / review_count, 1)
+        if review_count
+        else None
+    )
+
     return templates.TemplateResponse(
         request,
         "product.html",
@@ -96,6 +111,9 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             "best_price_count": best_price_count,
             "all_tied": all_tied,
             "related": related,
+            "reviews": reviews,
+            "review_count": review_count,
+            "avg_rating": avg_rating,
             "history": [
                 {"t": h.observed_at.isoformat(), "p": float(h.price_kes)} for h in history
             ],

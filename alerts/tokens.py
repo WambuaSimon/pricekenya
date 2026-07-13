@@ -49,6 +49,33 @@ def verify_unsubscribe_token(token: str) -> int | None:
         return None
 
 
+def make_review_verify_token(review_id: int) -> str:
+    """Magic-link token for verifying a review author's email.
+
+    Same HMAC pattern as make_unsubscribe_token, prefixed `r:` so a token
+    minted for one purpose can't be spent against the other (namespace
+    isolation is cheap; a stolen alert token shouldn't verify a review).
+    """
+    payload = f"r:{review_id}"
+    return f"{payload}.{_sig(payload)}"
+
+
+def verify_review_verify_token(token: str) -> int | None:
+    """Return the review_id when the token is valid, else None."""
+    try:
+        payload, sig = token.rsplit(".", 1)
+    except ValueError:
+        return None
+    if not hmac.compare_digest(sig, _sig(payload)):
+        return None
+    if not payload.startswith("r:"):
+        return None
+    try:
+        return int(payload[2:])
+    except ValueError:
+        return None
+
+
 def make_watchlist_cookie(alert_ids: list[int]) -> str:
     """Signed cookie value listing the alerts a browser has created.
 
