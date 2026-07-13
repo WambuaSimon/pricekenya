@@ -48,6 +48,85 @@ class PoliteClient:
         await self._client.aclose()
 
 
+class PlaywrightPoliteClient:
+    """Headless Chromium wrapper for sites behind JS-challenge shields
+    (Cloudflare Turnstile etc.) that curl_cffi's TLS impersonation can't
+    resolve on its own.
+
+    Same interface as PoliteClient / CffiPoliteClient — one .get(url) call
+    yields an object with .text and .raise_for_status(). Chromium launches
+    lazily on first use and is reused across .get() calls, so the browser
+    startup cost is paid once per scrape run, not once per URL.
+
+    Not every shielded merchant is defeated by plain headless — the newer
+    Turnstile challenges fingerprint headless Chromium via navigator.webdriver
+    and other properties. When we hit one that stays 403 (Just a moment…)
+    the fix is `playwright-stealth`, added when a specific merchant needs it.
+    """
+
+    def __init__(self, user_agent: str | None = None) -> None:
+        self._ua = user_agent or (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
+        )
+        self._playwright = None
+        self._browser = None
+        self._context = None
+        self._delay = settings.scraper_request_delay_seconds
+
+    async def _ensure_browser(self) -> None:
+        if self._context is not None:
+            return
+        # Deferred import so environments without playwright installed can
+        # still import this module (httpx-based scrapers keep working).
+        from playwright.async_api import async_playwright
+
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.launch(headless=True)
+        self._context = await self._browser.new_context(user_agent=self._ua)
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+    async def get(self, url: str) -> _PWResponse:
+        await self._ensure_browser()
+        page = await self._context.new_page()
+        try:
+            resp = await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+            # Give any JS challenge time to resolve. Cloudflare Turnstile's
+            # invisible-challenge flow typically clears 4-7s after DOM ready
+            # even under headless; then wait for the network to quiet down.
+            await asyncio.sleep(8)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:  # noqa: BLE001
+                pass
+            html = await page.content()
+            status = resp.status if resp else 0
+            await asyncio.sleep(self._delay)
+            if status >= 400:
+                raise RuntimeError(f"Playwright fetch {url} returned {status}")
+            return _PWResponse(text=html, status_code=status)
+        finally:
+            await page.close()
+
+    async def aclose(self) -> None:
+        if self._context is not None:
+            await self._context.close()
+        if self._browser is not None:
+            await self._browser.close()
+        if self._playwright is not None:
+            await self._playwright.stop()
+
+
+class _PWResponse:
+    """Minimal response shim — the scrapers only use `.text` on the response
+    object. Kept out of dataclass to avoid pydantic collisions."""
+
+    def __init__(self, text: str, status_code: int) -> None:
+        self.text = text
+        self.status_code = status_code
+
+
 class CffiPoliteClient:
     """curl_cffi async client with a Chrome TLS fingerprint.
 

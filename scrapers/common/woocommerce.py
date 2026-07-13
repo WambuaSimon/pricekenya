@@ -21,9 +21,48 @@ from decimal import Decimal
 
 from selectolax.parser import HTMLParser
 
-from scrapers.common.base import CffiPoliteClient, PoliteClient, RawListing
+from scrapers.common.base import CffiPoliteClient, PlaywrightPoliteClient, PoliteClient, RawListing
 
 _PRICE_RE = re.compile(r"[\d,]+")
+
+# Known WooCommerce lazy-load / preloader placeholders. Merchants inject these
+# into <img src> and put the real URL in data-src / data-lazy-src. If we
+# accidentally pick up the placeholder as the product image, the shopper sees
+# an animated "loading" GIF that never resolves.
+_PLACEHOLDER_MARKERS = (
+    "prod_loading",       # Avechi's Merto theme
+    "loading.gif",
+    "loader.gif",
+    "placeholder.png",
+    "placeholder.jpg",
+    "placeholder.svg",
+    "blank.gif",
+    "blank.png",
+    "no-image",
+    "noimage",
+    "spinner.gif",
+    "spacer.gif",
+    "spacer.png",
+)
+
+
+def is_placeholder_image(url: str | None) -> bool:
+    """True when the URL looks like a lazy-load placeholder rather than a
+    real product photo."""
+    if not url:
+        return False
+    lower = url.lower()
+    if lower.startswith("data:image") or "svg+xml" in lower:
+        return True
+    return any(marker in lower for marker in _PLACEHOLDER_MARKERS)
+
+
+def _first_real_image(*candidates: str | None) -> str | None:
+    """Return the first candidate that's non-empty AND not a placeholder."""
+    for c in candidates:
+        if c and not is_placeholder_image(c):
+            return c
+    return None
 
 
 def _parse_price(raw: str) -> Decimal | None:
@@ -72,20 +111,23 @@ def _extract_product(card, base_url: str, merchant_slug: str, category_slug: str
     price = _parse_price(price_node.text(strip=True))
     if price is None or price <= 0:
         return None
-    image_url = None
+    image_url: str | None = None
     if img:
-        image_url = (
-            img.attributes.get("data-lazy-src")
-            or img.attributes.get("data-src")
-            or img.attributes.get("data-srcset", "").split()[0] if img.attributes.get("data-srcset") else None
-        ) or img.attributes.get("src")
-        # Skip pixel placeholders
-        if image_url and (image_url.startswith("data:image") or "svg+xml" in image_url):
-            image_url = (
-                img.attributes.get("data-src")
-                or img.attributes.get("data-lazy-src")
-                or img.attributes.get("src")
-            )
+        # Try lazy-load attributes BEFORE `src`. On Avechi and many other
+        # Merto/WoodMart-style themes, `src` is a placeholder GIF and the
+        # real URL lives in `data-src`. Precedence matters — this used to
+        # be an `if/else` ternary chained with `or` that silently dropped
+        # the `data-src` fallback whenever `data-srcset` was absent.
+        srcset_first = None
+        srcset_raw = img.attributes.get("data-srcset") or ""
+        if srcset_raw:
+            srcset_first = srcset_raw.split()[0]
+        image_url = _first_real_image(
+            img.attributes.get("data-lazy-src"),
+            img.attributes.get("data-src"),
+            srcset_first,
+            img.attributes.get("src"),
+        )
     return RawListing(
         merchant_slug=merchant_slug,
         merchant_sku=None,
@@ -112,10 +154,17 @@ async def fetch_woocommerce_category(
     page returns no cards (layout drift or last-page-reached).
 
     `client_type="cffi"` switches to CffiPoliteClient for Cloudflare-shielded
-    merchants that fingerprint TLS (403 on plain httpx). Default stays polite
-    httpx so existing callers don't change behaviour.
+    merchants that fingerprint TLS (403 on plain httpx). `client_type=
+    "playwright"` swaps in a headless-Chromium client for merchants that
+    also require JS-challenge resolution (Cloudflare Turnstile etc.).
+    Default stays polite httpx so existing callers don't change behaviour.
     """
-    client = CffiPoliteClient() if client_type == "cffi" else PoliteClient()
+    if client_type == "playwright":
+        client = PlaywrightPoliteClient()
+    elif client_type == "cffi":
+        client = CffiPoliteClient()
+    else:
+        client = PoliteClient()
     try:
         for page in range(1, max_pages + 1):
             url = category_base_url.rstrip("/") + "/"

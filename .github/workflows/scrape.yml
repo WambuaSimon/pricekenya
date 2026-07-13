@@ -117,6 +117,8 @@ jobs:
           - wc-nextbuy-ke       # refurbished phones
           - wc-pricepoint-ke    # cameras / TVs / gaming
           - wc-phoneshop-ke     # phones + gaming accessories
+          - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
+          - wc-overtech-ke      # Cloudflare Turnstile — Playwright headless
           - all-shopify         # Shopify batch (auto-picks all merchants from config)
     steps:
       - uses: actions/checkout@v4
@@ -125,7 +127,12 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - name: Install deps
-        run: pip install -e .
+        run: pip install -e ".[playwright]"
+      # Chromium only downloads once per runner then caches; the ~200MB is
+      # only paid for merchants that actually use client_type: "playwright".
+      - name: Install chromium (Playwright merchants only)
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || startsWith(matrix.target, 'wc-overtech')
+        run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
 

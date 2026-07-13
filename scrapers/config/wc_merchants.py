@@ -362,6 +362,34 @@ WC_MERCHANTS: dict[str, dict] = {
             "tablets": ["https://phoneshopkenya.co.ke/product-category/apple-ipad", "https://phoneshopkenya.co.ke/product-category/amazon-tablets", "https://phoneshopkenya.co.ke/product-category/galaxy-tablet"],
         },
     },
+    "overtech-ke": {
+        "meta": {"slug": "overtech-ke", "name": "Overtech Kenya", "base_url": "https://overtech.co.ke"},
+        "client_type": "playwright",  # Cloudflare Turnstile — plain httpx returns 403
+        "leaf_to_urls": {
+            "audio": ["https://overtech.co.ke/product-category/audio-systems/earphones-headphones", "https://overtech.co.ke/product-category/audio-systems/portable-speakers", "https://overtech.co.ke/product-category/audio-systems/soundbars"],
+            "cameras": ["https://overtech.co.ke/product-category/cameras", "https://overtech.co.ke/product-category/cameras/photography"],
+            "console-accessories": ["https://overtech.co.ke/product-category/gaming/gaming-accessories"],
+            "laptops": ["https://overtech.co.ke/product-category/computing/laptops", "https://overtech.co.ke/product-category/computing/computer-desktops"],
+            "peripherals-accessories": ["https://overtech.co.ke/product-category/computing/computer-accessories"],
+            "phone-tablet-accessories": ["https://overtech.co.ke/product-category/mobile-accessories/chargers-cables", "https://overtech.co.ke/product-category/mobile-accessories/memory-cards"],
+        },
+    },
+    "hisense-kenya-ke": {
+        "meta": {"slug": "hisense-kenya-ke", "name": "Hisense Kenya (Official)", "base_url": "https://hisense-kenya.co.ke"},
+        # Cloudflare + Turnstile JS challenge; plain httpx and curl_cffi both
+        # get 403. Playwright headless Chromium executes the challenge JS
+        # cleanly here (checked on 2026-07-13). Newer Turnstile variants
+        # detect plain headless via navigator.webdriver etc. — if a shielded
+        # merchant stays at 403 after switching to playwright, add stealth.
+        "client_type": "playwright",
+        "leaf_to_urls": {
+            "audio": ["https://hisense-kenya.co.ke/product-category/soundbars"],
+            "cooking": ["https://hisense-kenya.co.ke/product-category/cookers-ovens", "https://hisense-kenya.co.ke/product-category/microwaves"],
+            "refrigerators": ["https://hisense-kenya.co.ke/product-category/fridges-freezers"],
+            "tvs": ["https://hisense-kenya.co.ke/product-category/tvs", "https://hisense-kenya.co.ke/product-category/tvs/qled-4k", "https://hisense-kenya.co.ke/product-category/tvs/uhd-4k"],
+            "washers-dryers": ["https://hisense-kenya.co.ke/product-category/washing-machines"],
+        },
+    },
     "nairobitvshop-ke": {
         "meta": {"slug": "nairobitvshop-ke", "name": "Nairobi TV Shop", "base_url": "https://nairobitvshop.co.ke"},
         "leaf_to_urls": {
