@@ -34,6 +34,27 @@ from matching.normalize import parse_title
         # Branded earbuds / headphones — wireless flag captured
         ("JBL Tune 510BT Wireless On-Ear Headphones", "jbl|headphones|tune510bt|wireless"),
         ("Oraimo FreePods 3 True Wireless Earbuds", "oraimo|earbuds|wireless"),
+        # JBL portable speaker line — named-family extractor. Before the
+        # fix, every entry below collapsed to `jbl|speaker` because
+        # _MODEL_CODE_RE requires ≥3 digits and "Flip 6" / "Charge 5" /
+        # "Xtreme 4" have only one. This split a real product page for
+        # /p/jbl-speaker that spanned KSh 2k – 60k (visible regression
+        # reported 2026-07-14).
+        ("JBL Flip 6 Bluetooth Speaker", "jbl|speaker|flip-6"),
+        ("JBL FLIP 6, Waterproof Portable Bluetooth Speaker", "jbl|speaker|flip-6"),
+        ("JBL Charge 5 Bluetooth Speaker", "jbl|speaker|charge-5"),
+        ("JBL Xtreme 4 Portable Bluetooth Speaker", "jbl|speaker|xtreme-4"),
+        ("JBL Xtreme 4 Ultimate Portable Bluetooth Speaker", "jbl|speaker|xtreme-4"),
+        ("JBL Pulse 4 Speaker", "jbl|speaker|pulse-4"),
+        ("JBL Boombox 3 – Portable Bluetooth Speaker", "jbl|speaker|boombox-3"),
+        ("JBL PartyBox 300 Bluetooth Speaker", "jbl|speaker|partybox-300"),
+        ("JBL Partybox Encore Essential Portable Speaker", "jbl|speaker|partybox-encore"),
+        ("JBL GO 4 Portable Waterproof Bluetooth Speaker", "jbl|speaker|go-4"),
+        ("JBL Clip5 Bluetooth Portable Waterproof Speaker", "jbl|speaker|clip-5"),
+        ("JBL Clip 5 Speaker Black", "jbl|speaker|clip-5"),
+        # Same generation must merge regardless of merchant blurb text.
+        ("JBL Flip 5 Bluetooth Speaker", "jbl|speaker|flip-5"),
+        ("JBL Charge 4 Portable Bluetooth Speaker", "jbl|speaker|charge-4"),
     ],
 )
 def test_audio_titles(title: str, expected_key: str) -> None:
