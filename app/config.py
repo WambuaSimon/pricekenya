@@ -44,5 +44,11 @@ class Settings(BaseSettings):
     # until an admin explicitly publishes them from /admin/reviews.
     reviews_require_approval: bool = False
 
+    # --- WhatsApp (share buttons + floating chat widget) ---
+    # E.164 without the leading + (e.g. 254712345678). When empty, share/
+    # copy-link buttons and the floating chat pill silently do not render.
+    # wa.me links accept this format directly.
+    pricekenya_whatsapp_number: str = ""
+
 
 settings = Settings()

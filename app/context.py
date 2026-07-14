@@ -2,10 +2,28 @@
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from sqlmodel import Session, select
 
+from app.config import settings
 from db.models import Category, Product
 from db.session import engine
+
+
+def whatsapp_href(text: str | None = None) -> str | None:
+    """Return a `wa.me/<number>?text=<msg>` URL, or None if unset.
+
+    Templates check the return value to decide whether to render the
+    share button / floating chat pill at all — a missing number should
+    silently hide the feature, not surface a broken link.
+    """
+    num = (settings.pricekenya_whatsapp_number or "").strip()
+    if not num:
+        return None
+    if text:
+        return f"https://wa.me/{num}?text={quote(text)}"
+    return f"https://wa.me/{num}"
 
 # Emoji per top-level category slug — hardcoded because the tree is stable
 # and the icons are a UI concern, not data.
