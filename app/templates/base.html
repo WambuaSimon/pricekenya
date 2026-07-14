@@ -108,7 +108,12 @@
      swap regions but below any modal (z-30 vs z-40+ for drawers). #}
   {% set _chat_href = whatsapp_href("Hi PriceKenya — I have a question.") %}
   {% if _chat_href %}
-    <div data-wa-widget hidden
+    {# Render visible by default; the JS below only hides the widget when
+       the user has clicked (x) and the 7-day dismiss cookie is present.
+       Doing it this way instead of `hidden` + JS-unhides means the widget
+       is resilient to any JS error elsewhere on the page — a broken HTMX
+       or Alpine block above wouldn't silently kill the chat pill. #}
+    <div data-wa-widget
          class="fixed bottom-4 right-4 z-30 flex items-center gap-1 sm:bottom-6 sm:right-6">
       <a href="{{ _chat_href }}" target="_blank" rel="noopener"
          aria-label="Chat with PriceKenya on WhatsApp"
@@ -131,12 +136,12 @@
       (function () {
         var widget = document.querySelector('[data-wa-widget]');
         if (!widget) return;
-        // Honour the 7-day dismissal cookie. The name is chosen to be
-        // opaque enough that ad blockers don't heuristically strip it.
+        // Honour the 7-day dismissal cookie. Widget is visible by default
+        // so a broken script elsewhere on the page can't silently hide it.
         var dismissed = document.cookie.split(';').some(function (c) {
           return c.trim().indexOf('pk_wa_dismissed=1') === 0;
         });
-        if (!dismissed) widget.hidden = false;
+        if (dismissed) widget.hidden = true;
         var closeBtn = widget.querySelector('[data-wa-dismiss]');
         if (closeBtn) {
           closeBtn.addEventListener('click', function () {
