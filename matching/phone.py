@@ -49,6 +49,59 @@ BRAND_ALIASES = {
 # Words that pad the title but don't identify the product. Stripped before model extraction.
 NOISE_TOKENS = {"galaxy", "smartphone", "phone", "5g", "4g", "lte", "dual", "sim"}
 
+# Titles whose primary product is a phone-adjacent ACCESSORY, not a phone.
+# Leading/trailing spaces where needed to avoid matching mid-word substrings
+# ("case" would otherwise match "showcase" or "encased"; " case" only matches
+# when the word is a standalone token). Kept in one place so the LLM prompt
+# and the retroactive normalization script can reference the same rules.
+NON_PHONE_MARKERS: tuple[str, ...] = (
+    # Cases / covers
+    " case", "phone case", "silicone case", "leather case", "wallet case",
+    "clear case", "protective case", "flip case", "hard case",
+    " cover", "phone cover", "back cover", "flip cover",
+    # Protection film / glass
+    "screen protector", "screen guard", "tempered glass", "hydrogel",
+    "privacy film", "protective film", "phone skin", "vinyl skin",
+    "skin sticker",
+    # Chargers / cables / power
+    " charger", "phone charger", "wall charger", "car charger",
+    "wireless charger", "magsafe charger", "fast charger", "gan charger",
+    " adapter", "power adapter", "usb adapter",
+    " cable", "charging cable", "lightning cable", "type-c cable",
+    "micro-usb cable", " cord",
+    "power bank", "powerbank",
+    # Mounts / holders / stands
+    "phone holder", "phone stand", "phone grip", "pop socket", "popsocket",
+    "ring holder", "car mount", " mount", "phone mount",
+    # Audio accessories that get filed under phones
+    "airpods", "earbuds", "earphones", "headphones", "headset",
+    # Watch accessories — using bare " strap" / " band" catches "Watch 6
+    # Strap" as well as "Watch Strap". No real phone title contains these
+    # tokens as standalone words.
+    "watch band", "watch strap", "watch case", "watch cover",
+    " strap", " band ", "wrist strap",
+    # Repair / spare parts
+    "spare part", "replacement", "back glass replacement",
+    "battery replacement", "screen replacement", "lcd replacement",
+    "camera lens protector", "lens protector",
+    # Selfie / photography accessories
+    "selfie stick", "phone tripod", "gimbal", "phone ring light",
+    # Stylus / pens
+    "stylus pen", "s pen only",
+    # Bags / pouches
+    "phone pouch", "phone sleeve",
+)
+
+
+def _is_phone_accessory(cleaned: str) -> bool:
+    """True when the title's primary product is an accessory, not the phone.
+
+    The check is a phrase-substring match on the pre-lowercased title. Order
+    within NON_PHONE_MARKERS is not significant; every listed phrase is a
+    veto if present.
+    """
+    return any(marker in cleaned for marker in NON_PHONE_MARKERS)
+
 # "8GB+256GB", "8/256", "8 + 256", etc. — high-confidence storage pair.
 # The leading (?<!\.) rejects matches like "2.0+12" (from "Battery 2.0+12 MONTHS WARRANTY")
 # where the "0" would otherwise be captured as RAM.
@@ -59,8 +112,21 @@ _STORAGE_PAIR_RE = re.compile(
 _STORAGE_MIN_GB, _STORAGE_MAX_GB = 16, 4096
 _RAM_MIN_GB, _RAM_MAX_GB = 2, 32
 _ALL_GB_RE = re.compile(r"(\d{1,4})\s*gb", re.IGNORECASE)
+# Model + optional variant suffix. Variant alternation is ORDER-SENSITIVE:
+# longer phrases come first so `pro max` matches whole before `pro` swallows
+# just the "pro". Same principle for "plus max" (Samsung's S23 FE / Ultra
+# etc. get handled below via the standalone " max" branch). "Pro Max" as
+# a canonical Apple suffix was the specific bug: without it, iPhone 14 Pro
+# and iPhone 14 Pro Max both extracted model="iphone 14 pro" and merged
+# into one Product spanning ~KSh 60k–205k on the same page.
 _MODEL_RE = re.compile(
-    r"\b([a-z]+\s*\d{1,4}\s*[a-z]?(?:\s*pro|\s*plus|\s*ultra|\s*lite|\s*\+)?)\b",
+    r"\b([a-z]+\s*\d{1,4}\s*[a-z]?"
+    # Longest phrases first — regex alternation is left-to-right and
+    # non-backtracking here. "pro max" must beat plain "pro", "pro plus"
+    # must beat plain "pro", otherwise "iPhone 14 Pro Max" and
+    # "Infinix Hot 50 Pro Plus" get their suffix stripped.
+    r"(?:\s*pro\s*max|\s*pro\s*plus|\s*plus\s*max"
+    r"|\s*pro|\s*plus|\s*ultra|\s*lite|\s*max|\s*\+)?)\b",
     re.IGNORECASE,
 )
 # Collapse "30 C" → "30c" so cosmetic spacing doesn't split canonical keys.
@@ -116,14 +182,34 @@ def _find_model(title: str) -> str | None:
     if not m:
         return None
     raw = re.sub(r"\s+", " ", m.group(1)).strip()
-    return _TIGHTEN_MODEL_RE.sub(r"\1\2", raw)
+    tightened = _TIGHTEN_MODEL_RE.sub(r"\1\2", raw)
+    # If the character right after the matched span is "+", the model has
+    # a plus suffix (e.g. "S24+"). Regex \b can't capture it: "+" sits
+    # between two non-word chars (digit + space), so \b fails and the
+    # match stops at the digit. Detect it manually so slugify doesn't
+    # collapse "S24+" and plain "S24" into the same canonical key.
+    if text[m.end(1):m.end(1) + 1] == "+":
+        tightened = tightened + " plus"
+    tightened = re.sub(r"\+\s*$", " plus", tightened).strip()
+    return tightened
 
 
 def parse_title(title: str) -> ParsedTitle:
     cleaned = clean_title(title)
+
     brand, _ = _find_brand(cleaned)
     storage, ram = _find_storage(cleaned)
     model = _find_model(cleaned)
+
+    # Reject phone-adjacent accessories: the title matches an accessory
+    # marker AND we found no phone-spec signal (no storage_gb, no ram_gb).
+    # Real phone titles almost always mention at least one; accessories
+    # like "Belkin Iphone Case For Iphone 14" mention neither. Combining
+    # the two checks means "Free Charger" bundle language in a real phone
+    # listing (e.g. "Samsung Galaxy A03 Core 32GB+2GB RAM (Free Charger)")
+    # doesn't get rejected.
+    if _is_phone_accessory(cleaned) and not (storage or ram):
+        return ParsedTitle()
 
     specs: dict = {}
     if storage:

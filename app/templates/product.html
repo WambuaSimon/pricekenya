@@ -268,15 +268,42 @@
 
         <div>
           <label class="block text-xs font-medium mb-1">Your rating</label>
-          <div class="flex gap-1">
+          {# Cumulative star-fill: clicking star N lights stars 1..N. The
+             previous peer-checked approach only lit the exact clicked
+             radio — clicking 3 gave the reader a single amber star at
+             position 3, which read as "broken". Handled in JS so it
+             also updates on click AND on keyboard nav (radio group). #}
+          <div class="flex gap-1" data-star-group>
             {% for i in range(1, 6) %}
               <label class="cursor-pointer">
-                <input type="radio" name="rating" value="{{ i }}" required class="peer sr-only">
-                <span class="text-2xl text-slate-300 peer-checked:text-amber-500 dark:text-slate-600 hover:text-amber-400" aria-hidden="true">★</span>
+                <input type="radio" name="rating" value="{{ i }}" required class="sr-only" onchange="fillStars(this)">
+                <span class="text-2xl text-slate-300 dark:text-slate-600 hover:text-amber-400" data-star aria-hidden="true">★</span>
                 <span class="sr-only">{{ i }} star{% if i != 1 %}s{% endif %}</span>
               </label>
             {% endfor %}
           </div>
+          <script>
+            (function () {
+              // Guard against redefinition if the review section renders more
+              // than once on the page (HTMX swap after submit).
+              if (window.fillStars) return;
+              window.fillStars = function (input) {
+                var group = input.closest('[data-star-group]');
+                if (!group) return;
+                var value = parseInt(input.value, 10);
+                var stars = group.querySelectorAll('[data-star]');
+                stars.forEach(function (star, i) {
+                  if (i < value) {
+                    star.classList.add('text-amber-500');
+                    star.classList.remove('text-slate-300', 'dark:text-slate-600');
+                  } else {
+                    star.classList.remove('text-amber-500');
+                    star.classList.add('text-slate-300', 'dark:text-slate-600');
+                  }
+                });
+              };
+            })();
+          </script>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
