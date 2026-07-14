@@ -21,6 +21,40 @@ NAV_ICONS: dict[str, str] = {
 }
 
 
+# Leaf-category → emoji, used as a graceful fallback when Product.image_url
+# is missing or points at a merchant placeholder. Keeps product cards from
+# rendering as blank grey squares.
+LEAF_ICONS: dict[str, str] = {
+    "phones": "📱",
+    "tablets": "📱",
+    "phone-tablet-accessories": "🔌",
+    "laptops": "💻",
+    "peripherals-accessories": "⌨️",
+    "tvs": "📺",
+    "audio": "🎧",
+    "cameras": "📷",
+    "refrigerators": "❄️",
+    "freezers": "❄️",
+    "water-dispensers": "💧",
+    "washers-dryers": "🧺",
+    "cooking": "🍳",
+    "blenders": "🥤",
+    "toasters": "🍞",
+    "kettles": "🫖",
+    "ironing-laundry": "🧺",
+    "inverters": "⚡",
+    "solar-panels": "☀️",
+    "solar-batteries": "🔋",
+    "console-accessories": "🎮",
+}
+
+
+def product_placeholder_icon(product) -> str:
+    """Return an emoji-fallback icon for a product with no image_url."""
+    slug = getattr(product, "category_slug", None) or ""
+    return LEAF_ICONS.get(slug, "📦")
+
+
 def _has_products_in_subtree(session: Session, root_id: int) -> bool:
     """Return True if any descendant leaf of `root_id` has at least one Product.
 

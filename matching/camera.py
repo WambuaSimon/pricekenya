@@ -70,6 +70,14 @@ NON_CAMERA_MARKERS = (
     "cable release", "shutter release",
     "usb cable only", "hdmi cable",
     "screen protector",
+    # Camera mounts / holders / adapters — the "Camera Suction Cup Mount"
+    # class of listing sneaks in because the title contains "action camera"
+    # phrase-for-phrase.
+    "camera mount", "camera holder", "camera adapter", "camera bracket",
+    "suction cup mount", "action camera holder", "action camera mount",
+    "action camera adapter", "action camera bracket",
+    "helmet mount", "handlebar mount", "chest mount", "head mount",
+    "windshield mount", "car mount", "bike mount", "wrist mount",
 )
 
 # Megapixels: "64MP", "48 MP", "88 Million Pixel"
@@ -87,6 +95,31 @@ _RES_720P_RE = re.compile(r"\b720p\b", re.IGNORECASE)
 # Accept slightly shorter alnum runs since camera codes like "DC226" or "RX200"
 # are common (2 letters + 3 digits).
 _MODEL_CODE_RE = re.compile(r"\b([a-z]{1,4}[- ]?\d{2,5}[a-z]?)\b", re.IGNORECASE)
+
+# GoPro's "Hero N" family is THE model identifier for action cams in Kenya,
+# but the letter-count and digit-count don't fit _MODEL_CODE_RE (Hero has
+# 4 letters and Hero versions are 1-2 digits vs the general regex's 2-5
+# digit floor). Match this family explicitly so GoPro Hero 8 doesn't
+# collapse with Hero 13.
+# Two patterns tried in order:
+#   1. hero adjacent to digits ("HERO10", "Hero 13", "hero 8")
+#   2. hero with up to ~20 chars gap ("Hero Gopro 11" — Jumia word order)
+_GOPRO_HERO_RE = re.compile(r"\bhero\s*(\d{1,2})\b", re.IGNORECASE)
+_GOPRO_HERO_LOOSE_RE = re.compile(r"\bhero\b.{1,20}?\b(\d{1,2})\b", re.IGNORECASE)
+# GoPro Max (360-degree camera). Just the word "max" plus optional 360.
+_GOPRO_MAX_RE = re.compile(r"\bmax\b(\s*360)?", re.IGNORECASE)
+# DJI's Osmo family — same structural exception.
+_DJI_OSMO_RE = re.compile(
+    r"\bosmo\s+(action\s*\d|pocket\s*\d?|mobile\s*\d)\b", re.IGNORECASE
+)
+# Insta360 families: One RS/R/X3/X4, X-series direct (X3, X4).
+_INSTA_ONE_RE = re.compile(r"\bone\s+([a-z]{1,3}\d?)\b", re.IGNORECASE)
+_INSTA_X_RE = re.compile(r"\b(x\d)\b", re.IGNORECASE)
+
+# Brands whose entire consumer camera lineup is action cams. If we detected
+# the brand but the "action camera" marker phrase isn't in the title
+# verbatim, default type to action-cam rather than dropping the listing.
+_ACTION_CAM_BRANDS = frozenset({"gopro", "dji", "insta360"})
 
 # Words that model_code should skip (they match the regex but aren't SKUs).
 _MODEL_CODE_BLOCKLIST = {
@@ -155,6 +188,28 @@ def _find_resolution(cleaned: str) -> str | None:
 
 def _find_model_code(cleaned: str, brand: str | None) -> str | None:
     """Pick the first non-noise model code that isn't the brand itself."""
+    # Brand-family exceptions first — these families use short model codes
+    # that don't fit the general model_code regex (Hero 8, Osmo Action, etc.).
+    if brand == "gopro":
+        # Hero family (versions 1-14 as of 2026).
+        m = _GOPRO_HERO_RE.search(cleaned) or _GOPRO_HERO_LOOSE_RE.search(cleaned)
+        if m:
+            return f"hero{m.group(1)}"
+        # Max is GoPro's 360-degree camera.
+        if _GOPRO_MAX_RE.search(cleaned):
+            return "max"
+    if brand == "dji":
+        m = _DJI_OSMO_RE.search(cleaned)
+        if m:
+            return "osmo-" + m.group(1).replace(" ", "").lower()
+    if brand == "insta360":
+        m = _INSTA_ONE_RE.search(cleaned)
+        if m:
+            return "one-" + m.group(1).lower()
+        m = _INSTA_X_RE.search(cleaned)
+        if m:
+            return m.group(1).lower()
+
     brand_flat = (brand or "").replace("-", "")
     for m in _MODEL_CODE_RE.finditer(cleaned):
         code_raw = m.group(1).lower()
@@ -189,6 +244,13 @@ def parse_title(title: str) -> ParsedTitle:
 
     brand = _find_brand(cleaned)
     typ = _find_type(cleaned)
+    # For brands whose entire consumer camera lineup is action-cams
+    # (GoPro, DJI's Osmo Action line, Insta360), default to action-cam
+    # when the type-marker phrase isn't in the title verbatim. Otherwise
+    # a "DJI Osmo Action 4 Standard Combo" gets rejected simply because
+    # it doesn't literally say "action camera".
+    if not typ and brand in _ACTION_CAM_BRANDS:
+        typ = "action-cam"
     if not typ:
         return ParsedTitle()
 

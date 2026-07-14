@@ -64,17 +64,42 @@ _TABLET_MARKERS = (
 
 # Non-tablet leak: accessories that live in the same merchant feed but
 # aren't actually tablets.
+#
+# The rejection using this list is GATED on the two-signal rule (see
+# parse_title below): the marker must match AND we must have failed to
+# extract storage_gb/ram_gb. Real tablets always list at least one; a
+# case or keyboard listing lists neither. This is what lets bundle
+# language ("Surface Pro with Keyboard", "Redmi Pad SE (Free Case)")
+# still parse as the real tablet.
 _NON_TABLET_MARKERS = (
-    # Accessories that leak into the tablet feed — often word-final in the
-    # title, so we match generously on the accessory noun rather than a full
-    # phrase. False negatives (missing a real tablet) are cheaper than false
-    # positives (case gets canonicalised as tablet and merges with a real one).
-    " case", " cover", "screen protector", " stylus", "pen slot",
-    " keyboard", " holder", " stand", " mount", " sleeve", " pouch",
-    " charger", " cable", " adapter", " glass", " film", " skin",
+    # Cases / covers — specific accessory subtypes
+    " case", " cover", "flip case", "flip cover", "wallet case",
+    "silicone case", "leather case",
+    # Screen protection
+    "screen protector", "screen guard", "tempered glass", "hydrogel",
+    "privacy film", "phone skin", "vinyl skin",
+    # Pens / styluses (as accessories) — pen slot is a real tablet feature
+    # ("with S Pen slot"), so we match "s pen only", "pen only",
+    # "stylus pen" (product), not " stylus" bare.
+    "stylus pen", "s pen only",
+    # Keyboards / peripherals sold as accessories
+    "keyboard cover", "keyboard case", "keyboard folio",
+    "tablet keyboard",
+    # Mounts, stands, holders sold standalone
+    "tablet stand", "tablet holder", "tablet mount", "tablet cradle",
+    "car mount", "wall mount",
+    # Chargers / cables / adapters
+    "wall charger", "usb charger", "fast charger", "wireless charger",
+    "charging cable", "usb cable", "lightning cable", "type-c cable",
+    "power adapter", "usb adapter",
+    # Bags / sleeves / pouches sold as accessories
+    "tablet sleeve", "tablet pouch", "tablet bag",
+    # Repair / spare parts
+    "spare part", "replacement screen", "screen replacement",
+    "battery replacement",
+    # Non-tablet items in the tablet feed
     "graphics tablet", "drawing tablet", "writing tablet",
     "children's tablet toy", "learning tablet",  # kids-toy tablets are noise
-    "spare part", "replacement screen",
 )
 
 NOISE_TOKENS = {"tablet", "smartphone", "phone", "5g", "4g", "lte", "dual", "sim"}
@@ -149,11 +174,6 @@ def _find_model(cleaned: str) -> str | None:
 def parse_title(title: str) -> ParsedTitle:
     cleaned = clean_title(title)
 
-    # Reject accessories outright.
-    for marker in _NON_TABLET_MARKERS:
-        if marker in cleaned:
-            return ParsedTitle()
-
     # Positive-signal check: must look like a tablet or the scraper leaked
     # something else in (a phone, a laptop, a case) that we shouldn't index.
     if not any(m in cleaned for m in _TABLET_MARKERS):
@@ -162,6 +182,13 @@ def parse_title(title: str) -> ParsedTitle:
     brand, _ = _find_brand(cleaned)
     storage, ram = _find_storage(cleaned)
     model = _find_model(cleaned)
+
+    # Reject tablet-adjacent accessories: marker match AND no tablet-spec
+    # signal (no storage_gb, no ram_gb). Real tablets always list at least
+    # one; a "Lenovo Tab M11 (with Case) 128GB" bundle listing has 128 in it
+    # and so keeps parsing as the real tablet.
+    if any(m in cleaned for m in _NON_TABLET_MARKERS) and not (storage or ram):
+        return ParsedTitle()
     size = _find_size(cleaned)
 
     specs: dict = {}

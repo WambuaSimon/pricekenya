@@ -67,9 +67,12 @@ NON_AUDIO_MARKERS = (
 _CHANNELS_RE = re.compile(r"(\d)\.(\d)\s*ch", re.IGNORECASE)
 # Watts — only kept for display, and only when plausible.
 _WATTS_RE = re.compile(r"(\d{2,5})\s*w(?:atts?)?\b", re.IGNORECASE)
-# Model codes — brand-specific SKUs like LYS3602, HS5100, VP2121SB, ELP2406K.
+# Model codes — brand-specific SKUs like LYS3602, HS5100, VP2121SB, ELP2406K,
+# and JBL "Bar 800MK2" (digit-alpha-digit tail).
 # Require enough characters + digits to avoid grabbing things like "2.1" or "5G".
-_MODEL_CODE_RE = re.compile(r"\b([a-z]{2,6}[- ]?\d{2,6}[a-z]{0,3})\b", re.IGNORECASE)
+_MODEL_CODE_RE = re.compile(
+    r"\b([a-z]{2,6}[- ]?\d{2,6}[a-z]{0,3}\d{0,3})\b", re.IGNORECASE
+)
 
 WIRELESS_MARKERS = ("wireless", "bluetooth", "bt ", " bt", "tws")
 
@@ -159,8 +162,11 @@ def parse_title(title: str) -> ParsedTitle:
             specs["channels"] = channels
         if watts:
             specs["watts"] = watts
-        # Display: type first, then any channels + watts for context.
+# Display: model code (if any) upgrades the generic type name so
+        # a "JBL Bar 800MK2 Soundbar" doesn't render as just "Jbl Soundbar".
         display_bits.append(typ.replace("-", " ").title())
+        if model_code:
+            display_bits.append(model_code.upper())
         if channels:
             display_bits.append(f"{channels}CH")
         if watts:

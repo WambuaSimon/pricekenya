@@ -62,6 +62,41 @@ CONDITION_KEYWORDS = {
     "new arrival": "new",
 }
 
+# Laptop-adjacent accessories that leak into the laptops feed. Same treatment
+# as NON_PHONE_MARKERS in phone.py — reject before matching a real laptop
+# just because the title mentions a brand or product line.
+#
+# Intentionally conservative — real laptops are frequently sold with "+ Laptop
+# Bag" or "Free Laptop Sleeve" bundle language in the title, so we do NOT
+# reject on bag/sleeve/case markers alone. Only reject phrases that indicate
+# the primary product is the accessory (charger, cooling pad, keyboard cover,
+# spare part) or "only" qualifiers that show the seller is disclaiming the
+# actual laptop.
+NON_LAPTOP_MARKERS: tuple[str, ...] = (
+    # Chargers sold standalone (title explicitly says the laptop isn't included)
+    "laptop charger", "charger only", "power adapter only",
+    "replacement charger", "replacement power adapter",
+    # Batteries sold standalone
+    "laptop battery only", "replacement battery", "battery replacement",
+    # Keyboard covers / protectors
+    "keyboard cover", "keyboard skin", "keyboard protector",
+    "keyboard replacement", "keyboard only",
+    # Screen / LCD / hinge / palmrest replacements
+    "lcd replacement", "screen replacement", "hinge replacement",
+    "trackpad replacement", "palmrest replacement",
+    "laptop screen replacement",
+    # RAM sold as parts
+    "ram only", "ddr4 module", "ddr5 module",
+    # Storage sold as parts
+    "ssd only", "hard drive only",
+    # Small accessories where "only" makes the intent unambiguous
+    "webcam cover", "spare part", "spare parts",
+)
+
+
+def _is_laptop_accessory(cleaned: str) -> bool:
+    return any(marker in cleaned for marker in NON_LAPTOP_MARKERS)
+
 # CPU family regexes. Ordered so multi-word alternatives are tried first.
 _CPU_FAMILY_RE = re.compile(
     r"\b(core\s*i[3579]|i[3579]|ryzen\s*[3579]|celeron|pentium|athlon|apple\s*m[1234]|m[1234])\b",
@@ -292,6 +327,12 @@ def _find_condition(cleaned: str) -> str:
 
 def parse_title(title: str) -> ParsedTitle:
     cleaned = clean_title(title)
+
+    # Reject laptop-adjacent accessories before brand/model detection —
+    # otherwise "HP EliteBook Laptop Bag" collapses onto a real EliteBook.
+    if _is_laptop_accessory(cleaned):
+        return ParsedTitle()
+
     brand, _ = _find_brand(cleaned)
     if not brand:
         return ParsedTitle()

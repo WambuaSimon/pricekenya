@@ -4,9 +4,11 @@
       <a href="/p/{{ product.slug }}" class="block bg-white border rounded-lg p-3 hover:shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700">
         <div class="aspect-square bg-slate-100 rounded mb-2 flex items-center justify-center overflow-hidden dark:bg-slate-800">
           {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.title }}" class="object-contain w-full h-full">
+            <img src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy"
+              class="object-contain w-full h-full"
+              onerror="this.style.display='none'">
           {% else %}
-            <span class="text-slate-300 text-xs dark:text-slate-600">no image</span>
+            <span class="text-slate-400 text-xs dark:text-slate-500">no image yet</span>
           {% endif %}
         </div>
         <div class="text-sm font-medium line-clamp-2">{{ product.title }}</div>

@@ -17,8 +17,8 @@ from matching.normalize import parse_title
     [
         # Real branded DSLR with model code
         ("Canon EOS 250D DSLR Camera with 18-55mm Lens", "canon|dslr|eos250d"),
-        # Action cam brand — no code needed
-        ("GoPro Hero 12 Black 5.3K Action Camera", "gopro|action-cam"),
+        # Action cam brand — Hero version is the model identifier.
+        ("GoPro Hero 12 Black 5.3K Action Camera", "gopro|action-cam|hero12"),
         # Chinese security-cam brands recognized by name
         (
             "V380 Mini Wifi Camera 1080p IP Camera Wireless CCTV Night Vision",
