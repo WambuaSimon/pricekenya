@@ -100,7 +100,73 @@
     </div>
   {% endif %}
 
-  {% if rows %}
+  {# 2-col layout on lg+: filters sidebar left, grid right. Only render the
+     sidebar if we actually have facets AND products to filter — for empty
+     categories or ones without facets we fall through to the single-col
+     grid to avoid an empty stub column. #}
+  {% set show_filters = facets and rows %}
+  {% if show_filters %}
+    {# Mobile: "Filter" button in the flow; opens a bottom drawer. #}
+    <div class="lg:hidden mb-4 flex items-center justify-between">
+      <button type="button" data-filter-open
+              class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
+        </svg>
+        Filters{% if active_filters %} <span class="text-emerald-700 dark:text-emerald-400">({{ active_filters|length }})</span>{% endif %}
+      </button>
+      {% if active_filters %}
+        <a href="/c/{{ category.slug }}"
+           class="text-xs text-emerald-700 hover:underline dark:text-emerald-400">
+          Clear all
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-6">
+      {# Desktop sidebar. #}
+      <aside class="hidden lg:block">
+        <div class="sticky top-4 rounded-xl border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
+          {% include "partials/_filters.html" %}
+        </div>
+      </aside>
+
+      <div>
+        {% include "partials/_product_grid.html" %}
+      </div>
+    </div>
+
+    {# Mobile drawer. Off-screen by default; toggled by data-filter-open. #}
+    <div data-filter-drawer hidden
+         class="fixed inset-0 z-40 lg:hidden">
+      <div data-filter-close class="absolute inset-0 bg-slate-900/50"></div>
+      <div class="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl dark:bg-slate-900">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
+          <button type="button" data-filter-close aria-label="Close filters"
+                  class="rounded-md p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        {% include "partials/_filters.html" %}
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var openBtn = document.querySelector('[data-filter-open]');
+        var drawer = document.querySelector('[data-filter-drawer]');
+        if (!openBtn || !drawer) return;
+        openBtn.addEventListener('click', function () { drawer.hidden = false; });
+        drawer.querySelectorAll('[data-filter-close]').forEach(function (el) {
+          el.addEventListener('click', function () { drawer.hidden = true; });
+        });
+      })();
+    </script>
+  {% elif rows %}
     {% include "partials/_product_grid.html" %}
   {% else %}
     <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">

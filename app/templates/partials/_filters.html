@@ -1,0 +1,74 @@
+{# Filter sidebar for /c/<slug> pages.
+
+   Consumed by app/routes/categories.py which passes:
+     facets            — list[Facet] to render
+     active_filters    — dict[key → list[str] | str | True]
+     available_values  — dict[key → list[str]] for enum facets
+
+   Renders as a hidden <form> that GETs back to the current URL with the
+   selected filter values. All state is URL-driven — browser back/forward
+   works, links are shareable, no client JS required for the filtering
+   itself (only for the mobile drawer open/close).
+#}
+{% set has_active = active_filters | length > 0 %}
+<form method="get" data-filters class="space-y-5">
+  {% if has_active %}
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+        {{ active_filters | length }} filter{{ '' if active_filters|length == 1 else 's' }} on
+      </span>
+      <a href="/c/{{ category.slug }}"
+         class="text-xs text-emerald-700 hover:underline dark:text-emerald-400">
+        Clear all
+      </a>
+    </div>
+  {% endif %}
+
+  {% for facet in facets %}
+    {% set values = available_values.get(facet.key, []) %}
+    {% if facet.kind == 'enum' and values %}
+      <div>
+        <div class="text-sm font-semibold text-slate-800 mb-2 dark:text-slate-100">
+          {{ facet.label }}
+        </div>
+        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+          {% for v in values %}
+            {% set checked = v in (active_filters.get(facet.key) or []) %}
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" name="{{ facet.key }}" value="{{ v }}"
+                     {% if checked %}checked{% endif %}
+                     class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800">
+              <span class="text-slate-700 dark:text-slate-200">{{ v }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+    {% elif facet.kind == 'range' %}
+      <div>
+        <label for="filter-{{ facet.key }}"
+               class="text-sm font-semibold text-slate-800 mb-2 block dark:text-slate-100">
+          {{ facet.label }}
+        </label>
+        <input type="number" min="0" step="1000"
+               id="filter-{{ facet.key }}" name="{{ facet.key }}"
+               value="{{ active_filters.get(facet.key, '') }}"
+               placeholder="e.g. 30000"
+               class="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-emerald-500 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+      </div>
+    {% elif facet.kind == 'bool' %}
+      <div>
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" name="{{ facet.key }}" value="1"
+                 {% if active_filters.get(facet.key) %}checked{% endif %}
+                 class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800">
+          <span class="text-slate-700 font-medium dark:text-slate-200">{{ facet.label }}</span>
+        </label>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <button type="submit"
+          class="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400">
+    Apply filters
+  </button>
+</form>
