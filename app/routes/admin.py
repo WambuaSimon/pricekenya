@@ -12,7 +12,7 @@ routes). Sent as `X-Admin-Key: <value>`; also accepted as a cookie
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, Form, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -24,6 +24,7 @@ from app.config import settings
 from app.templating import templates
 from db.models import Listing, Product, ProductMergeCandidate, Review, ReviewReport
 from db.session import get_session
+from scripts.scrape_health import merchant_health
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -292,3 +293,74 @@ def delete_review(
     session.delete(r)
     session.commit()
     return RedirectResponse(url="/admin/reviews", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Scrape health — /admin/scrapes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/scrapes", response_class=HTMLResponse)
+def scrapes_dashboard(
+    request: Request,
+    stale_hours: float = Query(default=24.0, ge=1.0, le=720.0),
+    delist_message: str | None = Query(default=None),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """Per-merchant scrape freshness. Same data as
+    `python -m scripts.scrape_health`, viewable behind the admin key."""
+    rows = merchant_health(session)
+    stale_count = sum(
+        1 for r in rows
+        if r.hours_since_last_check is not None and r.hours_since_last_check > stale_hours
+    )
+    never_count = sum(1 for r in rows if r.hours_since_last_check is None)
+    return templates.TemplateResponse(
+        request,
+        "admin/scrapes.html",
+        {
+            "rows": rows,
+            "stale_hours": stale_hours,
+            "stale_count": stale_count,
+            "never_count": never_count,
+            "now_utc": datetime.now(UTC),
+            "admin_key": settings.admin_key,
+            "delist_message": delist_message,
+        },
+    )
+
+
+@router.post("/scrapes/delist-stale")
+def delist_stale(
+    days: int = Form(...),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """Flip `in_stock=false` on every Listing whose last_checked_at is
+    older than `days` days ago.
+
+    Non-destructive: we keep the Listing row itself and its PriceHistory
+    so product pages can still show the merchant's historical prices —
+    just marks the offer as no-longer-available. Next successful scrape
+    that re-sees the item will flip it back to in-stock automatically.
+
+    This is the manual button-press equivalent of a "reap dead listings"
+    background job. Bounded to days ∈ [1, 90] so a stray zero doesn't
+    delist the entire catalog in one click.
+    """
+    if days < 1 or days > 90:
+        raise HTTPException(status_code=400, detail="days must be 1-90")
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    result = session.exec(
+        update(Listing)
+        .where(Listing.last_checked_at < cutoff)
+        .where(Listing.in_stock.is_(True))
+        .values(in_stock=False)
+    )
+    session.commit()
+    n = result.rowcount if result.rowcount is not None else 0
+    msg = f"Delisted {n} listing{'' if n == 1 else 's'} untouched for >{days} days."
+    return RedirectResponse(
+        url=f"/admin/scrapes?delist_message={msg}", status_code=303
+    )

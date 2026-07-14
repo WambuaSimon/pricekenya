@@ -152,3 +152,46 @@ jobs:
         run: pip install -e .
       - name: Dispatch price-drop alerts
         run: python -m alerts.dispatcher
+
+  notify:
+    # Post to Telegram when any scrape matrix leg failed. `needs.scrape.result`
+    # is "success" only if EVERY leg passed, "failure" if any failed,
+    # "cancelled" if the workflow was manually cancelled. We ping on the
+    # first two so cancellations don't spam.
+    #
+    # Setup (one-time):
+    #   1. Chat @BotFather on Telegram → /newbot → follow prompts → get bot token
+    #   2. Start a chat with your new bot → send it any message
+    #   3. Get your chat_id: curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
+    #      look for "chat":{"id":<number>...}
+    #   4. In GH repo settings → Secrets and variables → Actions:
+    #        TELEGRAM_BOT_TOKEN = <token from step 1>
+    #        TELEGRAM_CHAT_ID   = <number from step 3>
+    #   No secrets set = job silently no-ops (safe default; won't fail CI).
+    needs: scrape
+    if: always() && needs.scrape.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Notify Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets not configured — skipping notification."
+            exit 0
+          fi
+          MSG="⚠️ PriceKenya scrape had one or more failing merchants.%0AView: ${RUN_URL}%0AOpen /admin/scrapes to see which merchants are now stale."
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MSG}" \
+            --data "disable_web_page_preview=true" \
+            > /tmp/tg_resp.json
+          # Fail the job if Telegram rejected the message so we see the
+          # setup mistake in CI rather than silently missing alerts.
+          if ! grep -q '"ok":true' /tmp/tg_resp.json; then
+            echo "Telegram send failed:"; cat /tmp/tg_resp.json; exit 1
+          fi
+          echo "Telegram notification sent."
