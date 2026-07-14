@@ -15,13 +15,14 @@ from matching.normalize import parse_title
         ("Vision Plus 220L Double Door Fridge", "vision-plus|220l|double"),
         (
             "Hisense REF094DR Fridge 94 Liters Single Door 94L Refrigerator",
-            "hisense|94l|single",
+            "hisense|94l|ref094dr|single",
         ),
         (
             "Ramtons RF/257- 2 Door Direct Cool Fridge - 213 Liters",
-            "ramtons|213l|double",
+            "ramtons|213l|rf257|double",
         ),
-        ("VON VRT-195DRHS Double Door Direct Cool Fridge - 195L", "von|195l|double"),
+        ("VON VRT-195DRHS Double Door Direct Cool Fridge - 195L",
+         "von|195l|vrt195drhs|double"),
         ("K-ELEC 90L Single Door Fridge Silver", "k-elec|90l|single"),
     ],
 )
@@ -45,16 +46,41 @@ def test_non_refrigerator_items_rejected(title: str) -> None:
 
 
 def test_jumia_and_kilimall_hisense_94l_merge() -> None:
-    """The Hisense 94L single-door fridge listed on both merchants must merge."""
+    """Two listings for the same Hisense 94L SKU must merge across merchants.
+
+    Post the 2026-07-14 tightening, canonical_key includes the SKU code
+    when the title provides one — that's the fix for `hisense|94l` piling
+    up three different SKUs (REF094DR, RS-12DR4SA, REF094R). Same code
+    from two merchants still merges.
+    """
     a = parse_title(
         "Hisense REF094DR Fridge 94 Liters Single Door 94ltr Refrigerator",
         category="refrigerators",
     ).canonical_key
     b = parse_title(
-        "Hisense 94 Liters fridge single door Energy Saving REFO94DR Refrigerator",
+        "Hisense REF094DR 94 Liters fridge single door Energy Saving",
         category="refrigerators",
     ).canonical_key
-    assert a == b == "hisense|94l|single"
+    assert a == b == "hisense|94l|ref094dr|single"
+
+
+def test_different_hisense_94l_skus_split() -> None:
+    """Two DIFFERENT Hisense 94L SKUs must NOT collide. Before the model-
+    code fix, they both landed on `hisense|94l` (with the single-door
+    variant sometimes appending `|single`) — the visible symptom was a
+    product page mixing REF094DR (a bar fridge) with RS-12DR4SA (a
+    countertop) at wildly different prices."""
+    ref_key = parse_title(
+        "Hisense REF094DR Fridge 94 Liters",
+        category="refrigerators",
+    ).canonical_key
+    rs_key = parse_title(
+        "Hisense RS-12DR4SA Mini Fridge 94L",
+        category="refrigerators",
+    ).canonical_key
+    assert ref_key != rs_key
+    assert "ref094dr" in ref_key
+    assert "rs12dr4sa" in rs_key
 
 
 # ---------------------------------------------------------------------------

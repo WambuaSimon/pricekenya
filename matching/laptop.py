@@ -76,21 +76,28 @@ NON_LAPTOP_MARKERS: tuple[str, ...] = (
     # Chargers sold standalone (title explicitly says the laptop isn't included)
     "laptop charger", "charger only", "power adapter only",
     "replacement charger", "replacement power adapter",
+    "car charger", "magsafe", "power adapter",
     # Batteries sold standalone
     "laptop battery only", "replacement battery", "battery replacement",
+    "laptop battery for", "battery for apple", "new a1189",  # OEM part codes
     # Keyboard covers / protectors
     "keyboard cover", "keyboard skin", "keyboard protector",
     "keyboard replacement", "keyboard only",
     # Screen / LCD / hinge / palmrest replacements
     "lcd replacement", "screen replacement", "hinge replacement",
     "trackpad replacement", "palmrest replacement",
-    "laptop screen replacement",
+    "laptop screen replacement", "cooling fan for", "laptop cooling fan",
     # RAM sold as parts
     "ram only", "ddr4 module", "ddr5 module",
     # Storage sold as parts
     "ssd only", "hard drive only",
     # Small accessories where "only" makes the intent unambiguous
     "webcam cover", "spare part", "spare parts",
+    # Laptop-adjacent accessories that leak into the feed
+    "laptop case", "laptop bag", "laptop sleeve", "laptop backpack",
+    "stylus pen", "rechargeable stylus",
+    "usb-c to hdmi", "usb hub", "multiport converter",
+    "case cover for", "cooling pad",
 )
 
 
@@ -99,7 +106,12 @@ def _is_laptop_accessory(cleaned: str) -> bool:
 
 # CPU family regexes. Ordered so multi-word alternatives are tried first.
 _CPU_FAMILY_RE = re.compile(
-    r"\b(core\s*i[3579]|i[3579]|ryzen\s*[3579]|celeron|pentium|athlon|apple\s*m[1234]|m[1234])\b",
+    # Apple silicon: M1 / M2 / M3 / M4 / M5 / M6…  Use \d instead of a fixed
+    # range so we don't have to edit this regex every year Apple ships a new
+    # generation. Combined with the leading-alpha boundary this still won't
+    # false-positive on "m10" (nothing Apple ships) — the token has to be
+    # word-boundaried and not attached to more digits.
+    r"\b(core\s*i[3579]|i[3579]|ryzen\s*[3579]|celeron|pentium|athlon|apple\s*m\d|m\d)\b",
     re.IGNORECASE,
 )
 # Intel generation: "6th gen", "10th generation", or embedded in SKU like "i5-8250U" (8000-series = 8th gen).

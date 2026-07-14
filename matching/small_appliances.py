@@ -50,6 +50,34 @@ _CAPACITY_RE = re.compile(
 )
 # "700W", "1000w", "2000 watts"
 _WATTS_RE = re.compile(r"(\d{3,5})\s*(?:w\b|watts?)", re.IGNORECASE)
+# Model codes on Kenyan small appliances:
+#   VBP501NLB, VSBT06MNX (Von)
+#   RM/608, RM/764, RM/583 (Ramtons — slash-separated)
+#   TYB-205, TYB-202-A, FY-B305 (Ailyons)
+#   BLM45.240SS (Kenwood — dot inside the code)
+#   H1STBWES2A, H15TBWES1A (Hisense — long middle-letter run + digit-letter tail)
+#   AK-444, AK-500 (Nunix)
+#   SBL-853B, SEL-954W (Smartpro)
+#   LM242B28, LM438127, LM423 (Moulinex)
+# The middle-letter run allows up to 8 chars (H1STBWES2A has 6). An optional
+# separator+digit tail catches BLM45.240SS (dot then more digits then letters).
+_MODEL_CODE_RE = re.compile(
+    # The optional trailing digit run allows only NON-SPACE separators so
+    # "AK-444 3" doesn't get glued into "AK4443" via the space, but
+    # "BLM45.240SS" survives (dot inside the code).
+    r"\b([a-z]{1,4}[-/. ]?[a-z]{0,3}\d{1,6}"
+    r"[a-z]{0,8}(?:[-/.]?\d{1,4})?[a-z]{0,4})\b",
+    re.IGNORECASE,
+)
+
+# Short English/marketing words that survive brand stripping and can attach
+# to a nearby digit (e.g. "2 in 1" → "in1"). Rejected in _find_model_code
+# so genuine SKU codes like "sn5" (short but not a stopword) still pass.
+_MODEL_CODE_STOPWORDS: frozenset[str] = frozenset({
+    "in", "on", "of", "for", "and", "or", "at", "by", "to", "vs", "up",
+    "the", "a", "an", "not", "no", "with", "from", "yr", "yrs", "wrty",
+    "yes", "hi", "lo",
+})
 # "2 slice", "4 slice", "2-slice"
 _SLOTS_RE = re.compile(r"(\d)[- ]?(?:slot|slice|slice-slot)s?", re.IGNORECASE)
 
@@ -101,6 +129,47 @@ def _find_watts(cleaned: str) -> int | None:
         # Real small-appliance wattage: 500-3000W plausible; skip inflated claims.
         if 100 <= n <= 3500:
             return n
+    return None
+
+
+def _find_model_code(cleaned: str, brand: str) -> str | None:
+    """Extract a small-appliance SKU code.
+
+    Same guardrails as the audio/refrigerator matchers: strip the brand
+    token first (both the display form and the slug), reject codes that
+    are just the brand, and reject long-letter+single-digit shapes that
+    are usually marketing text ("blender 5", "watts 5"). Slash / dot /
+    hyphen / space are all normalised away so RM/608 = RM-608 = RM 608.
+    """
+    brand_flat = brand.replace("-", "").replace(" ", "")
+    brand_display = brand.replace("-", " ")
+    stripped = re.sub(rf"\b{re.escape(brand_display)}\b", " ", cleaned, flags=re.IGNORECASE)
+    stripped = re.sub(rf"\b{re.escape(brand)}\b", " ", stripped, flags=re.IGNORECASE)
+    for m in _MODEL_CODE_RE.finditer(stripped):
+        code = (
+            m.group(1)
+            .lower()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("/", "")
+            .replace(".", "")
+        )
+        if code == brand_flat:
+            continue
+        if code.startswith(brand_flat) and len(code) > len(brand_flat):
+            code = code[len(brand_flat):]
+        letters = sum(1 for c in code if c.isalpha())
+        digits = sum(1 for c in code if c.isdigit())
+        if len(code) < 3 or letters == 0 or digits == 0:
+            continue
+        if digits <= 1 and letters > 3:
+            continue
+        # Reject phrase remnants like "in1" from "2 in 1" or "of3" — the
+        # alpha portion is a common English word, not an SKU prefix.
+        alpha_prefix = "".join(c for c in code if c.isalpha())
+        if alpha_prefix in _MODEL_CODE_STOPWORDS:
+            continue
+        return code
     return None
 
 
@@ -173,9 +242,18 @@ def parse_title(title: str, expected_type: str) -> ParsedTitle:
         subtype = _find_blender_subtype(cleaned)
         capacity = _find_capacity_liters(cleaned)
         watts = _find_watts(cleaned)
+        model_code = _find_model_code(cleaned, brand)
         if subtype:
             parts.append(subtype)
             specs["subtype"] = subtype.replace("-", " ").title()
+        # Only append the SKU code when the title actually has one. Watts
+        # deliberately stays out of the canonical key — merchants often omit
+        # it, and merging same-SKU listings across merchants matters more
+        # than splitting by wattage. If we ever see enough shallow-key
+        # blenders with distinct wattages this decision can be revisited.
+        if model_code:
+            parts.append(model_code)
+            specs["model_code"] = model_code.upper()
         if capacity:
             parts.append(f"{_fmt_capacity(capacity)}l")
             specs["capacity_liters"] = capacity

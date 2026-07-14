@@ -17,7 +17,7 @@ from matching.normalize import parse_title
     "title,expected_key",
     [
         ("Ramtons 1.5L Blender - 400W Glass Jar", "ramtons|blender|1.5l"),
-        ("Mika MBL2101 - Jug Blender, 1.5L, 400W - Black", "mika|blender|jug|1.5l"),
+        ("Mika MBL2101 - Jug Blender, 1.5L, 400W - Black", "mika|blender|jug|mbl2101|1.5l"),
         ("Ramtons Portable Personal Blender 400ML 300W", "ramtons|blender|personal"),
         ("Ailyons Immersion Hand Blender 2 Speed 300W", "ailyons|blender|immersion"),
         ("SmartPro Juicer Blender 2L 500W", "smartpro|blender|juicer|2l"),

@@ -78,6 +78,15 @@ NON_CAMERA_MARKERS = (
     "action camera adapter", "action camera bracket",
     "helmet mount", "handlebar mount", "chest mount", "head mount",
     "windshield mount", "car mount", "bike mount", "wrist mount",
+    # Extra accessory phrases seen leaking into /c/cameras on live prod:
+    "neck strap", "camera neck strap", "shoulder strap",
+    "telephoto lens", "wide angle lens", "macro lens", "camera lens",
+    "quick release", "camera battery", "spare battery",
+    "compatible with", "cooling fan",
+    "gimbal stabilizer", "gimbal camera", "handheld gimbal",
+    "action camera etc",  # generic multi-brand accessory strap listings
+    # DJI RS-* / Ronin are cinema gimbals, not cameras.
+    "dji rs", "ronin",
 )
 
 # Megapixels: "64MP", "48 MP", "88 Million Pixel"
@@ -96,6 +105,13 @@ _RES_720P_RE = re.compile(r"\b720p\b", re.IGNORECASE)
 # are common (2 letters + 3 digits).
 _MODEL_CODE_RE = re.compile(r"\b([a-z]{1,4}[- ]?\d{2,5}[a-z]?)\b", re.IGNORECASE)
 
+# Canon EOS body naming: "EOS 90D", "EOS R6", "EOS R50", "EOS M50",
+# "EOS 1500D". Canon's numeric-with-suffix codes don't fit the general
+# _MODEL_CODE_RE (which requires ≥3 digits). Capture the token after
+# "EOS" — a letter-then-number or number-then-letter, 1-5 chars total.
+_CANON_EOS_RE = re.compile(r"\beos\s+([a-z]?\d{1,4}[a-z]?)\b", re.IGNORECASE)
+
+
 # GoPro's "Hero N" family is THE model identifier for action cams in Kenya,
 # but the letter-count and digit-count don't fit _MODEL_CODE_RE (Hero has
 # 4 letters and Hero versions are 1-2 digits vs the general regex's 2-5
@@ -108,12 +124,18 @@ _GOPRO_HERO_RE = re.compile(r"\bhero\s*(\d{1,2})\b", re.IGNORECASE)
 _GOPRO_HERO_LOOSE_RE = re.compile(r"\bhero\b.{1,20}?\b(\d{1,2})\b", re.IGNORECASE)
 # GoPro Max (360-degree camera). Just the word "max" plus optional 360.
 _GOPRO_MAX_RE = re.compile(r"\bmax\b(\s*360)?", re.IGNORECASE)
-# DJI's Osmo family — same structural exception.
+# DJI's Osmo family — same structural exception. Includes the newer Nano
+# (subcompact) and Osmo 360 (spherical) lines added in 2025-26.
 _DJI_OSMO_RE = re.compile(
-    r"\bosmo\s+(action\s*\d|pocket\s*\d?|mobile\s*\d)\b", re.IGNORECASE
+    r"\bosmo\s+(action\s*\d|pocket\s*\d?|mobile\s*(?:\d|se)|nano|360)\b",
+    re.IGNORECASE,
 )
-# Insta360 families: One RS/R/X3/X4, X-series direct (X3, X4).
+# Insta360 families:
+#   - "One RS", "One R", "One X3/X4" (older lineup)
+#   - "GO 3", "Go3", "GO 3S", "GO 4" (small action-cam family)
+#   - X-series direct ("X3", "X4", "X5")
 _INSTA_ONE_RE = re.compile(r"\bone\s+([a-z]{1,3}\d?)\b", re.IGNORECASE)
+_INSTA_GO_RE = re.compile(r"\bgo\s*(\d[a-z]?)\b", re.IGNORECASE)
 _INSTA_X_RE = re.compile(r"\b(x\d)\b", re.IGNORECASE)
 
 # Brands whose entire consumer camera lineup is action cams. If we detected
@@ -190,6 +212,14 @@ def _find_model_code(cleaned: str, brand: str | None) -> str | None:
     """Pick the first non-noise model code that isn't the brand itself."""
     # Brand-family exceptions first — these families use short model codes
     # that don't fit the general model_code regex (Hero 8, Osmo Action, etc.).
+    if brand == "canon":
+        # Canon body codes: "EOS 90D", "EOS R6", "EOS R50", "EOS M50".
+        # No separator between "eos" and the code so this matches the
+        # existing DB canonical-key format ("eos250d", "eos90d") that
+        # the general _MODEL_CODE_RE produces for the same titles.
+        m = _CANON_EOS_RE.search(cleaned)
+        if m:
+            return f"eos{m.group(1).lower()}"
     if brand == "gopro":
         # Hero family (versions 1-14 as of 2026).
         m = _GOPRO_HERO_RE.search(cleaned) or _GOPRO_HERO_LOOSE_RE.search(cleaned)
@@ -206,6 +236,9 @@ def _find_model_code(cleaned: str, brand: str | None) -> str | None:
         m = _INSTA_ONE_RE.search(cleaned)
         if m:
             return "one-" + m.group(1).lower()
+        m = _INSTA_GO_RE.search(cleaned)
+        if m:
+            return "go-" + m.group(1).lower()
         m = _INSTA_X_RE.search(cleaned)
         if m:
             return m.group(1).lower()
