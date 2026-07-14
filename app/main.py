@@ -1,8 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import OperationalError
 
 from app.routes import admin, categories, meta, pages, products, reviews
 from app.routes import alerts as alerts_routes
@@ -42,6 +44,32 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="PriceKenya", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def _neon_cold_start_retry(request: Request, call_next):
+    """Retry idempotent (GET/HEAD) requests once when Neon compute is cold.
+
+    Neon's free-tier Postgres suspends compute after ~5 minutes idle. The
+    first request that arrives during the wake-up window can hit an SSL
+    handshake timeout that pool_pre_ping can't catch (the pool is empty,
+    so there's no cached socket to validate — the fresh connect is what
+    fails). Sleep briefly to let compute finish booting, then replay.
+
+    POST/PUT/PATCH/DELETE are NOT retried: they may have side effects
+    (review submit, alert signup) that must never double-execute. Those
+    still surface a 500 to the caller — one retry from the user's side
+    is safer than silently repeating a mutation.
+    """
+    try:
+        return await call_next(request)
+    except OperationalError:
+        if request.method not in ("GET", "HEAD"):
+            raise
+        await asyncio.sleep(1.5)
+        return await call_next(request)
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(pages.router)
