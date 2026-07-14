@@ -18,6 +18,7 @@ already handle unrecognised categories.
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
@@ -25,6 +26,24 @@ import httpx
 
 from app.config import settings
 from scrapers.common.base import RawListing
+
+# Cheap HTML-to-text: drop <script>/<style> blocks, then all remaining tags.
+# `body_html` from /products.json can contain <p>, <ul>, <br>, escaped
+# entities, and inline styling. The matcher only cares that numeric spec
+# tokens like "128GB" survive intact — we don't need a full HTML parser.
+_HTML_BLOCK_RE = re.compile(
+    r"<(script|style)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL
+)
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(html: str) -> str:
+    if not html:
+        return ""
+    text = _HTML_BLOCK_RE.sub(" ", html)
+    text = _HTML_TAG_RE.sub(" ", text)
+    text = text.replace("&nbsp;", " ").replace("&amp;", "&")
+    return re.sub(r"\s+", " ", text).strip()
 
 # Shopify `product_type` string → PriceKenya taxonomy leaf.
 # Match longest key first (case-insensitive substring) so specific beats generic.
@@ -173,6 +192,7 @@ async def fetch_shopify_catalog(
                 if price is None or price <= 0:
                     continue
                 handle = p.get("handle") or ""
+                description = _strip_html(p.get("body_html") or "") or None
                 yield RawListing(
                     merchant_slug=merchant_slug,
                     merchant_sku=str(p.get("id")) if p.get("id") is not None else None,
@@ -182,4 +202,5 @@ async def fetch_shopify_catalog(
                     in_stock=bool(p.get("variants", [{}])[0].get("available", True)),
                     image_url=_extract_image(p.get("images", [])),
                     category_slug=leaf,
+                    description=description,
                 )

@@ -63,7 +63,15 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
 }
 
 
-def parse_title(title: str, category: str = "phones") -> ParsedTitle:
+def parse_title(
+    title: str, category: str = "phones", description: str | None = None
+) -> ParsedTitle:
+    # Description is an optional secondary signal (used today only by the
+    # phone parser to fill in storage/RAM when the title omits them). Other
+    # categories accept the argument silently — most parsers derive their
+    # canonical key from tokens that are almost always in the title.
+    if category == "phones":
+        return phone.parse_title(title, description=description)
     parser = _PARSERS.get(category)
     if not parser:
         return ParsedTitle()

@@ -194,7 +194,7 @@ def _find_model(title: str) -> str | None:
     return tightened
 
 
-def parse_title(title: str) -> ParsedTitle:
+def parse_title(title: str, description: str | None = None) -> ParsedTitle:
     cleaned = clean_title(title)
 
     brand, _ = _find_brand(cleaned)
@@ -210,6 +210,20 @@ def parse_title(title: str) -> ParsedTitle:
     # doesn't get rejected.
     if _is_phone_accessory(cleaned) and not (storage or ram):
         return ParsedTitle()
+
+    # Description-aware spec fallback. Some merchant titles are terse
+    # ("iPhone 14 Pro" with no storage/RAM), which leaves canonical_key
+    # under-specified vs. a fuller listing ("iPhone 14 Pro 128GB 6GB
+    # RAM"). If the scraper managed to capture a description alongside
+    # the title, mine that for storage/RAM as a secondary source. We
+    # only harvest numeric spec signals — NEVER re-run accessory
+    # detection on the description, because bundle blurbs like "ships
+    # with a free case" would wrongly veto a real phone.
+    if description and not (storage and ram):
+        d_cleaned = clean_title(description)
+        d_storage, d_ram = _find_storage(d_cleaned)
+        storage = storage or d_storage
+        ram = ram or d_ram
 
     specs: dict = {}
     if storage:

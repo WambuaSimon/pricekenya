@@ -119,3 +119,47 @@ def test_unknown_category_returns_unparsed() -> None:
     assert parsed.canonical_key is None
     assert parsed.brand is None
     assert parsed.specs == {}
+
+
+def test_terse_phone_title_recovers_specs_from_description() -> None:
+    """Merchant titles like "iPhone 14 Pro" (no storage/RAM) used to end up
+    at `apple|iphone-14-pro` while richer titles for the same SKU landed at
+    `apple|iphone-14-pro|128|6`, silently splitting one product into two.
+    When the scraper also captures the description, the phone matcher must
+    mine it for the missing spec signals so both listings collapse."""
+    terse = parse_title(
+        "Apple iPhone 14 Pro",
+        category="phones",
+        description=(
+            "6.1-inch Super Retina XDR display, A16 Bionic chip, 128GB "
+            "storage, 6GB RAM, Pro camera system with 48MP main."
+        ),
+    )
+    full = parse_title("Apple iPhone 14 Pro 128GB 6GB RAM", category="phones")
+    assert terse.canonical_key == full.canonical_key == "apple|iphone-14-pro|128|6"
+
+
+def test_description_never_overrides_title_spec() -> None:
+    """When the title already carries a storage/RAM signal, we must NOT let
+    the description move the canonical_key — the title is source of truth.
+    Guards against merchant descriptions that mention a compatible/bundled
+    accessory ("works with 256GB microSD cards")."""
+    parsed = parse_title(
+        "Samsung Galaxy A55 5G 8GB 128GB",
+        category="phones",
+        description="Also supports up to 1TB microSD expansion.",
+    )
+    assert parsed.canonical_key == "samsung|a55|128|8"
+
+
+def test_description_never_re_triggers_accessory_veto() -> None:
+    """A real phone listing sometimes has bundle blurbs ("ships with a
+    free case and screen protector") in the description. Those must NOT
+    make the matcher reject the phone — accessory detection stays keyed
+    on the title, per the existing `_is_phone_accessory` semantics."""
+    parsed = parse_title(
+        "Tecno Spark 30C 5G 8GB+256GB Black",
+        category="phones",
+        description="Comes with a free silicone case and tempered glass screen protector.",
+    )
+    assert parsed.canonical_key == "tecno|spark-30c|256|8"

@@ -33,8 +33,9 @@ def match_or_create_product(
     title: str,
     image_url: str | None = None,
     category: str = "phones",
+    description: str | None = None,
 ) -> Product | None:
-    parsed = parse_title(title, category=category)
+    parsed = parse_title(title, category=category, description=description)
     if not parsed.canonical_key:
         # v1 hook: drop into LLM disambiguation queue. For v0, just skip.
         return None

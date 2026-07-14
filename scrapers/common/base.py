@@ -24,6 +24,13 @@ class RawListing:
     # Category slug the scraper knows this listing belongs to (e.g. "phones",
     # "laptops"). The ingest pipeline uses this to route to the right matcher.
     category_slug: str = "phones"
+    # Optional plain-text description from the merchant listing. Some titles
+    # are terse ("iPhone 14 Pro") and drop the storage/RAM that would give
+    # the matcher a canonical_key with spec suffixes. When the scraper can
+    # cheaply capture the description too (Shopify's /products.json
+    # `body_html`; some WooCommerce short-description snippets), pass it
+    # here and the matcher will mine it for spec fallback signals.
+    description: str | None = None
 
 
 class PoliteClient:
