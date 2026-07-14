@@ -17,6 +17,27 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _create_default_engine_tables():
+    """Ensure the process-level engine has the schema before any test runs.
+
+    Some tests instantiate TestClient(app) WITHOUT the `with … as` context
+    manager (test_reviews.py, test_sitemap_cache.py, test_admin_merge_review
+    .py). That skips FastAPI's lifespan hook, so init_db() never fires and
+    handlers hit an empty SQLite. Locally the ./pricekenya.db file already
+    has tables from previous boots, so the tests pass; on CI's fresh runner
+    they explode with "no such table". Creating the schema here removes the
+    CI-vs-local drift without having to rewrite each caller.
+    """
+    from sqlmodel import SQLModel
+
+    from db import models  # noqa: F401 — register tables in metadata
+    from db.session import engine as default_engine
+
+    SQLModel.metadata.create_all(default_engine)
+    yield
+
+
 def pytest_sessionfinish(session, exitstatus):
     """Force a clean exit once pytest has already reported success.
 

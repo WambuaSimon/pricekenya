@@ -18,5 +18,12 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Ruff
         run: ruff check .
+      - name: Seed sample DB
+        # test_reviews.py and test_sitemap_cache.py exercise handlers
+        # against real Products (the fixture comment says "CI seeds
+        # enough via seed.load if the DB is empty"). init_db + a handful
+        # of sample rows is enough to satisfy every non-fixture-scoped
+        # test — the isolated in-memory fixture tests are unaffected.
+        run: python -m seed.load
       - name: Pytest
         run: pytest -q
