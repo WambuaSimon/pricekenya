@@ -60,6 +60,15 @@ def compose_phones(pieces: dict) -> ParsedTitle:
     if not (brand and model):
         return ParsedTitle()
 
+    # Apply the same brand aliases the regex parser uses so LLM-emitted
+    # brands ("iphone", "redmi", "pixel") canonicalise to their parent
+    # brand ("apple", "xiaomi", "google"). Without this, two listings for
+    # the same iPhone SKU split when one merchant title said "Apple" and
+    # the LLM read "iPhone" as the brand token.
+    from matching.phone import BRAND_ALIASES
+
+    brand = BRAND_ALIASES.get(brand, brand)
+
     storage = pieces.get("storage_gb")
     ram = pieces.get("ram_gb")
 
@@ -615,7 +624,14 @@ def compose_audio(pieces: dict) -> ParsedTitle:
 
     if typ in ("soundbar", "home-theatre", "party-speaker", "speaker"):
         if model_code:
-            parts.append(model_code.replace(" ", "-"))
+            # Normalise the same way matching/audio.py does — strip ALL
+            # separator chars so "SRS-XB13" and "srsxb13" produce the same
+            # canonical fragment. Regex output does this via
+            # `code.replace(" ","").replace("-","")` after brand-strip;
+            # mirror it here so the LLM path can't drift.
+            parts.append(
+                model_code.replace(" ", "").replace("-", "").replace("/", "")
+            )
             specs["model_code"] = model_code.upper()
         elif channels:
             parts.append(channels)
@@ -634,7 +650,14 @@ def compose_audio(pieces: dict) -> ParsedTitle:
     elif typ in ("earbuds", "headphones"):
         wireless = bool(pieces.get("wireless"))
         if model_code:
-            parts.append(model_code.replace(" ", "-"))
+            # Normalise the same way matching/audio.py does — strip ALL
+            # separator chars so "SRS-XB13" and "srsxb13" produce the same
+            # canonical fragment. Regex output does this via
+            # `code.replace(" ","").replace("-","")` after brand-strip;
+            # mirror it here so the LLM path can't drift.
+            parts.append(
+                model_code.replace(" ", "").replace("-", "").replace("/", "")
+            )
             specs["model_code"] = model_code.upper()
         parts.append("wireless" if wireless else "wired")
         specs["connectivity"] = "Wireless" if wireless else "Wired"
@@ -643,7 +666,14 @@ def compose_audio(pieces: dict) -> ParsedTitle:
 
     elif typ == "mp3-player":
         if model_code:
-            parts.append(model_code.replace(" ", "-"))
+            # Normalise the same way matching/audio.py does — strip ALL
+            # separator chars so "SRS-XB13" and "srsxb13" produce the same
+            # canonical fragment. Regex output does this via
+            # `code.replace(" ","").replace("-","")` after brand-strip;
+            # mirror it here so the LLM path can't drift.
+            parts.append(
+                model_code.replace(" ", "").replace("-", "").replace("/", "")
+            )
             specs["model_code"] = model_code.upper()
         display_bits.append("MP3 Player")
 

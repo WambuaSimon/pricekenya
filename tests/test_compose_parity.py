@@ -127,7 +127,10 @@ from matching import compose_keys
         (
             "audio",
             {"brand": "oraimo", "type": "earbuds", "model_code": "otw-100", "wireless": True},
-            "oraimo|earbuds|otw-100|wireless",
+            # Hyphens stripped to match matching/audio.py::_find_model_code
+            # normalisation. Same product across two merchants (one titled
+            # "OTW-100", another "OTW100") lands under the same canonical key.
+            "oraimo|earbuds|otw100|wireless",
         ),
         (
             "cameras",
@@ -238,6 +241,54 @@ def test_all_slugs_have_composer() -> None:
         assert slug in compose_keys.COMPOSERS, f"missing composer for {slug}"
     for slug in orphan_slugs:
         assert slug in compose_keys.COMPOSERS, f"missing composer for orphan slug {slug}"
+
+
+def test_phone_composer_applies_brand_aliases() -> None:
+    """LLM sometimes returns `brand="iphone"` (from the literal token in the
+    title) where the phone regex parser applies BRAND_ALIASES and lands on
+    `brand="apple"`. Without alias handling in compose_phones, two listings
+    for the same iPhone SKU can split — one keyed `apple|iphone-14|256|6`
+    (regex), the other `iphone|14|256|6` (LLM). Real drift observed on
+    2026-07-14 during LLM-fallback smoke testing.
+    """
+    from matching import compose_keys
+    parsed = compose_keys.compose_phones(
+        {"brand": "iphone", "model": "iphone 14", "storage_gb": 256, "ram_gb": 6}
+    )
+    assert parsed.canonical_key == "apple|iphone-14|256|6"
+    # `redmi` and `pixel` are the other two aliases in the regex parser.
+    parsed_redmi = compose_keys.compose_phones(
+        {"brand": "redmi", "model": "note 13 pro", "storage_gb": 256, "ram_gb": 8}
+    )
+    assert parsed_redmi.canonical_key == "xiaomi|note-13-pro|256|8"
+    parsed_pixel = compose_keys.compose_phones(
+        {"brand": "pixel", "model": "pixel 8 pro", "storage_gb": 128}
+    )
+    assert parsed_pixel.canonical_key == "google|pixel-8-pro|128"
+
+
+def test_audio_composer_normalises_hyphens_in_model_code() -> None:
+    """Audio regex parser strips ALL hyphens/spaces when normalising a model
+    code — Sony `SRS-XB13` becomes `srsxb13`, LG `HW-Q800D` becomes `hwq800d`.
+    LLM-emitted `model_code="SRS-XB13"` must produce the same normalised
+    fragment or two listings for the same speaker land under different keys.
+    Real drift observed on 2026-07-14 during LLM smoke testing.
+    """
+    from matching import compose_keys
+    parsed = compose_keys.compose_audio(
+        {"brand": "sony", "type": "speaker", "model_code": "SRS-XB13"}
+    )
+    assert parsed.canonical_key == "sony|speaker|srsxb13"
+    parsed_lg = compose_keys.compose_audio(
+        {"brand": "samsung", "type": "soundbar", "model_code": "HW-Q800D"}
+    )
+    assert parsed_lg.canonical_key == "samsung|soundbar|hwq800d"
+    # A model code with an internal space collapses too ("Bar 800MK2" ->
+    # "bar800mk2" — matches the audio regex output).
+    parsed_jbl = compose_keys.compose_audio(
+        {"brand": "jbl", "type": "soundbar", "model_code": "Bar 800MK2"}
+    )
+    assert parsed_jbl.canonical_key == "jbl|soundbar|bar800mk2"
 
 
 def test_composer_rejects_missing_brand() -> None:
