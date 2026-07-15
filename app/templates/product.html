@@ -226,7 +226,12 @@
         </div>
       {% endif %}
 
-      {% if history %}
+      {# Price-history sparkline is hidden until we fix the shape — currently
+         it aggregates all merchants into one connected line and looks like a
+         barcode because different merchants have wildly different price
+         levels. To re-enable, flip the condition below back to `if history`
+         and rework the aggregation to a best-price-per-day series. #}
+      {% if false and history %}
         <div class="bg-white border rounded-lg mt-4 p-4 dark:bg-slate-900 dark:border-slate-800">
           <div class="text-sm font-medium mb-2">Price history</div>
           <canvas id="hist" height="120"></canvas>
