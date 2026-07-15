@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Alerts — Admin — PriceKenya{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <h1 class="text-2xl font-semibold mb-1">Price-drop alerts</h1>
+  <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
+    Every signup from the "Notify me when the price drops" form on product
+    pages. Emails here are the users who volunteered their address for
+    transactional price alerts; the <em>marketing</em> filter narrows to
+    only those who ALSO opted in to marketing outreach — that's the
+    consented list for any broader mailing (Kenya DPA + GDPR require the
+    separate consent).
+  </p>
+
+  {# Header counters #}
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div class="text-2xl font-bold">{{ '{:,}'.format(total_active) }}</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Active alerts</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div class="text-2xl font-bold">{{ '{:,}'.format(unique_emails) }}</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Unique emails</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+        {{ '{:,}'.format(marketing_optins) }}
+      </div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Marketing opt-ins</div>
+    </div>
+  </div>
+
+  {# Filter chips + search + CSV export #}
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    {% set filters = [('active','Active'), ('all','All'), ('marketing','Marketing opt-ins'), ('fired','Already notified')] %}
+    {% for slug, label in filters %}
+      {% set is_current = active_filter == slug %}
+      <a href="/admin/alerts?filter={{ slug }}{% if search %}&search={{ search }}{% endif %}&admin_key={{ admin_key }}"
+         class="text-xs rounded-full border px-3 py-1
+                {% if is_current %}bg-emerald-600 text-white border-emerald-600
+                {% else %}bg-white hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700{% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+
+    <form method="get" action="/admin/alerts" class="ml-2 flex items-center gap-2">
+      <input type="hidden" name="admin_key" value="{{ admin_key }}">
+      <input type="hidden" name="filter" value="{{ active_filter }}">
+      <input type="text" name="search" value="{{ search }}" placeholder="search email…"
+             class="text-xs rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-100 px-2 py-1 w-48">
+      <button type="submit" class="text-xs rounded-md bg-slate-700 hover:bg-slate-800 text-white px-3 py-1">
+        Search
+      </button>
+    </form>
+
+    <a href="/admin/alerts/export.csv?filter={{ active_filter }}{% if search %}&search={{ search }}{% endif %}&admin_key={{ admin_key }}"
+       class="ml-auto text-xs rounded-md bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1">
+      Download CSV
+    </a>
+  </div>
+
+  {# Alerts table #}
+  {% if not rows %}
+    <div class="rounded-md bg-slate-100 dark:bg-slate-800 p-6 text-slate-600 dark:text-slate-300 text-sm">
+      No alerts match this filter.
+    </div>
+  {% else %}
+    <div class="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 dark:bg-slate-800">
+          <tr>
+            <th class="text-left px-3 py-2 font-semibold">Email</th>
+            <th class="text-left px-3 py-2 font-semibold">Watching</th>
+            <th class="text-right px-3 py-2 font-semibold">Target</th>
+            <th class="text-center px-3 py-2 font-semibold">Marketing</th>
+            <th class="text-left px-3 py-2 font-semibold">Signed up</th>
+            <th class="text-left px-3 py-2 font-semibold">Last fired</th>
+            <th class="text-right px-3 py-2 font-semibold"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% set a = row.alert %}
+            {% set p = row.product %}
+            <tr class="border-t border-slate-200 dark:border-slate-700
+                       {% if not a.active %}opacity-60{% endif %}">
+              <td class="px-3 py-2">
+                <div class="font-mono text-xs">{{ a.email }}</div>
+                {% if not a.active %}
+                  <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    unsubscribed
+                  </div>
+                {% endif %}
+              </td>
+              <td class="px-3 py-2">
+                {% if p %}
+                  <a href="/p/{{ p.slug }}" class="text-emerald-700 dark:text-emerald-400 hover:underline">
+                    {{ p.title[:60] }}
+                  </a>
+                {% else %}
+                  <span class="text-slate-500 italic">deleted product</span>
+                {% endif %}
+              </td>
+              <td class="text-right px-3 py-2 tabular-nums">
+                {% if a.target_price_kes %}
+                  {{ a.target_price_kes | kes }}
+                {% else %}
+                  <span class="text-slate-500 dark:text-slate-400">any drop</span>
+                {% endif %}
+              </td>
+              <td class="text-center px-3 py-2">
+                {% if a.marketing_opt_in %}
+                  <span title="Opted in" class="text-emerald-600 dark:text-emerald-400">✓</span>
+                {% else %}
+                  <span class="text-slate-400 dark:text-slate-600">—</span>
+                {% endif %}
+              </td>
+              <td class="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400 text-xs">
+                {{ a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else '—' }}
+              </td>
+              <td class="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400 text-xs">
+                {{ a.last_notified_at.strftime('%Y-%m-%d %H:%M') if a.last_notified_at else '—' }}
+              </td>
+              <td class="text-right px-3 py-2">
+                {% if a.active %}
+                  <form method="post" action="/admin/alerts/{{ a.id }}/unsubscribe?admin_key={{ admin_key }}" class="inline">
+                    <button type="submit"
+                            onclick="return confirm('Unsubscribe {{ a.email }}?');"
+                            class="text-xs text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400">
+                      unsubscribe
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+      Showing up to 500 rows. Narrow with the search box or a filter chip if you need to see more.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

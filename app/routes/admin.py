@@ -22,7 +22,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Listing, Product, ProductMergeCandidate, Review, ReviewReport
+from db.models import Alert, Listing, Product, ProductMergeCandidate, Review, ReviewReport
 from db.session import get_session
 from scripts.scrape_health import merchant_health
 
@@ -364,3 +364,187 @@ def delist_stale(
     return RedirectResponse(
         url=f"/admin/scrapes?delist_message={msg}", status_code=303
     )
+
+
+# ---------------------------------------------------------------------------
+# Price alerts — /admin/alerts
+# ---------------------------------------------------------------------------
+
+
+def _alerts_query(filter_: str, search: str | None):
+    """Build the SELECT for the alerts dashboard + CSV export.
+
+    Kept as one helper so the HTML view and the CSV download can't drift —
+    both apply the same filter semantics.
+    """
+    stmt = select(Alert).order_by(Alert.created_at.desc()).limit(500)
+    if filter_ == "active":
+        stmt = (
+            select(Alert)
+            .where(Alert.active.is_(True))
+            .order_by(Alert.created_at.desc())
+            .limit(500)
+        )
+    elif filter_ == "marketing":
+        stmt = (
+            select(Alert)
+            .where(Alert.marketing_opt_in.is_(True))
+            .order_by(Alert.created_at.desc())
+            .limit(500)
+        )
+    elif filter_ == "fired":
+        stmt = (
+            select(Alert)
+            .where(Alert.last_notified_at.is_not(None))
+            .order_by(Alert.last_notified_at.desc())
+            .limit(500)
+        )
+    if search:
+        # Case-insensitive substring match on the email column. Works on
+        # both sqlite (LIKE is case-insensitive by default) and postgres
+        # (ilike). Guard against SQL wildcard characters in the input so
+        # a stray '%' in the search box doesn't accidentally match all rows.
+        needle = f"%{search.replace('%', '').replace('_', '')}%"
+        stmt = stmt.where(Alert.email.ilike(needle))
+    return stmt
+
+
+@router.get("/alerts", response_class=HTMLResponse)
+def admin_alerts(
+    request: Request,
+    filter: str = Query(default="active"),  # noqa: A002 — matches URL param name
+    search: str | None = Query(default=None),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """Price-drop alert signups. Default: active alerts, newest first.
+
+    Filters (query string):
+      ?filter=active     → active alerts only (default)
+      ?filter=all        → include unsubscribed
+      ?filter=marketing  → only signups that opted in to marketing emails
+      ?filter=fired      → alerts that have already fired at least once
+      ?search=foo        → case-insensitive substring match on email
+    """
+    alerts = session.exec(_alerts_query(filter, search)).all()
+
+    # Hydrate the referenced products in one query for the row template.
+    product_ids = {a.product_id for a in alerts}
+    products_by_id = (
+        {
+            p.id: p
+            for p in session.exec(
+                select(Product).where(Product.id.in_(product_ids))
+            ).all()
+        }
+        if product_ids
+        else {}
+    )
+
+    # Header counters — cheap aggregate queries independent of filter.
+    total_active = session.exec(
+        select(sa_func.count(Alert.id)).where(Alert.active.is_(True))
+    ).one() or 0
+    unique_emails = session.exec(
+        select(sa_func.count(sa_func.distinct(Alert.email)))
+        .where(Alert.active.is_(True))
+    ).one() or 0
+    marketing_optins = session.exec(
+        select(sa_func.count(sa_func.distinct(Alert.email)))
+        .where(Alert.marketing_opt_in.is_(True))
+    ).one() or 0
+
+    rows = [
+        {"alert": a, "product": products_by_id.get(a.product_id)}
+        for a in alerts
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "admin/alerts.html",
+        {
+            "rows": rows,
+            "active_filter": filter,
+            "search": search or "",
+            "total_active": total_active,
+            "unique_emails": unique_emails,
+            "marketing_optins": marketing_optins,
+            "admin_key": settings.admin_key,
+        },
+    )
+
+
+@router.get("/alerts/export.csv")
+def admin_alerts_csv(
+    filter: str = Query(default="marketing"),  # noqa: A002
+    search: str | None = Query(default=None),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """CSV export of alert signups matching the current filter.
+
+    Default filter is `marketing` — the common export use-case is pulling
+    the opt-in list to send a mailing. Pass `?filter=all` etc. to widen.
+    """
+    import csv
+    import io
+
+    alerts = session.exec(_alerts_query(filter, search)).all()
+    product_ids = {a.product_id for a in alerts}
+    products_by_id = (
+        {
+            p.id: p
+            for p in session.exec(
+                select(Product).where(Product.id.in_(product_ids))
+            ).all()
+        }
+        if product_ids
+        else {}
+    )
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "email", "product_slug", "product_title", "target_price_kes",
+        "marketing_opt_in", "active", "created_at", "last_notified_at",
+    ])
+    for a in alerts:
+        p = products_by_id.get(a.product_id)
+        w.writerow([
+            a.email,
+            (p.slug if p else ""),
+            (p.title if p else ""),
+            (str(a.target_price_kes) if a.target_price_kes is not None else ""),
+            "1" if a.marketing_opt_in else "0",
+            "1" if a.active else "0",
+            a.created_at.isoformat() if a.created_at else "",
+            a.last_notified_at.isoformat() if a.last_notified_at else "",
+        ])
+    from fastapi.responses import Response
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="alerts_{filter}.csv"',
+        },
+    )
+
+
+@router.post("/alerts/{alert_id}/unsubscribe")
+def admin_alerts_unsubscribe(
+    alert_id: int,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """Set active=False on an alert — same effect as the user clicking the
+    unsubscribe magic link in one of the alert emails. Non-destructive
+    so we keep the audit trail; a real user resubscribing goes through
+    the normal signup flow and a new Alert row gets created."""
+    a = session.get(Alert, alert_id)
+    if not a:
+        raise HTTPException(status_code=404)
+    a.active = False
+    session.add(a)
+    session.commit()
+    return RedirectResponse(url="/admin/alerts", status_code=303)
