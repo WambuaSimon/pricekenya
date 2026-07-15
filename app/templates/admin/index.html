@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Admin — PriceKenya{% endblock %}
+
+{% block content %}
+{% set active_section = 'home' %}
+{% include "admin/_nav.html" %}
+
+<div class="max-w-6xl mx-auto px-4">
+  <h1 class="text-2xl font-semibold mb-1">Admin overview</h1>
+  <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
+    Health snapshot for each admin subsystem. Click any tile to open the
+    detail page.
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    {# Scrapes tile #}
+    <a href="/admin/scrapes"
+       class="group rounded-lg border border-slate-200 dark:border-slate-700
+              bg-white dark:bg-slate-900 p-5 hover:border-emerald-500
+              dark:hover:border-emerald-400 transition-colors">
+      <div class="flex items-baseline justify-between mb-3">
+        <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Scrapes</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">→</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div class="text-xl font-bold">{{ scrapes.total }}</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">merchants</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold {% if scrapes.stale %}text-red-600 dark:text-red-400{% endif %}">
+            {{ scrapes.stale }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">stale</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold {% if scrapes.never %}text-amber-600 dark:text-amber-400{% endif %}">
+            {{ scrapes.never }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">never</div>
+        </div>
+      </div>
+    </a>
+
+    {# Alerts tile #}
+    <a href="/admin/alerts"
+       class="group rounded-lg border border-slate-200 dark:border-slate-700
+              bg-white dark:bg-slate-900 p-5 hover:border-emerald-500
+              dark:hover:border-emerald-400 transition-colors">
+      <div class="flex items-baseline justify-between mb-3">
+        <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Price alerts</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">→</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div class="text-xl font-bold">{{ '{:,}'.format(alerts.active) }}</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">active</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold">{{ '{:,}'.format(alerts.emails) }}</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">emails</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+            {{ '{:,}'.format(alerts.marketing) }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">opt-ins</div>
+        </div>
+      </div>
+    </a>
+
+    {# Reviews tile #}
+    <a href="/admin/reviews"
+       class="group rounded-lg border border-slate-200 dark:border-slate-700
+              bg-white dark:bg-slate-900 p-5 hover:border-emerald-500
+              dark:hover:border-emerald-400 transition-colors">
+      <div class="flex items-baseline justify-between mb-3">
+        <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Reviews</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">→</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div class="text-xl font-bold">{{ reviews.total }}</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">total</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold {% if reviews.flagged %}text-amber-600 dark:text-amber-400{% endif %}">
+            {{ reviews.flagged }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">flagged</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold {% if reviews.pending %}text-amber-600 dark:text-amber-400{% endif %}">
+            {{ reviews.pending }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">pending</div>
+        </div>
+      </div>
+    </a>
+
+    {# Merge review tile #}
+    <a href="/admin/merge-review"
+       class="group rounded-lg border border-slate-200 dark:border-slate-700
+              bg-white dark:bg-slate-900 p-5 hover:border-emerald-500
+              dark:hover:border-emerald-400 transition-colors">
+      <div class="flex items-baseline justify-between mb-3">
+        <div class="text-sm font-semibold text-slate-800 dark:text-slate-100">Merge review</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">→</div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-center">
+        <div>
+          <div class="text-xl font-bold {% if merge.pending %}text-amber-600 dark:text-amber-400{% endif %}">
+            {{ merge.pending }}
+          </div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">pending</div>
+        </div>
+        <div>
+          <div class="text-xl font-bold">{{ merge.approved }}</div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">approved</div>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="mt-6 text-xs text-slate-500 dark:text-slate-400">
+    Snapshot generated {{ now_utc.strftime('%Y-%m-%d %H:%M UTC') }}.
+    Click any tile above or use the tabs to navigate.
+  </div>
+</div>
+{% endblock %}

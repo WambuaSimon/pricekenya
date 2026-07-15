@@ -2,7 +2,9 @@
 {% block title %}Alerts — Admin — PriceKenya{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-6">
+{% set active_section = 'alerts' %}
+{% include "admin/_nav.html" %}
+<div class="max-w-6xl mx-auto px-4">
   <h1 class="text-2xl font-semibold mb-1">Price-drop alerts</h1>
   <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
     Every signup from the "Notify me when the price drops" form on product

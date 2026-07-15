@@ -41,6 +41,80 @@ def require_admin(
         raise HTTPException(status_code=401, detail="admin key required")
 
 
+@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
+def admin_index(
+    request: Request,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """One-page overview: summary counters for every admin subsystem so you
+    don't have to click into each detail page to see if there's anything
+    to look at. Each tile links to its detail page."""
+    scrape_rows = merchant_health(session)
+    scrapes_stale = sum(
+        1 for r in scrape_rows
+        if r.hours_since_last_check is not None and r.hours_since_last_check > 24
+    )
+    scrapes_never = sum(1 for r in scrape_rows if r.hours_since_last_check is None)
+
+    alerts_active = session.exec(
+        select(sa_func.count(Alert.id)).where(Alert.active.is_(True))
+    ).one() or 0
+    alerts_emails = session.exec(
+        select(sa_func.count(sa_func.distinct(Alert.email)))
+        .where(Alert.active.is_(True))
+    ).one() or 0
+    alerts_marketing = session.exec(
+        select(sa_func.count(sa_func.distinct(Alert.email)))
+        .where(Alert.marketing_opt_in.is_(True))
+    ).one() or 0
+
+    reviews_total = session.exec(select(sa_func.count(Review.id))).one() or 0
+    reviews_pending = session.exec(
+        select(sa_func.count(Review.id)).where(Review.verified_at.is_(None))
+    ).one() or 0
+    reviews_flagged = session.exec(
+        select(sa_func.count(sa_func.distinct(ReviewReport.review_id)))
+    ).one() or 0
+
+    merge_pending = session.exec(
+        select(sa_func.count(ProductMergeCandidate.id))
+        .where(ProductMergeCandidate.status == "pending")
+    ).one() or 0
+    merge_approved = session.exec(
+        select(sa_func.count(ProductMergeCandidate.id))
+        .where(ProductMergeCandidate.status == "approved")
+    ).one() or 0
+
+    return templates.TemplateResponse(
+        request,
+        "admin/index.html",
+        {
+            "scrapes": {
+                "total": len(scrape_rows),
+                "stale": scrapes_stale,
+                "never": scrapes_never,
+            },
+            "alerts": {
+                "active": alerts_active,
+                "emails": alerts_emails,
+                "marketing": alerts_marketing,
+            },
+            "reviews": {
+                "total": reviews_total,
+                "pending": reviews_pending,
+                "flagged": reviews_flagged,
+            },
+            "merge": {
+                "pending": merge_pending,
+                "approved": merge_approved,
+            },
+            "now_utc": datetime.now(UTC),
+        },
+    )
+
+
 @router.get("/merge-review", response_class=HTMLResponse)
 def merge_review(
     request: Request,

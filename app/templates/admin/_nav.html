@@ -1,0 +1,30 @@
+{# Shared admin nav bar. Included at the top of every admin/*.html so
+   navigating between subsystems is one click. `active_section` is set by
+   each page's route to highlight the current tab. #}
+<nav class="mb-6 -mx-4 border-b border-slate-200 dark:border-slate-800">
+  <div class="max-w-6xl mx-auto flex items-center gap-1 px-4 overflow-x-auto">
+    {% set _tabs = [
+      ('home', '/admin', 'Overview'),
+      ('scrapes', '/admin/scrapes', 'Scrapes'),
+      ('alerts', '/admin/alerts', 'Alerts'),
+      ('reviews', '/admin/reviews', 'Reviews'),
+      ('merge', '/admin/merge-review', 'Merge review'),
+    ] %}
+    {% for slug, href, label in _tabs %}
+      {% set is_active = (active_section or '') == slug %}
+      <a href="{{ href }}"
+         class="text-sm px-4 py-3 border-b-2 whitespace-nowrap
+                {% if is_active %}
+                  border-emerald-500 text-emerald-700 dark:text-emerald-400 font-medium
+                {% else %}
+                  border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300
+                  dark:text-slate-400 dark:hover:text-slate-100 dark:hover:border-slate-700
+                {% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+    <div class="ml-auto py-3 text-xs text-slate-500 dark:text-slate-500">
+      admin
+    </div>
+  </div>
+</nav>
