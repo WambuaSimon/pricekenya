@@ -70,6 +70,41 @@ async def _neon_cold_start_retry(request: Request, call_next):
         return await call_next(request)
 
 
+@app.middleware("http")
+async def _admin_cookie_mirror(request: Request, call_next):
+    """After a successful admin request that authenticated via ?admin_key= or
+    X-Admin-Key header, mirror the key into an httpOnly cookie on the way
+    out. That way the shared /admin nav tabs can navigate between subsystems
+    without re-supplying the key on every click.
+
+    Doing this in middleware (not in the require_admin dependency) because
+    admin routes return TemplateResponse objects — cookies set on a
+    Depends-injected Response get discarded when a new Response is returned.
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/admin"):
+        return response
+    if response.status_code >= 400:
+        return response
+    if request.cookies.get("admin_key"):
+        return response
+    provided = request.headers.get("x-admin-key") or request.query_params.get("admin_key")
+    if not provided:
+        return response
+    from app.config import settings
+
+    if not settings.admin_key or provided != settings.admin_key:
+        return response
+    response.set_cookie(
+        "admin_key",
+        settings.admin_key,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 8,
+    )
+    return response
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(pages.router)

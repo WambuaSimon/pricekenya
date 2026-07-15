@@ -34,6 +34,13 @@ def require_admin(
     admin_key_cookie: str | None = Cookie(default=None, alias="admin_key"),
     admin_key_query: str | None = Query(default=None, alias="admin_key"),
 ) -> None:
+    """Verify the caller supplied a valid admin key via one of three routes.
+
+    Cookie mirroring lives in app/main.py's `_admin_cookie_mirror`
+    middleware — a Depends-injected Response can't set cookies on the
+    TemplateResponse that admin endpoints return, so the middleware
+    handles cross-cutting cookie-set duty for every /admin/* response.
+    """
     if not settings.admin_key:
         raise HTTPException(status_code=404)
     provided = x_admin_key or admin_key_cookie or admin_key_query
