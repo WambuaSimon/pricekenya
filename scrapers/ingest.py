@@ -7,12 +7,56 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from db.models import Listing, Merchant, PriceHistory
 from db.session import engine, init_db
 from matching.match import match_or_create_product
 from scrapers.common.base import RawListing
+
+# Post-run sanity check thresholds. See _assert_yield_healthy for context.
+MIN_PRIOR_LISTINGS_FOR_CHECK = 20
+MAX_ACCEPTABLE_DROP_RATIO = 0.5
+
+
+class ScraperYieldTooLow(RuntimeError):
+    """Raised when a scrape produced far fewer rows than the merchant's
+    prior listing count. Fails the matrix leg loudly so the Telegram
+    alert fires instead of a green CI + silently-stale DB.
+    """
+
+
+def _assert_yield_healthy(
+    *, merchant_slug: str, prior_count: int, yielded_count: int
+) -> None:
+    """Check post-scrape row count against the merchant's known catalog size.
+
+    Real failure mode we've seen: a merchant rebuilds their site, the
+    HTML selectors we relied on stop matching anything, and the scraper
+    silently yields zero RawListings. Ingest commits nothing. Matrix leg
+    exits 0. CI is green. The merchant just quietly rots in the DB — no
+    Telegram alert, no signal, until someone notices on /admin/scrapes.
+
+    Guard: after each scrape, compare yielded_count vs the merchant's
+    prior listing count. If the drop is more than MAX_ACCEPTABLE_DROP_RATIO
+    (default 50%) AND the merchant had >= MIN_PRIOR_LISTINGS_FOR_CHECK
+    (default 20) on record, raise so exit code is non-zero.
+
+    Skipped for merchants below the min-prior floor — new merchants have
+    prior_count=0 by definition and shouldn't false-alarm every time
+    they're added.
+    """
+    if prior_count < MIN_PRIOR_LISTINGS_FOR_CHECK:
+        return
+    threshold = int(prior_count * (1 - MAX_ACCEPTABLE_DROP_RATIO))
+    if yielded_count < threshold:
+        raise ScraperYieldTooLow(
+            f"{merchant_slug}: yielded only {yielded_count} listings but "
+            f"had {prior_count} on record (expected >= {threshold}). "
+            f"Likely site rebuild or bot posture change — investigate "
+            f"the scraper's selectors."
+        )
 
 
 async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> None:
@@ -32,7 +76,16 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> No
             session.add(merchant)
             session.flush()
 
+        # Snapshot the merchant's existing listing count before any writes.
+        # We compare this to `yielded_count` at the end to catch silent-zero
+        # scrapes (see _assert_yield_healthy).
+        prior_count = session.exec(
+            select(func.count(Listing.id)).where(Listing.merchant_id == merchant.id)
+        ).one() or 0
+        yielded_count = 0
+
         async for raw in stream:
+            yielded_count += 1
             product = match_or_create_product(
                 session,
                 title=raw.title,
@@ -110,6 +163,15 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> No
                 )
 
         session.commit()
+
+    # Sanity check runs OUTSIDE the session block so the writes are already
+    # committed — even a legit-but-shrunk catalog should keep the fresh
+    # rows in place while still alerting the operator that something's off.
+    _assert_yield_healthy(
+        merchant_slug=merchant_meta["slug"],
+        prior_count=prior_count,
+        yielded_count=yielded_count,
+    )
 
 
 def run_jumia_phones() -> None:
