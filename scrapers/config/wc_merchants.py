@@ -44,14 +44,8 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://le.co.ke/product-category/smart-digital-tvs"],
         },
     },
-    "finetech-ke": {
-        "meta": {"slug": "finetech-ke", "name": "Finetech", "base_url": "https://finetech.co.ke"},
-        "leaf_to_urls": {
-            "laptops": ["https://finetech.co.ke/product-category/computers-tablets"],
-            "phone-tablet-accessories": ["https://finetech.co.ke/product-category/accessories"],
-            "phones": ["https://finetech.co.ke/product-category/phones", "https://finetech.co.ke/product-category/phones/iphone", "https://finetech.co.ke/product-category/smartphones"],
-        },
-    },
+    # finetech-ke moved to scrapers/merchants/finetech.py (WC Store API path).
+    # Kept as `finetech-ke` target in ingest.py (not the wc-* prefix).
     "dixons-ke": {
         "meta": {"slug": "dixons-ke", "name": "Dixons", "base_url": "https://www.dixons.co.ke"},
         "leaf_to_urls": {
@@ -202,16 +196,7 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://zuka.co.ke/product-category/washing-machines"],
         },
     },
-    "techstore-ke": {
-        "meta": {"slug": "techstore-ke", "name": "Tech Store Kenya", "base_url": "https://techstore.co.ke"},
-        "leaf_to_urls": {
-            "audio": ["https://techstore.co.ke/product-category/headphones"],
-            "cameras": ["https://techstore.co.ke/product-category/drones"],
-            "phone-tablet-accessories": ["https://techstore.co.ke/product-category/mobile/accessories", "https://techstore.co.ke/product-category/watches"],
-            "phones": ["https://techstore.co.ke/product-category/mobile/mobiles"],
-            "tablets": ["https://techstore.co.ke/product-category/mobile/tablets"],
-        },
-    },
+    # techstore-ke moved to scrapers/merchants/techstore.py (WC Store API path).
     "devicestech-ke": {
         "meta": {"slug": "devicestech-ke", "name": "Devices Technology Store", "base_url": "https://www.devicestech.co.ke"},
         "leaf_to_urls": {
@@ -319,14 +304,7 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://armcokenya.com/product-category/large-appliances/dryer", "https://armcokenya.com/product-category/large-appliances/washing-machines"],
         },
     },
-    "newmatic-ke": {
-        "meta": {"slug": "newmatic-ke", "name": "Newmatic Kenya", "base_url": "https://newmatic.com"},
-        "leaf_to_urls": {
-            "cooking": ["https://newmatic.com/product-category/hobs", "https://newmatic.com/product-category/hobs/gas-and-induction-hobs", "https://newmatic.com/product-category/hobs/gas-electric-hobs"],
-            "refrigerators": ["https://newmatic.com/product-category/built-in-fridges-and-freezers"],
-            "washers-dryers": ["https://newmatic.com/product-category/built-in-dishwashers"],
-        },
-    },
+    # newmatic-ke moved to scrapers/merchants/newmatic.py (WC Store API path).
     "nextbuy-ke": {
         "meta": {"slug": "nextbuy-ke", "name": "NextBuy Kenya", "base_url": "https://nextbuy.co.ke"},
         "leaf_to_urls": {

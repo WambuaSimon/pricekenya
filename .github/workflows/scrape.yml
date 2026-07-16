@@ -88,7 +88,7 @@ jobs:
           # WooCommerce batch — one leg per merchant so each gets its own
           # 30-min budget. Bundled `all-wc` hit the timeout at 14 merchants.
           - wc-dixons-ke
-          - wc-finetech-ke
+          - finetech-ke         # WC Store API scraper
           - wc-fivestar-ke
           - wc-jojabo-ke
           - wc-le-ke
@@ -102,7 +102,7 @@ jobs:
           - wc-techonline-ke
           - wc-zurimall-ke
           - wc-zuka-ke
-          - wc-techstore-ke
+          - techstore-ke        # WC Store API scraper (was wc-*)
           - wc-devicestech-ke
           - wc-nairobilaptops-ke
           - wc-solarshop-ke     # solar specialist: inverters + batteries
@@ -113,7 +113,8 @@ jobs:
           - wc-eamobitech-ke    # cameras + computers
           - wc-housewife-ke     # kitchen appliances (long — may need retry)
           - wc-armco-ke         # Kenyan brand appliances
-          - wc-newmatic-ke      # built-in kitchen appliances
+          - newmatic-ke         # WC Store API scraper (was wc-*) — built-in kitchen appliances
+          - patabay-ke          # WC Store API scraper — unblocked (theme hid prices from cards)
           - wc-nextbuy-ke       # refurbished phones
           - wc-pricepoint-ke    # cameras / TVs / gaming
           - wc-phoneshop-ke     # phones + gaming accessories

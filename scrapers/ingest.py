@@ -790,6 +790,29 @@ def _run_mybigorder_all() -> None:
     run_mybigorder_all()
 
 
+# WC Store API merchants — use shared scrapers/common/wc_store_api.py.
+# Replace the older wc-batch HTML-scraping targets which yielded 0 rows
+# on these merchants because their themes hide prices from category cards.
+def run_finetech() -> None:
+    from scrapers.merchants.finetech import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
+def run_techstore() -> None:
+    from scrapers.merchants.techstore import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
+def run_newmatic() -> None:
+    from scrapers.merchants.newmatic import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
+def run_patabay() -> None:
+    from scrapers.merchants.patabay import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -974,6 +997,11 @@ TARGETS = {
     "all-xiaomi": _run_xiaomi_all,
     "mybigorder-all": run_mybigorder_all,
     "all-mybigorder": _run_mybigorder_all,
+    # WC Store API merchants (see run_finetech etc. above)
+    "finetech-ke": run_finetech,
+    "techstore-ke": run_techstore,
+    "newmatic-ke": run_newmatic,
+    "patabay-ke": run_patabay,
     "all": _run_all,
 }
 
