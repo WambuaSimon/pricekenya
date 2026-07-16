@@ -59,13 +59,24 @@ def _assert_yield_healthy(
         )
 
 
-async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> None:
+async def _consume(
+    stream: AsyncIterator[RawListing],
+    merchant_meta: dict,
+    check_yield: bool = False,
+) -> None:
     """Ingest a scraper's async stream of RawListings.
 
     The scraper module owns its merchant metadata (slug, name, base_url) so the
     first live run against a fresh DB can upsert the merchant row without any
     seed step. This is what makes the prod deploy work: nothing needs to be
     manually loaded into Neon before the cron scrape fires.
+
+    `check_yield` opts into the zero-yield guard. Only pass True for callers
+    that scrape a merchant's WHOLE catalog in one call (xiaomi's fetch_all,
+    Shopify batch, finetech/techstore/patabay/newmatic). Per-category
+    callers (ramtons_refrigerators, phonesstore_audio, jumia_phones etc.)
+    leave it False — a leg that legitimately yields 0 for a category the
+    merchant just doesn't stock would false-positive.
     """
     init_db()
     with Session(engine) as session:
@@ -165,13 +176,13 @@ async def _consume(stream: AsyncIterator[RawListing], merchant_meta: dict) -> No
         session.commit()
 
     # Sanity check runs OUTSIDE the session block so the writes are already
-    # committed — even a legit-but-shrunk catalog should keep the fresh
-    # rows in place while still alerting the operator that something's off.
-    _assert_yield_healthy(
-        merchant_slug=merchant_meta["slug"],
-        prior_count=prior_count,
-        yielded_count=yielded_count,
-    )
+    # committed. Only applied when the caller opted in — see docstring.
+    if check_yield:
+        _assert_yield_healthy(
+            merchant_slug=merchant_meta["slug"],
+            prior_count=prior_count,
+            yielded_count=yielded_count,
+        )
 
 
 def run_jumia_phones() -> None:
@@ -738,15 +749,19 @@ def run_phonesstore_gaming() -> None:
     asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
 
 
+def run_phonesstore() -> None:
+    """Single-call full-catalog scrape via Store API. Replaces the per-
+    category invocation pattern below — the Store API returns every
+    product in one paginated feed, so calling fetch_all N times to
+    filter by category is just N× the API traffic."""
+    from scrapers.merchants.phones_store import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
+
+
 def _run_phonesstore_all() -> None:
-    run_phonesstore_phones()
-    run_phonesstore_tablets()
-    run_phonesstore_laptops()
-    run_phonesstore_audio()
-    run_phonesstore_cameras()
-    run_phonesstore_accessories()
-    run_phonesstore_console_accessories()
-    run_phonesstore_gaming()
+    # Kept as the fallback that all-phonesstore matrix leg calls into.
+    # Just runs the single-call full-catalog path.
+    run_phonesstore()
 
 
 # QuickMart (session-gated, single /electronics feed → matcher routes by prodcat_id + title)
@@ -772,7 +787,7 @@ def _run_carrefour_all() -> None:
 # Xiaomi Kenya (customised WooCommerce, single /shop/ feed → matcher routes by product_cat class)
 def run_xiaomi_all() -> None:
     from scrapers.merchants.xiaomi import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def _run_xiaomi_all() -> None:
@@ -783,7 +798,7 @@ def _run_xiaomi_all() -> None:
 # mixed appliance buckets routed by title)
 def run_mybigorder_all() -> None:
     from scrapers.merchants.mybigorder import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def _run_mybigorder_all() -> None:
@@ -791,26 +806,35 @@ def _run_mybigorder_all() -> None:
 
 
 # WC Store API merchants — use shared scrapers/common/wc_store_api.py.
-# Replace the older wc-batch HTML-scraping targets which yielded 0 rows
-# on these merchants because their themes hide prices from category cards.
+# All full-catalog scrapers so they opt into the zero-yield guard.
 def run_finetech() -> None:
     from scrapers.merchants.finetech import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def run_techstore() -> None:
     from scrapers.merchants.techstore import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def run_newmatic() -> None:
     from scrapers.merchants.newmatic import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def run_patabay() -> None:
     from scrapers.merchants.patabay import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META))
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
+
+
+def run_pricepoint() -> None:
+    from scrapers.merchants.pricepoint import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
+
+
+def run_audiocom() -> None:
+    from scrapers.merchants.audiocom import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
 def _run_all() -> None:
@@ -989,6 +1013,7 @@ TARGETS = {
     "phonesstore-console-accessories": run_phonesstore_console_accessories,
     "phonesstore-gaming": run_phonesstore_gaming,
     "all-phonesstore": _run_phonesstore_all,
+    "phonesstore-ke": run_phonesstore,  # Store API path — single leg
     "quickmart-electronics": run_quickmart_electronics,
     "all-quickmart": _run_quickmart_all,
     "carrefour-electronics": run_carrefour_electronics,
@@ -1002,6 +1027,8 @@ TARGETS = {
     "techstore-ke": run_techstore,
     "newmatic-ke": run_newmatic,
     "patabay-ke": run_patabay,
+    "pricepoint-ke": run_pricepoint,
+    "audiocom-ke": run_audiocom,
     "all": _run_all,
 }
 
@@ -1014,7 +1041,11 @@ def run_wc_merchant(merchant_slug: str) -> None:
     from scrapers.merchants.wc_batch import fetch_all_leaves
 
     cfg = WC_MERCHANTS[merchant_slug]
-    asyncio.run(_consume(fetch_all_leaves(merchant_slug), cfg["meta"]))
+    # WC batch is a full-catalog scrape (fetch_all_leaves streams every leaf
+    # URL in one _consume call), so opt into the zero-yield guard. Legs
+    # producing 0 rows are almost always the site-rebuild failure mode we
+    # saw for finetech/techstore/newmatic/phonesstore etc.
+    asyncio.run(_consume(fetch_all_leaves(merchant_slug), cfg["meta"], check_yield=True))
 
 
 def _run_all_wc() -> None:
@@ -1040,7 +1071,8 @@ def run_shopify_merchant(merchant_slug: str) -> None:
     from scrapers.merchants.shopify_batch import fetch_all
 
     cfg = SHOPIFY_MERCHANTS[merchant_slug]
-    asyncio.run(_consume(fetch_all(merchant_slug), cfg["meta"]))
+    # Shopify batch is a full-catalog scrape per merchant — opt into guard.
+    asyncio.run(_consume(fetch_all(merchant_slug), cfg["meta"], check_yield=True))
 
 
 def _run_all_shopify() -> None:

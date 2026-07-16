@@ -240,17 +240,7 @@ WC_MERCHANTS: dict[str, dict] = {
     # sollatek-ke moved to shopify_merchants.py — their store is Shopify at
     # shop.sollatek.com, not WooCommerce at sollatek.co.ke (which is the
     # corporate marketing site).
-    "audiocom-ke": {
-        "meta": {"slug": "audiocom-ke", "name": "Audiocom Kenya", "base_url": "https://www.audiocomkenya.co.ke"},
-        # Pro-audio specialist. Discovery mis-routed DJ controllers to
-        # console-accessories, digital mixers to blenders, MIDI keyboards to
-        # peripherals-accessories, microphone-accessories to phone-tablet-
-        # accessories. Only keeping the amplifier URLs on the audio leaf —
-        # the rest wouldn't survive the consumer-electronics matchers.
-        "leaf_to_urls": {
-            "audio": ["https://www.audiocomkenya.co.ke/product-category/amplifier", "https://www.audiocomkenya.co.ke/product-category/amplifier-2", "https://www.audiocomkenya.co.ke/product-category/guitar-amplifiers"],
-        },
-    },
+    # audiocom-ke moved to scrapers/merchants/audiocom.py (WC Store API).
     "camerastore-ke": {
         "meta": {"slug": "camerastore-ke", "name": "Camera Store Kenya", "base_url": "https://camerastoreke.co.ke"},
         "leaf_to_urls": {
@@ -306,23 +296,7 @@ WC_MERCHANTS: dict[str, dict] = {
             "phones": ["https://nextbuy.co.ke/product-category/phones-tablets/smartphones", "https://nextbuy.co.ke/product-category/like-new-electronics/certified-pre-owned-iphones", "https://nextbuy.co.ke/product-category/like-new-electronics/used-samsung-phones"],
         },
     },
-    "pricepoint-ke": {
-        "meta": {"slug": "pricepoint-ke", "name": "Price Point Kenya", "base_url": "https://www.pricepoint.co.ke"},
-        # Discovery routed audio/microphones and phone-cases to "phones"
-        # because the keyword "phone" appeared. Manually re-shelved those.
-        "leaf_to_urls": {
-            "audio": ["https://www.pricepoint.co.ke/product-category/audio/bluetooth-speakers", "https://www.pricepoint.co.ke/product-category/audio/headphones", "https://www.pricepoint.co.ke/product-category/audio/microphones"],
-            "cameras": ["https://www.pricepoint.co.ke/product-category/cameras", "https://www.pricepoint.co.ke/product-category/cameras/action-cameras", "https://www.pricepoint.co.ke/product-category/cameras/cinema-cameras"],
-            "console-accessories": ["https://www.pricepoint.co.ke/product-category/gaming/gaming-accessories"],
-            "laptops": ["https://www.pricepoint.co.ke/product-category/computers/laptops", "https://www.pricepoint.co.ke/product-category/gaming/gaming-laptops"],
-            "peripherals-accessories": ["https://www.pricepoint.co.ke/product-category/electronics-accessories/keyboards-mice"],
-            "phone-tablet-accessories": ["https://www.pricepoint.co.ke/product-category/electronics-accessories", "https://www.pricepoint.co.ke/product-category/electronics-accessories/cables", "https://www.pricepoint.co.ke/product-category/electronics-accessories/phone-cases"],
-            "phones": ["https://www.pricepoint.co.ke/product-category/phones-tablets/smartphones"],
-            "tablets": ["https://www.pricepoint.co.ke/product-category/phones-tablets/tablets"],
-            "tvs": ["https://www.pricepoint.co.ke/product-category/televisions", "https://www.pricepoint.co.ke/product-category/televisions/hisense-tvs", "https://www.pricepoint.co.ke/product-category/televisions/lg-tvs"],
-            "washers-dryers": ["https://www.pricepoint.co.ke/product-category/home-appliances/washing-machines"],
-        },
-    },
+    # pricepoint-ke moved to scrapers/merchants/pricepoint.py (WC Store API).
     "phoneshop-ke": {
         "meta": {"slug": "phoneshop-ke", "name": "Phone Shop Kenya", "base_url": "https://phoneshopkenya.co.ke"},
         "leaf_to_urls": {

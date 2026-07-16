@@ -18,14 +18,12 @@ already handle unrecognised categories.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
-import httpx
-
-from app.config import settings
-from scrapers.common.base import RawListing
+from scrapers.common.base import CffiPoliteClient, RawListing
 
 # Cheap HTML-to-text: drop <script>/<style> blocks, then all remaining tags.
 # `body_html` from /products.json can contain <p>, <ul>, <br>, escaped
@@ -167,17 +165,25 @@ async def fetch_shopify_catalog(
     zero products or a network error.
     """
     base = site_base_url.rstrip("/")
-    ua = settings.scraper_user_agent
-    async with httpx.AsyncClient(
-        headers={"User-Agent": ua}, timeout=30.0, follow_redirects=True
-    ) as client:
+    # curl_cffi with Chrome TLS impersonation — plain httpx used to work
+    # from residential IPs but Digital City started returning empty
+    # /products.json responses to GitHub Actions runner ranges on
+    # 2026-07-16 (silent 0-yield instead of a challenge page). Chrome
+    # impersonation makes the request indistinguishable from a real
+    # browser regardless of source IP.
+    client = CffiPoliteClient()
+    try:
         for page in range(1, max_pages + 1):
             try:
                 r = await client.get(f"{base}/products.json?limit=250&page={page}")
-                r.raise_for_status()
+                if r.status_code >= 400:
+                    return
             except Exception:  # noqa: BLE001
                 return
-            data = r.json()
+            try:
+                data = json.loads(r.text)
+            except Exception:  # noqa: BLE001 — WAF page or truncated JSON
+                return
             products = data.get("products", [])
             if not products:
                 return
@@ -204,3 +210,5 @@ async def fetch_shopify_catalog(
                     category_slug=leaf,
                     description=description,
                 )
+    finally:
+        await client.aclose()
