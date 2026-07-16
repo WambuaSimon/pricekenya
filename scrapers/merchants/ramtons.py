@@ -17,7 +17,7 @@ from decimal import Decimal
 
 from selectolax.parser import HTMLParser
 
-from scrapers.common.base import PoliteClient, RawListing
+from scrapers.common.base import CffiPoliteClient, RawListing
 
 MERCHANT_META = {
     "slug": "ramtons-ke",
@@ -93,7 +93,12 @@ async def _fetch_leaf(leaf: str) -> AsyncIterator[RawListing]:
     url = LEAF_TO_URL.get(leaf)
     if not url:
         return
-    client = PoliteClient()
+    # Cloudflare-shielded — plain httpx works from residential IPs but gets
+    # blocked from GitHub Actions runner ranges. Chrome TLS impersonation
+    # via curl_cffi passes through, same as we do for phone-place, naivas,
+    # and other CF-fronted merchants. This was the actual cause of the
+    # "runs green on CI but 0 rows land" symptom on ramtons-ke.
+    client = CffiPoliteClient()
     try:
         # Magento paginates with ?p=<n>; the first page is default.
         seen: set[str] = set()
