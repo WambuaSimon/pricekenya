@@ -107,7 +107,8 @@ jobs:
           - wc-nairobilaptops-ke
           - wc-solarshop-ke     # solar specialist: inverters + batteries
           - wc-solarstore-ke    # solar specialist: hybrid inverters
-          - wc-sollatek-ke      # solar specialist: inverters + batteries
+          # sollatek moved to shopify_merchants (shop.sollatek.com) — picked
+          # up automatically by the all-shopify matrix leg below.
           - wc-audiocom-ke      # pro-audio specialist
           - wc-camerastore-ke   # camera specialist
           - wc-eamobitech-ke    # cameras + computers
@@ -120,6 +121,9 @@ jobs:
           - wc-phoneshop-ke     # phones + gaming accessories
           - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
           - wc-overtech-ke      # Cloudflare Turnstile — Playwright headless
+          # Dedicated leg for brandcart so its outage signals cleanly
+          # without waiting on the all-shopify batch to finish.
+          - shopify-samsung-brandcart-ke
           - all-shopify         # Shopify batch (auto-picks all merchants from config)
     steps:
       - uses: actions/checkout@v4

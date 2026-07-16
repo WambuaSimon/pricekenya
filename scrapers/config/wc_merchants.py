@@ -237,14 +237,9 @@ WC_MERCHANTS: dict[str, dict] = {
             "inverters": ["https://solarstore.co.ke/product-category/solar-inverters", "https://solarstore.co.ke/product-category/solar-inverters/hybrid-inverters"],
         },
     },
-    "sollatek-ke": {
-        "meta": {"slug": "sollatek-ke", "name": "Sollatek", "base_url": "https://sollatek.co.ke"},
-        # Same charge-controller / cables cleanup as solarshop.
-        "leaf_to_urls": {
-            "inverters": ["https://sollatek.co.ke/product-category/solar-systems-appliances/inverter"],
-            "solar-batteries": ["https://sollatek.co.ke/product-category/solar-systems-appliances/solar-batteries"],
-        },
-    },
+    # sollatek-ke moved to shopify_merchants.py — their store is Shopify at
+    # shop.sollatek.com, not WooCommerce at sollatek.co.ke (which is the
+    # corporate marketing site).
     "audiocom-ke": {
         "meta": {"slug": "audiocom-ke", "name": "Audiocom Kenya", "base_url": "https://www.audiocomkenya.co.ke"},
         # Pro-audio specialist. Discovery mis-routed DJ controllers to
