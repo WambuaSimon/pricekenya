@@ -27,22 +27,27 @@ def test_zero_yield_on_established_merchant_raises() -> None:
     # Error message must name the merchant so the Telegram / stderr
     # readout is immediately actionable.
     assert "xiaomi-ke" in str(exc.value)
-    assert "0 listings" in str(exc.value) or "0 " in str(exc.value)
+    assert "ZERO" in str(exc.value)
 
 
-def test_severe_drop_raises() -> None:
-    """A ~70% drop still trips the guard."""
-    with pytest.raises(ScraperYieldTooLow):
-        _assert_yield_healthy(
-            merchant_slug="jumia", prior_count=200, yielded_count=40
-        )
-
-
-def test_modest_drop_within_threshold_is_accepted() -> None:
-    """40% drop under the 50% ceiling — likely a seasonal inventory shift,
-    NOT a scraper failure. Don't page the operator over it."""
+def test_partial_yield_is_accepted() -> None:
+    """Only literal zero yield fires — partial yields might just be
+    a per-category scraper on a multi-category merchant (e.g. run_
+    jumia_phones scrapes ONE of Jumia's ~20 categories, so 200 phone
+    rows against a merchant total of 1600 is expected, not a failure).
+    """
+    # ~78% drop (Jumia phones scenario from 2026-07-16).
+    _assert_yield_healthy(
+        merchant_slug="jumia-ke", prior_count=1642, yielded_count=360
+    )
+    # 40% drop — legitimate seasonal shift.
     _assert_yield_healthy(
         merchant_slug="jumia", prior_count=100, yielded_count=60
+    )
+    # Even a severe 90% drop that isn't zero is accepted — the
+    # /admin/scrapes dashboard surfaces the stale rows separately.
+    _assert_yield_healthy(
+        merchant_slug="jumia", prior_count=200, yielded_count=20
     )
 
 
@@ -65,15 +70,9 @@ def test_small_merchant_below_floor_skipped() -> None:
     )
 
 
-def test_boundary_at_exact_threshold() -> None:
-    """Exactly half of prior_count should NOT raise — the threshold is
-    'less than half remains', not 'at most half remains'."""
-    # prior=100, threshold=int(100 * 0.5)=50. yielded=50 passes.
+def test_one_yielded_row_is_enough() -> None:
+    """Even a single row makes the guard sit quiet — the check is a
+    hard-zero tripwire, not a bounds check on catalog completeness."""
     _assert_yield_healthy(
-        merchant_slug="edge-ke", prior_count=100, yielded_count=50
+        merchant_slug="edge-ke", prior_count=1000, yielded_count=1
     )
-    # yielded=49 fails.
-    with pytest.raises(ScraperYieldTooLow):
-        _assert_yield_healthy(
-            merchant_slug="edge-ke", prior_count=100, yielded_count=49
-        )

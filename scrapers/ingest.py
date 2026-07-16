@@ -15,47 +15,47 @@ from db.session import engine, init_db
 from matching.match import match_or_create_product
 from scrapers.common.base import RawListing
 
-# Post-run sanity check thresholds. See _assert_yield_healthy for context.
+# Post-run sanity check threshold. See _assert_yield_healthy for context.
 MIN_PRIOR_LISTINGS_FOR_CHECK = 20
-MAX_ACCEPTABLE_DROP_RATIO = 0.5
 
 
 class ScraperYieldTooLow(RuntimeError):
-    """Raised when a scrape produced far fewer rows than the merchant's
-    prior listing count. Fails the matrix leg loudly so the Telegram
-    alert fires instead of a green CI + silently-stale DB.
+    """Raised when a scrape produced literal zero rows on a merchant that
+    previously had a healthy catalog. Fails the matrix leg loudly so the
+    Telegram alert fires instead of a green CI + silently-stale DB.
     """
 
 
 def _assert_yield_healthy(
     *, merchant_slug: str, prior_count: int, yielded_count: int
 ) -> None:
-    """Check post-scrape row count against the merchant's known catalog size.
+    """Check for the literal silent-zero failure mode.
 
-    Real failure mode we've seen: a merchant rebuilds their site, the
-    HTML selectors we relied on stop matching anything, and the scraper
-    silently yields zero RawListings. Ingest commits nothing. Matrix leg
-    exits 0. CI is green. The merchant just quietly rots in the DB — no
-    Telegram alert, no signal, until someone notices on /admin/scrapes.
+    Original design used a 50% drop threshold, which turned out to be
+    wrong. Many merchants are scraped across N per-category targets (e.g.
+    Jumia via all-phones, all-laptops, all-tvs, etc.). Each per-category
+    leg only yields its own category, but the merchant's total listing
+    count includes all categories, so `yielded_count` is naturally a
+    small fraction of `prior_count` for those legs. The 50% drop guard
+    fired on every one of them — 25 false-positive Telegram pages on
+    2026-07-16 before this was tightened.
 
-    Guard: after each scrape, compare yielded_count vs the merchant's
-    prior listing count. If the drop is more than MAX_ACCEPTABLE_DROP_RATIO
-    (default 50%) AND the merchant had >= MIN_PRIOR_LISTINGS_FOR_CHECK
-    (default 20) on record, raise so exit code is non-zero.
-
-    Skipped for merchants below the min-prior floor — new merchants have
-    prior_count=0 by definition and shouldn't false-alarm every time
-    they're added.
+    Corrected rule: only fire on `yielded_count == 0 AND prior_count >=
+    MIN_PRIOR_LISTINGS_FOR_CHECK`. That's the exact case the guard was
+    designed for (xiaomi's site rebuild produced 0 rows for 12 cron
+    cycles). Legitimate inventory shifts / partial-catalog scrapes don't
+    trigger. Larger drops that aren't zero still show up on
+    /admin/scrapes as an unusually old `last_checked_at` for the
+    untouched listings — that's the manual-observation layer.
     """
     if prior_count < MIN_PRIOR_LISTINGS_FOR_CHECK:
         return
-    threshold = int(prior_count * (1 - MAX_ACCEPTABLE_DROP_RATIO))
-    if yielded_count < threshold:
+    if yielded_count == 0:
         raise ScraperYieldTooLow(
-            f"{merchant_slug}: yielded only {yielded_count} listings but "
-            f"had {prior_count} on record (expected >= {threshold}). "
-            f"Likely site rebuild or bot posture change — investigate "
-            f"the scraper's selectors."
+            f"{merchant_slug}: yielded ZERO listings but had "
+            f"{prior_count} on record. Almost certainly a site rebuild "
+            f"or bot posture change — investigate the scraper's "
+            f"selectors before the DB decays further."
         )
 
 
