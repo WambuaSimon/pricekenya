@@ -140,11 +140,21 @@ def _available_values(
     return out
 
 
+PAGE_SIZE = 48
+
+
 @router.get("/c/{slug}", response_class=HTMLResponse)
-def category_page(slug: str, request: Request, session: Session = Depends(get_session)):
+def category_page(
+    slug: str,
+    request: Request,
+    page: int = 1,
+    session: Session = Depends(get_session),
+):
     category = session.exec(select(Category).where(Category.slug == slug)).first()
     if not category:
         raise HTTPException(status_code=404)
+    if page < 1:
+        page = 1
 
     slugs = _descendant_slugs(session, category)
 
@@ -199,11 +209,31 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
     if isinstance(price_max, str) and price_max.isdigit():
         q = q.having(func.min(Listing.price_kes) <= int(price_max))
 
+    # Ordering: newest products first. Product.created_at is the moment a
+    # new canonical_key first landed in the DB (via a scrape or retro
+    # cleanup). Sorting by it means newly-discovered SKUs surface at the
+    # top of a category page instead of getting buried at #197 behind the
+    # already-multi-merchant popular products. Ties within a day fall back
+    # to offer_count (multi-merchant products still rank higher within the
+    # same day) then to freshness of the most recent listing check.
     q = q.order_by(
+        Product.created_at.desc(),
         func.count(Listing.id).desc(),
         func.max(Listing.last_checked_at).desc(),
-    ).limit(48)
+    )
 
+    # Count total matching products up-front so we can render pagination
+    # controls. Using a subquery keeps the aggregation semantics identical
+    # to the main select (same filters, same GROUP BY, same HAVING).
+    total_rows = session.exec(
+        select(func.count()).select_from(q.subquery())
+    ).one() or 0
+    total_pages = max(1, (total_rows + PAGE_SIZE - 1) // PAGE_SIZE)
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * PAGE_SIZE
+
+    q = q.limit(PAGE_SIZE).offset(offset)
     rows = session.exec(q).all()
 
     # Hero stats — cheap counts over the category tree. Product/merchant
@@ -246,5 +276,9 @@ def category_page(slug: str, request: Request, session: Session = Depends(get_se
             "facets": facets,
             "active_filters": active,
             "available_values": available,
+            "page": page,
+            "total_pages": total_pages,
+            "page_size": PAGE_SIZE,
+            "total_matching": total_rows,
         },
     )

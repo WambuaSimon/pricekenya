@@ -1,0 +1,71 @@
+{# Pagination controls for /c/<slug> pages.
+
+   Passed in from the category route: page, total_pages, total_matching,
+   page_size. Preserves any active facet filters (?brand=... etc.) by
+   copying the request's query string minus its own `page=` param.
+   Hidden when there's only one page. #}
+{% if total_pages > 1 %}
+  {# Build a URL that preserves every current query param EXCEPT page=.
+     Wrapped in Jinja's namespace() so we can append without dict copy. #}
+  {% set qs = namespace(pairs=[]) %}
+  {% for k, v in request.query_params.multi_items() %}
+    {% if k != 'page' %}
+      {% set qs.pairs = qs.pairs + [k ~ '=' ~ v] %}
+    {% endif %}
+  {% endfor %}
+  {% set base_qs = qs.pairs | join('&') %}
+  {% set page_prefix = '?' ~ base_qs ~ ('&' if base_qs else '') ~ 'page=' %}
+
+  <nav aria-label="Category pagination"
+       class="mt-8 flex items-center justify-between gap-2 text-sm">
+    <div class="text-slate-500 dark:text-slate-400">
+      Showing {{ (page - 1) * page_size + 1 }}–{{ [(page * page_size), total_matching] | min }}
+      of {{ '{:,}'.format(total_matching) }}
+    </div>
+
+    <div class="flex items-center gap-1">
+      {# Prev #}
+      {% if page > 1 %}
+        <a href="{{ page_prefix }}{{ page - 1 }}"
+           class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">
+          ← Prev
+        </a>
+      {% else %}
+        <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600">← Prev</span>
+      {% endif %}
+
+      {# Compact number strip: current ± 2, first, last, ellipses. Keeps
+         the row short even on categories with 100+ pages. #}
+      {% set window = 2 %}
+      {% set _pages = [] %}
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == 1 or p == total_pages or (p >= page - window and p <= page + window) %}
+          {% set _pages = _pages + [p] %}
+        {% endif %}
+      {% endfor %}
+      {% set prev_p = namespace(v=0) %}
+      {% for p in _pages %}
+        {% if prev_p.v and p - prev_p.v > 1 %}
+          <span class="px-1 text-slate-400 select-none">…</span>
+        {% endif %}
+        {% if p == page %}
+          <span class="inline-flex items-center justify-center min-w-[2.25rem] rounded-md bg-emerald-600 px-3 py-1.5 font-medium text-white">{{ p }}</span>
+        {% else %}
+          <a href="{{ page_prefix }}{{ p }}"
+             class="inline-flex items-center justify-center min-w-[2.25rem] rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">{{ p }}</a>
+        {% endif %}
+        {% set prev_p.v = p %}
+      {% endfor %}
+
+      {# Next #}
+      {% if page < total_pages %}
+        <a href="{{ page_prefix }}{{ page + 1 }}"
+           class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">
+          Next →
+        </a>
+      {% else %}
+        <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600">Next →</span>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

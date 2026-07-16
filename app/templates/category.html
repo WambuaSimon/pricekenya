@@ -134,6 +134,7 @@
 
       <div>
         {% include "partials/_product_grid.html" %}
+        {% include "partials/_pagination.html" %}
       </div>
     </div>
 
@@ -168,6 +169,7 @@
     </script>
   {% elif rows %}
     {% include "partials/_product_grid.html" %}
+    {% include "partials/_pagination.html" %}
   {% else %}
     <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">
       No products in this category yet — check back soon.
