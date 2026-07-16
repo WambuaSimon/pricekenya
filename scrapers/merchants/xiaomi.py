@@ -1,47 +1,43 @@
 """Xiaomi Kenya (xiaomistores.co.ke) scraper.
 
 Xiaomi's Kenya presence is fragmented:
-- `mi.com/ke/` is an official SPA — 200 OK with `curl_cffi` but zero
-  product data in the HTML shell (client-side rendered).
-- `xiaomi-store.co.ke` returns 403 even with Chrome TLS impersonation.
-- Older recon dismissed `xiaomistores.co.ke` as "identical widget
-  content" — but that was based on category-URL testing. The `/shop/`
-  paginated listing IS the full catalogue: 266 products (Nov 2026)
-  across 12 pages of 24 items each, all with real KSh pricing.
+- `xiaomi-store.co.ke` (official) blocks curl_cffi at TLS — needs
+  Playwright stealth. Not wired yet.
+- `mi.com/ke/` is an SPA — no data in the initial HTML.
+- `xiaomistores.co.ke` (this scraper) is a WooCommerce store with the
+  full Kenya catalog. On 2026-07-16 they rebuilt the theme; the old
+  HTML selectors we were parsing (woocommerce-LoopProduct-link,
+  woocommerce-loop-product__title, product_cat-<slug> on <li>) all
+  disappeared and the scraper started yielding zero rows silently
+  (matrix leg reported success, DB went stale for ~75h).
 
-xiaomistores.co.ke is a customised WooCommerce (WordPress + WP Rocket
-cache). No CF/Akamai wall — plain `CffiPoliteClient` works cleanly.
+**Approach: WooCommerce Store API.**
 
-**Card structure:**
-- Container: `<li class="product ... product_cat-<slug> ...">`
-- URL: `<a href="…" class="woocommerce-LoopProduct-link woocommerce-loop-product__link">`
-- Product URLs are FLAT (`https://xiaomistores.co.ke/redmi-15c-4gb-256gb/`),
-  not `/product/<slug>/`.
-- Title: `<div class="woocommerce-loop-product__title">…</div>` inside
-  or after the anchor.
-- Price: prefer the `<ins>` block (sale price) over `<del>` (marked
-  price). Currency symbol is `KSh` inside a
-  `.woocommerce-Price-currencySymbol` span; the number sits after
-  `&nbsp;`.
-- Image: `<img data-lazy-src="…">` since WP Rocket lazyloads.
+Store API `/wp-json/wc/store/v1/products` is enabled and public — no
+authentication required. It exposes exactly the fields we need in
+stable JSON, and it's an official WooCommerce endpoint that survives
+theme rebuilds. Much lower failure surface than HTML scraping.
 
-**Category routing:** WooCommerce tags every card with all its taxonomy
-ancestors as `product_cat-<slug>` classes on the `<li>`. We iterate
-those in a specificity-ordered map and pick the first hit — this
-naturally avoids the "iot-group" / "mi-shop" / "mombasa-shop" catch-all
-categories that would misroute otherwise.
+Pagination is controlled by `?per_page=100&page=N` and the
+`X-WP-TotalPages` response header tells us when to stop.
 
-Wearables (`mi-watches-bands`, `amazfit`, `mibro`, `watches`,
-`smartwatches`) and lifestyle SKUs (`household`, `personal-care`,
-`purifier-vacuum`) are dropped: PriceKenya's taxonomy doesn't cover
-them and the matcher would reject them anyway. WiFi extenders/routers
-similarly skipped for now.
+Each product record includes:
+  - name, permalink, slug
+  - prices.price (integer string in minor units — 0 minor units for KES,
+    so "74999" = KSh 74,999)
+  - is_in_stock (bool)
+  - categories[] with .slug — routed to PriceKenya leaves via
+    _CATCLASS_TO_LEAF (same slug map that used to key off the old CSS
+    classes, since WooCommerce category slugs are identical either way)
+  - images[0].src for the primary image
+
+Categories not in the map (wearables, household, iot-group, etc.) get
+silently dropped — matches the old scraper's behavior.
 """
 
 from __future__ import annotations
 
-import html as html_lib
-import re
+import json
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
@@ -54,13 +50,15 @@ MERCHANT_META = {
 }
 MERCHANT_SLUG = MERCHANT_META["slug"]
 
-_BASE = "https://xiaomistores.co.ke"
-_SHOP_URL = f"{_BASE}/shop/"
-_MAX_PAGES = 20  # Safety cap; live count is ~12 pages.
+_STORE_API = "https://xiaomistores.co.ke/wp-json/wc/store/v1/products"
+_PER_PAGE = 100
+_MAX_PAGES = 20  # Safety cap; live count is 3 pages (271 products, Jul 2026).
 
-# Ordered — first match wins. Specificity: model-specific first, generic
-# catch-alls last. Any class not in this dict is ignored (which is what
-# skips iot-group, mombasa-shop, new-year, household, wearables, etc.).
+# WooCommerce category slug → PriceKenya leaf. Order matters only for
+# precedence when a product belongs to multiple categories — model-family
+# specifics first (redmi-phones, poco-phones), generic catch-alls last
+# (smartphones). Any slug not in this dict is ignored — that's how we
+# skip iot-group / mombasa-shop / new-year / household / wearables.
 _CATCLASS_TO_LEAF: dict[str, str] = {
     # Phones (Redmi/Poco/Mi model families first, then generic)
     "redmi-phones": "phones",
@@ -91,111 +89,101 @@ _CATCLASS_TO_LEAF: dict[str, str] = {
     "covers-protectors": "phone-tablet-accessories",
 }
 
-_LI_RE = re.compile(r'<li class="product ([^"]+)">', re.DOTALL)
-_URL_RE = re.compile(
-    r'<a href="([^"]+)"[^>]*class="woocommerce-LoopProduct-link[^"]*"'
-)
-_TITLE_RE = re.compile(
-    r'class="woocommerce-loop-product__title"[^>]*>([^<]+)<'
-)
-_INS_PRICE_RE = re.compile(
-    r'<ins>.*?<span class="woocommerce-Price-currencySymbol"[^>]*>KSh</span>'
-    r'[\s&nbsp;]*([\d,]+)',
-    re.DOTALL,
-)
-_ANY_PRICE_RE = re.compile(
-    r'<span class="woocommerce-Price-currencySymbol"[^>]*>KSh</span>'
-    r'[\s&nbsp;]*([\d,]+)'
-)
-_IMG_RE = re.compile(r'data-lazy-src="([^"]+\.(?:webp|jpg|jpeg|png))"')
-_SLUG_URL_RE = re.compile(r"https?://xiaomistores\.co\.ke/([^/]+)/?$")
 
+def _route(categories: list[dict]) -> str | None:
+    """Pick a PriceKenya leaf slug for this product's WooCommerce categories.
 
-def _parse_price(raw: str) -> Decimal | None:
-    try:
-        return Decimal(raw.replace(",", "").strip())
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _route(classes: str) -> str | None:
-    # Extract product_cat-<slug> tokens from the class string.
-    cats = set(re.findall(r"product_cat-([a-z0-9\-]+)", classes))
+    Iterates the _CATCLASS_TO_LEAF dict in insertion order so specific
+    model-family slugs beat the generic ones (redmi-phones before
+    smartphones). Returns None when nothing matches — the ingest pipeline
+    silently drops those.
+    """
+    slugs = {c.get("slug") for c in categories if c.get("slug")}
     for cls, leaf in _CATCLASS_TO_LEAF.items():
-        if cls in cats:
+        if cls in slugs:
             return leaf
     return None
 
 
-def _parse_cards(page_html: str) -> list[RawListing]:
-    positions = [(m.start(), m.group(1)) for m in _LI_RE.finditer(page_html)]
-    listings: list[RawListing] = []
-    for i, (start, classes) in enumerate(positions):
-        end = positions[i + 1][0] if i + 1 < len(positions) else start + 10000
-        block = page_html[start:end]
+def _parse_product(p: dict) -> RawListing | None:
+    """Convert one Store API product record to a RawListing, or None."""
+    leaf = _route(p.get("categories") or [])
+    if not leaf:
+        return None
 
-        leaf = _route(classes)
-        if not leaf:
-            continue
+    prices = p.get("prices") or {}
+    # KES has 0 minor units so the "price" string is already the whole KSh
+    # amount. Some free/placeholder rows have empty or zero price — skip
+    # them, they'd fail matcher rejection anyway.
+    price_raw = prices.get("price") or ""
+    try:
+        price = Decimal(price_raw)
+    except Exception:  # noqa: BLE001
+        return None
+    if price <= 0:
+        return None
 
-        url_m = _URL_RE.search(block)
-        title_m = _TITLE_RE.search(block)
-        if not url_m or not title_m:
-            continue
-        product_url = html_lib.unescape(url_m.group(1)).strip()
-        title = html_lib.unescape(title_m.group(1)).strip()
+    title = (p.get("name") or "").strip()
+    if not title:
+        return None
 
-        # Sale price if present, else the first .woocommerce-Price-amount.
-        price_m = _INS_PRICE_RE.search(block) or _ANY_PRICE_RE.search(block)
-        if not price_m:
-            continue
-        price = _parse_price(price_m.group(1))
-        if not price or price <= 0:
-            continue
+    url = (p.get("permalink") or "").strip()
+    if not url:
+        return None
 
-        img_m = _IMG_RE.search(block)
+    images = p.get("images") or []
+    img_url = images[0].get("src") if images else None
 
-        # Merchant SKU: use the URL slug — Xiaomi Kenya's WooCommerce
-        # doesn't expose numeric product_ids in the loop cards.
-        slug_m = _SLUG_URL_RE.match(product_url)
-        sku = slug_m.group(1) if slug_m else None
-
-        listings.append(
-            RawListing(
-                merchant_slug=MERCHANT_SLUG,
-                merchant_sku=sku,
-                url=product_url,
-                title=title,
-                price_kes=price,
-                in_stock=True,
-                image_url=img_m.group(1) if img_m else None,
-                category_slug=leaf,
-            )
-        )
-    return listings
+    return RawListing(
+        merchant_slug=MERCHANT_SLUG,
+        # WooCommerce's numeric product id is the stable SKU across a
+        # slug rename. Fall back to slug when id is missing (shouldn't
+        # happen against a real WC install but stay defensive).
+        merchant_sku=str(p.get("id") or p.get("slug") or ""),
+        url=url,
+        title=title,
+        price_kes=price,
+        in_stock=bool(p.get("is_in_stock")),
+        image_url=img_url,
+        category_slug=leaf,
+    )
 
 
 async def _fetch(client: CffiPoliteClient) -> AsyncIterator[RawListing]:
-    seen: set[str] = set()
+    seen: set[int | str] = set()
     for page in range(1, _MAX_PAGES + 1):
-        url = _SHOP_URL if page == 1 else f"{_SHOP_URL}page/{page}/"
+        url = f"{_STORE_API}?per_page={_PER_PAGE}&page={page}"
         try:
             resp = await client.get(url)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 — network flake, stop cleanly
             return
         if resp.status_code >= 400:
             return
-        listings = _parse_cards(resp.text)
-        if not listings:
+        try:
+            products = json.loads(resp.text)
+        except Exception:  # noqa: BLE001 — non-JSON response (WAF, etc.)
             return
-        new_this_page = 0
-        for r in listings:
-            if r.url in seen:
+        if not isinstance(products, list) or not products:
+            return
+
+        # X-WP-TotalPages tells us the last page. Stop when we've served
+        # it so we don't hit an empty response on page +1.
+        try:
+            total_pages = int(resp.headers.get("X-WP-TotalPages") or 0)
+        except Exception:  # noqa: BLE001
+            total_pages = 0
+
+        for raw in products:
+            pid = raw.get("id") or raw.get("slug")
+            if pid in seen:
                 continue
-            seen.add(r.url)
-            new_this_page += 1
-            yield r
-        if new_this_page == 0:
+            if pid is not None:
+                seen.add(pid)
+            listing = _parse_product(raw)
+            if listing:
+                yield listing
+
+        if total_pages and page >= total_pages:
             return
 
 
