@@ -299,6 +299,11 @@ WC_MERCHANTS: dict[str, dict] = {
     # pricepoint-ke moved to scrapers/merchants/pricepoint.py (WC Store API).
     "phoneshop-ke": {
         "meta": {"slug": "phoneshop-ke", "name": "Phone Shop Kenya", "base_url": "https://phoneshopkenya.co.ke"},
+        # Category pages render fine from a real browser but plain httpx
+        # gets back a stripped/challenge shell from GitHub Actions IPs —
+        # zero product cards, silent zero-yield. Chrome TLS impersonation
+        # (curl_cffi) unblocks the same URLs.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://phoneshopkenya.co.ke/product-category/headphones"],
             "cameras": ["https://phoneshopkenya.co.ke/product-category/content-creator-kit/cameras", "https://phoneshopkenya.co.ke/product-category/insta-360-cameras"],
