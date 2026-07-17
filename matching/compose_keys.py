@@ -1382,6 +1382,195 @@ def compose_nintendo_switch(pieces: dict) -> ParsedTitle:
 
 
 # ---------------------------------------------------------------------------
+# Dishwashers (matching/dishwashers.py)
+# key: brand|dishwasher[|config][|<n>ps][|condition]
+# ---------------------------------------------------------------------------
+
+_DISHWASHER_CONFIGS = {"built-in", "freestanding", "countertop", "semi-integrated"}
+
+
+def compose_dishwashers(pieces: dict) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if not brand:
+        return ParsedTitle()
+    config = _norm(pieces.get("config"))
+    if config and config not in _DISHWASHER_CONFIGS:
+        config = None
+    place_settings = pieces.get("place_settings") or pieces.get("place_setting")
+    programs = pieces.get("programs")
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = [slugify(brand), "dishwasher"]
+    specs: dict = {"condition": condition}
+    display_bits = [brand.replace("-", " ").title(), "Dishwasher"]
+    if config:
+        parts.append(config)
+        specs["config"] = config.replace("-", " ").title()
+        display_bits.append(specs["config"])
+    if place_settings:
+        try:
+            n = int(place_settings)
+            if 4 <= n <= 20:
+                parts.append(f"{n}ps")
+                specs["place_settings"] = n
+                display_bits.append(f"{n} Place Settings")
+        except (TypeError, ValueError):
+            pass
+    if programs:
+        try:
+            specs["programs"] = int(programs)
+        except (TypeError, ValueError):
+            pass
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand=brand,
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Coffee machines (matching/coffee_machines.py)
+# key: brand|type[|<n>cups or <n>ml][|<n>w][|condition]
+# ---------------------------------------------------------------------------
+
+_COFFEE_TYPES = {"bean-to-cup", "espresso", "drip", "coffee-machine"}
+
+
+def compose_coffee_machines(pieces: dict) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if not brand:
+        return ParsedTitle()
+    coffee_type = _norm(pieces.get("type")) or "coffee-machine"
+    if coffee_type not in _COFFEE_TYPES:
+        coffee_type = "coffee-machine"
+    watts = pieces.get("watts")
+    cups = pieces.get("capacity_cups") or pieces.get("cups")
+    ml = pieces.get("capacity_ml") or pieces.get("ml")
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = [slugify(brand), coffee_type]
+    specs: dict = {"condition": condition, "type": coffee_type.replace("-", " ").title()}
+    display_bits = [
+        brand.replace("-", " ").title(),
+        coffee_type.replace("-", " ").title(),
+        "Coffee Machine",
+    ]
+    if cups:
+        try:
+            n = int(cups)
+            if 1 <= n <= 20:
+                parts.append(f"{n}cups")
+                specs["capacity_cups"] = n
+                display_bits.append(f"{n} Cups")
+        except (TypeError, ValueError):
+            pass
+    elif ml:
+        try:
+            n = int(ml)
+            if 100 <= n <= 3000:
+                parts.append(f"{n}ml")
+                specs["capacity_ml"] = n
+                display_bits.append(f"{n} Ml")
+        except (TypeError, ValueError):
+            pass
+    if watts:
+        try:
+            w = int(watts)
+            if 300 <= w <= 3000:
+                parts.append(f"{w}w")
+                specs["watts"] = w
+                display_bits.append(f"{w}W")
+        except (TypeError, ValueError):
+            pass
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand=brand,
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Home & kitchen fixtures (matching/home_fixtures.py)
+# Shared shape — composer emits brand|leaf[|dimension][|condition]. The
+# regex parser adds a slugged tail from the title's residue for uniqueness;
+# LLM path has no equivalent field, so composers stay simpler. LLM
+# fallback is not wired for these leaves today, so drift is theoretical.
+# ---------------------------------------------------------------------------
+
+_FIXTURE_LEAVES = {
+    "kitchen-sinks-taps",
+    "countertops",
+    "splashbacks",
+    "kitchen-hardware",
+    "utensils",
+    "toilets",
+}
+
+
+def _compose_fixture(pieces: dict, leaf: str) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if not brand:
+        return ParsedTitle()
+    dimension = _norm(pieces.get("dimension"))
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = [slugify(brand), leaf]
+    specs: dict = {"condition": condition}
+    display_bits = [brand.replace("-", " ").title(), leaf.replace("-", " ").title()]
+    if dimension:
+        parts.append(dimension)
+        specs["dimension"] = dimension
+        display_bits.append(dimension)
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand=brand,
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+def compose_kitchen_sinks_taps(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "kitchen-sinks-taps")
+
+
+def compose_countertops(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "countertops")
+
+
+def compose_splashbacks(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "splashbacks")
+
+
+def compose_kitchen_hardware(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "kitchen-hardware")
+
+
+def compose_utensils(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "utensils")
+
+
+def compose_toilets(pieces: dict) -> ParsedTitle:
+    return _compose_fixture(pieces, "toilets")
+
+
+# ---------------------------------------------------------------------------
 # Public registry — slug → composer
 # ---------------------------------------------------------------------------
 
@@ -1411,4 +1600,12 @@ COMPOSERS: dict[str, Any] = {
     "playstation-5": compose_playstation_5,
     "xbox-series": compose_xbox_series,
     "nintendo-switch": compose_nintendo_switch,
+    "dishwashers": compose_dishwashers,
+    "coffee-machines": compose_coffee_machines,
+    "kitchen-sinks-taps": compose_kitchen_sinks_taps,
+    "countertops": compose_countertops,
+    "splashbacks": compose_splashbacks,
+    "kitchen-hardware": compose_kitchen_hardware,
+    "utensils": compose_utensils,
+    "toilets": compose_toilets,
 }

@@ -36,12 +36,19 @@ CATEGORY_TREE: list[tuple[str, str, list]] = [
                 ("freezers", "Freezers", []),
                 ("water-dispensers-coolers", "Water Dispensers & Coolers", []),
                 ("washers-dryers", "Washers & Dryers", []),
+                # Split out of washers-dryers on 2026-07-17. A KSh 80k
+                # built-in dishwasher shares no buyer intent with washing
+                # machines; browsing them together was a bad UX.
+                ("dishwashers", "Dishwashers", []),
             ]),
             ("small-appliances", "Small Appliances", [
                 ("blenders", "Blenders", []),
                 ("toasters", "Toasters", []),
                 ("kettles", "Kettles", []),
                 ("ironing-laundry", "Ironing & Laundry", []),
+                # Newmatic + Hotpoint + Jumia all stock built-in and
+                # counter-top coffee machines at KSh 70k–200k+.
+                ("coffee-machines", "Coffee Machines", []),
             ]),
         ]),
         ("gaming", "Gaming", [
@@ -57,6 +64,22 @@ CATEGORY_TREE: list[tuple[str, str, list]] = [
             ("inverters", "Inverters", []),
             ("solar-panels", "Solar Panels", []),
             ("solar-batteries", "Solar Batteries", []),
+        ]),
+    ]),
+    # Home & Kitchen fixtures — hardware/plumbing/decor that sits outside the
+    # "Electronics" umbrella. Introduced 2026-07-17 driven by Newmatic's
+    # built-in-kitchen catalog which sells substantial SKU volume across
+    # sinks, countertops, and kitchen hardware that had no home before.
+    ("home-kitchen", "Home & Kitchen", [
+        ("kitchen-fixtures", "Kitchen Fixtures", [
+            ("kitchen-sinks-taps", "Sinks & Taps", []),
+            ("countertops", "Countertops", []),
+            ("splashbacks", "Splashbacks", []),
+            ("kitchen-hardware", "Kitchen Hardware", []),
+            ("utensils", "Utensils & Kitchenware", []),
+        ]),
+        ("bathroom-fixtures", "Bathroom Fixtures", [
+            ("toilets", "Toilets", []),
         ]),
     ]),
 ]

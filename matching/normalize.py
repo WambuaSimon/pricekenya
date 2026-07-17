@@ -13,8 +13,11 @@ from matching import (
     accessories,
     audio,
     camera,
+    coffee_machines,
     consoles,
     cooking,
+    dishwashers,
+    home_fixtures,
     laptop,
     phone,
     refrigerator,
@@ -67,6 +70,20 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "playstation-5": lambda t: consoles.parse_title(t, expected_type="ps5"),
     "xbox-series": lambda t: consoles.parse_title(t, expected_type="xbox-series"),
     "nintendo-switch": lambda t: consoles.parse_title(t, expected_type="switch"),
+    # Dishwashers — split from washers-dryers on 2026-07-17; different
+    # spec vocabulary (place-settings, integrated vs freestanding).
+    "dishwashers": dishwashers.parse_title,
+    # Coffee machines — separate leaf under small-appliances so a KSh 200k
+    # bean-to-cup doesn't collide-key with a KSh 5k drip.
+    "coffee-machines": coffee_machines.parse_title,
+    # Home & kitchen fixtures — shared matcher, expected_type dispatches
+    # per leaf (sinks/taps/countertops/splashbacks/hardware/utensils/toilets).
+    "kitchen-sinks-taps": lambda t: home_fixtures.parse_title(t, expected_type="kitchen-sinks-taps"),
+    "countertops": lambda t: home_fixtures.parse_title(t, expected_type="countertops"),
+    "splashbacks": lambda t: home_fixtures.parse_title(t, expected_type="splashbacks"),
+    "kitchen-hardware": lambda t: home_fixtures.parse_title(t, expected_type="kitchen-hardware"),
+    "utensils": lambda t: home_fixtures.parse_title(t, expected_type="utensils"),
+    "toilets": lambda t: home_fixtures.parse_title(t, expected_type="toilets"),
 }
 
 

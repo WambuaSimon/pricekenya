@@ -125,12 +125,13 @@ UNIVERSAL_CATEGORY_MAP: dict[str, str] = {
     "chest-freezers": "refrigerators",
     "fridges": "refrigerators",
     "refrigerators": "refrigerators",
-    # ---- Washers / dryers / dishwashers ----
+    # ---- Washers / dryers ----
     "hisense-washing-machine": "washers-dryers",
     "washing-machines": "washers-dryers",
     "washing-machine": "washers-dryers",
-    "built-in-dishwashers": "washers-dryers",
-    "dishwashers": "washers-dryers",
+    # ---- Dishwashers (own leaf as of 2026-07-17) ----
+    "built-in-dishwashers": "dishwashers",
+    "dishwashers": "dishwashers",
     # ---- Cooking (hobs / cookers / ovens / microwaves) ----
     "gas-and-induction-hobs": "cooking",
     "gas-electric-hobs": "cooking",
@@ -148,6 +149,26 @@ UNIVERSAL_CATEGORY_MAP: dict[str, str] = {
     "kettles": "kettles",
     "toasters": "toasters",
     "blenders": "blenders",
+    # ---- Coffee machines (own leaf as of 2026-07-17) ----
+    "coffee-machines": "coffee-machines",
+    "coffee-machine": "coffee-machines",
+    "coffee-makers": "coffee-machines",
+    "coffee-maker": "coffee-machines",
+    "espresso-machines": "coffee-machines",
+    # ---- Home & kitchen fixtures (Newmatic's non-appliance catalog) ----
+    "sinks-and-taps": "kitchen-sinks-taps",
+    "sinks": "kitchen-sinks-taps",
+    "taps": "kitchen-sinks-taps",
+    "kitchen-sinks": "kitchen-sinks-taps",
+    "countertops": "countertops",
+    "counter-tops": "countertops",
+    "splashbacks": "splashbacks",
+    "kitchen-hardware": "kitchen-hardware",
+    "utensils-kitchenware": "utensils",
+    "utensils": "utensils",
+    "kitchenware": "utensils",
+    "toilets": "toilets",
+    "wc-toilets": "toilets",
     # ---- Ironing / laundry small ----
     "irons": "ironing-laundry",
     "steam-irons": "ironing-laundry",

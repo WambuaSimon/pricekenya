@@ -39,6 +39,15 @@ APPLIANCE_BRANDS: set[str] = {
     # only the SKU code (no brand token). Adding them so the required-
     # brand check in the cooking / refrigerator / washer matchers passes.
     "newmatic", "berklays", "scl",
+    # Coffee-machine specialists — added 2026-07-17 when the coffee-machines
+    # leaf shipped. Nespresso etc. also appear in accessories categories.
+    "nespresso", "jura", "breville", "illy", "lavazza", "gaggia", "saeco",
+    "moccamaster",
+    # Bathroom + kitchen fixture brands for the home-fixtures matcher —
+    # sinks/taps/toilets. Kenyan retail carries a mix of Kenyan / Chinese
+    # imports plus the global fixture players.
+    "roca", "kohler", "grohe", "jaquar", "american-standard", "hansgrohe",
+    "duravit", "cera", "geberit", "toto", "villeroy", "clarina",
 }
 
 CONDITION_KEYWORDS = {
