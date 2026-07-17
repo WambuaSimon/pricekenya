@@ -72,7 +72,19 @@ jobs:
           - all-inverters       # Jumia + Kilimall + Hotpoint solar inverters
           - all-solar-panels    # Jumia + Kilimall + Hotpoint solar panels
           - all-solar-batteries # Jumia + Kilimall + Hotpoint solar batteries
-          - all-hotpoint        # Big — 12 categories × detail fetches
+          # Hotpoint split per leaf — the bundled `all-hotpoint` (9 legs
+          # serial) regularly blew the 30-min budget because each leaf is
+          # ~53 items × 2s polite delay × 2 (list + per-product detail
+          # fetch). Same treatment we already gave `all-wc`.
+          - hotpoint-tvs
+          - hotpoint-refrigerators
+          - hotpoint-washers
+          - hotpoint-cooking
+          - hotpoint-audio
+          - hotpoint-blenders
+          - hotpoint-toasters
+          - hotpoint-kettles
+          - hotpoint-irons
           - all-avechi          # 6 categories
           - all-istore          # 2 categories
           - all-gadgetworld     # 1 category
