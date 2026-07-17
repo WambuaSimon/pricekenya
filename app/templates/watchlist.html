@@ -13,7 +13,7 @@
         <li class="bg-white border rounded-lg p-3 flex items-center gap-4 dark:bg-slate-900 dark:border-slate-800">
           <a href="/p/{{ item.product.slug }}" class="shrink-0 w-16 h-16 bg-slate-100 rounded flex items-center justify-center overflow-hidden dark:bg-slate-800">
             {% if item.product.image_url %}
-              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="object-contain w-full h-full">
+              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="object-contain w-full h-full" referrerpolicy="no-referrer">
             {% else %}
               <span class="text-slate-300 text-[10px] dark:text-slate-600">no image</span>
             {% endif %}

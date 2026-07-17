@@ -73,6 +73,7 @@
           {% if product.image_url %}
             <img src="{{ product.image_url }}" alt="{{ product.title }}"
               class="object-contain w-full h-full"
+              referrerpolicy="no-referrer"
               onerror="this.style.display='none'">
           {% else %}
             <span class="text-slate-400 text-sm dark:text-slate-500">no image yet</span>
