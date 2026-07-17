@@ -24,12 +24,20 @@ from matching.base import ParsedTitle, clean_title, slugify
 # Type detection — ordered so more-specific / narrower phrases win.
 # hot-plate must be checked before cooker because Kenyan retail titles often
 # add "cooker" to hot-plate SKUs ("hot plate coil cooker").
+#
+# `hood` covers kitchen chimney hoods and extractors — Newmatic (a built-in
+# kitchen appliance specialist) sells these as their biggest catalog line,
+# and they belong in the cooking leaf alongside hobs/ovens for cross-shopping.
 TYPE_MARKERS: list[tuple[str, tuple[str, ...]]] = [
     ("microwave", ("microwave",)),
     ("hot-plate", ("hot plate", "hotplate", "electric stove", "coil cooker")),
     ("cooker", ("standing cooker", "free standing cooker", "gas cooker",
                 "electric cooker", "cooker",)),
     ("oven", ("built-in oven", "built in oven", "electric oven", "oven",)),
+    ("hood", ("chimney hood", "kitchen chimney", "extractor hood",
+              "cooker hood", "range hood", "wall-mounted hood",
+              "wall mounted hood", "island hood", "slim hood",
+              "extractor", "chimney", "hood")),
     ("hob", ("gas hob", "hob",)),
 ]
 
@@ -58,8 +66,10 @@ _THREE_PLUS_ONE_RE = re.compile(r"3\s*\+\s*1")  # 3-gas-1-electric standing cook
 
 NON_COOKING_MARKERS = (
     "microwave stand", "microwave rack",
-    "cooker hood", "range hood",
+    # "cooker hood" and "range hood" removed — they're now the `hood`
+    # type (see TYPE_MARKERS above), not accessories to reject.
     "cooker knob", "cooker replacement",
+    "hood knob", "hood filter replacement", "grease filter replacement",
     "cooking oil", "cooking pot", "cookware set",
     "egg tray", "egg cup",
     "spare part",

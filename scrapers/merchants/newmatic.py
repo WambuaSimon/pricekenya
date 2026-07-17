@@ -47,4 +47,11 @@ async def fetch_all() -> AsyncIterator[RawListing]:
         MERCHANT_META["slug"],
         override_category_map=_OVERRIDES,
     ):
+        # Newmatic titles carry only the SKU code — no brand token — e.g.
+        # "H19.9S Undermount Chimney Slim Hood". The cooking/refrigerator
+        # matchers require a KNOWN brand to canonicalise, so prefix the
+        # merchant name onto every title before yielding. Same trick
+        # ramtons uses (see scrapers/merchants/ramtons.py::_extract).
+        if "newmatic" not in r.title.lower():
+            r.title = f"Newmatic {r.title}"
         yield r

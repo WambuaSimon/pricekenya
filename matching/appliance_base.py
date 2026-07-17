@@ -35,6 +35,10 @@ APPLIANCE_BRANDS: set[str] = {
     "ailyons", "globalstar", "syinix", "smartec", "itel", "cube", "lyons",
     "solarmax", "nobel", "gld", "k-elec",
     "em",  # ElectroMate — appears bare or as "em"
+    # Built-in kitchen appliance specialists whose product titles carry
+    # only the SKU code (no brand token). Adding them so the required-
+    # brand check in the cooking / refrigerator / washer matchers passes.
+    "newmatic", "berklays", "scl",
 }
 
 CONDITION_KEYWORDS = {
