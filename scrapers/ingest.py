@@ -353,6 +353,12 @@ def run_jumia_solar_batteries() -> None:
     asyncio.run(_consume(fetch_solar_batteries(), MERCHANT_META))
 
 
+def run_jumia_consoles() -> None:
+    from scrapers.merchants.jumia import MERCHANT_META, fetch_consoles
+
+    asyncio.run(_consume(fetch_consoles(), MERCHANT_META))
+
+
 def run_kilimall_irons() -> None:
     from scrapers.merchants.kilimall import MERCHANT_META, fetch_irons
 
@@ -693,9 +699,9 @@ def run_phoneplace_console_accessories() -> None:
     asyncio.run(_consume(fetch_console_accessories(), MERCHANT_META))
 
 
-def run_phoneplace_gaming() -> None:
-    from scrapers.merchants.phone_place import MERCHANT_META, fetch_gaming
-    asyncio.run(_consume(fetch_gaming(), MERCHANT_META))
+def run_phoneplace_consoles() -> None:
+    from scrapers.merchants.phone_place import MERCHANT_META, fetch_consoles
+    asyncio.run(_consume(fetch_consoles(), MERCHANT_META))
 
 
 def _run_phoneplace_all() -> None:
@@ -705,7 +711,9 @@ def _run_phoneplace_all() -> None:
     run_phoneplace_cameras()
     run_phoneplace_accessories()
     run_phoneplace_console_accessories()
-    run_phoneplace_gaming()
+    # phoneplace-consoles runs from the cross-merchant `all-consoles`
+    # matrix leg (with jumia-consoles) — omitted here to avoid scraping
+    # the same URL twice per cron cycle.
 
 
 # Phones Store Kenya (phonesstorekenya.com)
@@ -946,6 +954,16 @@ TARGETS = {
         run_jumia_solar_batteries(),
         run_kilimall_solar_batteries(),
     ),
+    # Gaming consoles (PS5 / Xbox Series / Nintendo Switch). Jumia +
+    # phoneplace are the two sources with real console SKUs findable at
+    # scale today; phoneshop's console URL is scraped as part of its own
+    # wc-phoneshop-ke leg via `console_urls` in the WC config. Kilimall
+    # has no console category URL; Hotpoint doesn't sell consoles.
+    "jumia-consoles": run_jumia_consoles,
+    "all-consoles": lambda: (
+        run_jumia_consoles(),
+        run_phoneplace_consoles(),
+    ),
     "hotpoint-tvs": run_hotpoint_tvs,
     "hotpoint-refrigerators": run_hotpoint_refrigerators,
     "hotpoint-washers": run_hotpoint_washers,
@@ -1002,7 +1020,7 @@ TARGETS = {
     "phoneplace-cameras": run_phoneplace_cameras,
     "phoneplace-accessories": run_phoneplace_accessories,
     "phoneplace-console-accessories": run_phoneplace_console_accessories,
-    "phoneplace-gaming": run_phoneplace_gaming,
+    "phoneplace-consoles": run_phoneplace_consoles,
     "all-phoneplace": _run_phoneplace_all,
     "phonesstore-phones": run_phonesstore_phones,
     "phonesstore-tablets": run_phonesstore_tablets,

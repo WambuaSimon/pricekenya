@@ -304,6 +304,11 @@ WC_MERCHANTS: dict[str, dict] = {
         # zero product cards, silent zero-yield. Chrome TLS impersonation
         # (curl_cffi) unblocks the same URLs.
         "client_type": "cffi",
+        # Mixed PS5 / Switch / Xbox on one page; wc_batch dispatches per
+        # title via classify_console_leaf into the right console leaf.
+        "console_urls": [
+            "https://phoneshopkenya.co.ke/product-category/games-and-consoles/consoles",
+        ],
         "leaf_to_urls": {
             "audio": ["https://phoneshopkenya.co.ke/product-category/headphones"],
             "cameras": ["https://phoneshopkenya.co.ke/product-category/content-creator-kit/cameras", "https://phoneshopkenya.co.ke/product-category/insta-360-cameras"],

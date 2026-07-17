@@ -237,6 +237,31 @@ async def fetch_solar_panels() -> AsyncIterator[RawListing]:
         yield r
 
 
+async def fetch_consoles() -> AsyncIterator[RawListing]:
+    """Jumia has no working umbrella /consoles/ landing (`/video-game-
+    consoles/` is a controllers page, `/consoles/` is retro handhelds).
+    Real console SKUs surface via catalog search — one search per family
+    for good recall. Each title is dispatched to the right console leaf
+    via the router; retro clones / accessories / games silently drop.
+    """
+    from scrapers.common.console_router import classify_console_leaf
+
+    seen: set[str] = set()
+    for search in (
+        "https://www.jumia.co.ke/catalog/?q=playstation+5&page={page}",
+        "https://www.jumia.co.ke/catalog/?q=xbox+series&page={page}",
+        "https://www.jumia.co.ke/catalog/?q=nintendo+switch&page={page}",
+    ):
+        async for r in _fetch_category(search, 4, "_pending"):
+            if r.url in seen:
+                continue
+            seen.add(r.url)
+            leaf = classify_console_leaf(r.title)
+            if leaf:
+                r.category_slug = leaf
+                yield r
+
+
 async def fetch_solar_batteries() -> AsyncIterator[RawListing]:
     """No dedicated Jumia category for solar batteries — we rely on catalog
     search. Matcher rejects car / AA / cmos batteries so the noise is bounded."""

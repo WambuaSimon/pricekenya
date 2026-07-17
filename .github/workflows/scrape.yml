@@ -72,6 +72,7 @@ jobs:
           - all-inverters       # Jumia + Kilimall + Hotpoint solar inverters
           - all-solar-panels    # Jumia + Kilimall + Hotpoint solar panels
           - all-solar-batteries # Jumia + Kilimall + Hotpoint solar batteries
+          - all-consoles        # Jumia catalog-search + phoneplace consoles
           # Hotpoint split per leaf — the bundled `all-hotpoint` (9 legs
           # serial) regularly blew the 30-min budget because each leaf is
           # ~53 items × 2s polite delay × 2 (list + per-product detail

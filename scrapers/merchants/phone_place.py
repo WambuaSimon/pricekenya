@@ -72,13 +72,13 @@ LEAF_TO_URLS: dict[str, list[str]] = {
         "https://www.phoneplacekenya.com/product-category/gaming/gaming-controllers/",
         "https://www.phoneplacekenya.com/product-category/gaming/gaming-headsets/",
     ],
-    # gaming-console / ps5-games are actual game consoles + software, not
-    # accessories. Left here for a future gaming-consoles leaf; today no
-    # matcher exists for the "gaming" category so ingest silently drops.
-    "gaming": [
+    # Consoles: gaming-console/ mixes PS5 + Xbox + Switch on one page,
+    # so fetch_consoles() dispatches each title via classify_console_leaf
+    # rather than hard-coding a single leaf.
+    "_consoles": [
         "https://www.phoneplacekenya.com/product-category/gaming/gaming-console/",
-        "https://www.phoneplacekenya.com/product-category/gaming/ps5-games/",
     ],
+    # ps5-games/ deferred until the games-digital-cards matcher ships.
 }
 
 _PRICE_RE = re.compile(r"[\d,]+")
@@ -227,6 +227,15 @@ async def fetch_console_accessories() -> AsyncIterator[RawListing]:
         yield r
 
 
-async def fetch_gaming() -> AsyncIterator[RawListing]:
-    async for r in _fetch_one("gaming"):
-        yield r
+async def fetch_consoles() -> AsyncIterator[RawListing]:
+    """Fetch phoneplace's mixed gaming-console listing and dispatch each
+    title to the right console leaf via the router. Non-console noise
+    (retro clones, accessories, games) yields None from the router and
+    gets dropped here — no need to round-trip through the matcher."""
+    from scrapers.common.console_router import classify_console_leaf
+
+    async for r in _fetch_one("_consoles"):
+        leaf = classify_console_leaf(r.title)
+        if leaf:
+            r.category_slug = leaf
+            yield r

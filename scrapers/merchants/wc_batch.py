@@ -25,7 +25,14 @@ async def fetch_all_leaves(merchant_slug: str) -> AsyncIterator[RawListing]:
     """Iterate every discovered category URL for one merchant and yield the
     RawListing rows. Dedupes on product URL across sibling categories — a
     product listed under both `smartphones` and `smartphones/mobile-phones`
-    should not double-insert."""
+    should not double-insert.
+
+    `console_urls` is an optional per-merchant list of URLs that mix PS5 +
+    Xbox + Switch on one page. Each listing's title is dispatched via
+    `classify_console_leaf` so it lands on the right console leaf
+    (playstation-5 / xbox-series / nintendo-switch) instead of collapsing
+    to a single hard-coded slug. Non-console noise drops silently.
+    """
     cfg = WC_MERCHANTS[merchant_slug]
     meta = cfg["meta"]
     slug = meta["slug"]
@@ -51,3 +58,24 @@ async def fetch_all_leaves(merchant_slug: str) -> AsyncIterator[RawListing]:
                     continue
                 seen.add(r.url)
                 yield r
+
+    console_urls = cfg.get("console_urls", [])
+    if console_urls:
+        from scrapers.common.console_router import classify_console_leaf
+
+        for url in console_urls:
+            async for r in fetch_woocommerce_category(
+                url,
+                max_pages=max_pages,
+                merchant_slug=slug,
+                category_slug="_pending",
+                site_base_url=base,
+                client_type=client_type,
+            ):
+                if r.url in seen:
+                    continue
+                seen.add(r.url)
+                console_leaf = classify_console_leaf(r.title)
+                if console_leaf:
+                    r.category_slug = console_leaf
+                    yield r
