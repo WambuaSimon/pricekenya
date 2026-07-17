@@ -268,13 +268,23 @@ async def fetch_wc_store_catalog(
                     continue
 
                 prices = p.get("prices") or {}
-                # KES has 0 minor units — the "price" string is the whole
-                # KSh amount. Some free / placeholder rows carry "0" or
-                # empty; skip them so we don't dirty the DB.
+                # WC Store API returns prices as strings in the store's
+                # configured minor units — `currency_minor_unit=2` means
+                # the "price" string is in cents and must be divided by
+                # 100. This VARIES per merchant (Newmatic + finetech
+                # use 2; phoneshop + patabay use 0), so we can't assume
+                # KES is always minor-unit-0. Silently trusting the raw
+                # string caused 100× inflated prices on every 2-decimal
+                # WC merchant since eff6278 (2026-07-14).
                 try:
-                    price = Decimal(prices.get("price") or "0")
+                    raw = Decimal(prices.get("price") or "0")
                 except Exception:  # noqa: BLE001
                     continue
+                try:
+                    minor = int(prices.get("currency_minor_unit") or 0)
+                except Exception:  # noqa: BLE001
+                    minor = 0
+                price = raw / (Decimal(10) ** minor) if minor > 0 else raw
                 if price <= 0:
                     continue
 
