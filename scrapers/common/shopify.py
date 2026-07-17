@@ -172,20 +172,33 @@ async def fetch_shopify_catalog(
     # impersonation makes the request indistinguishable from a real
     # browser regardless of source IP.
     client = CffiPoliteClient()
+    # One-shot diagnostic on the FIRST page only — if page 1 comes back
+    # empty (or errors), log the status + head of the body so CI tells us
+    # whether it's IP-blocking, a WAF challenge, or a real empty catalog.
+    # Silent zero-yield is the worst failure mode to debug blind.
     try:
         for page in range(1, max_pages + 1):
+            url = f"{base}/products.json?limit=250&page={page}"
             try:
-                r = await client.get(f"{base}/products.json?limit=250&page={page}")
-                if r.status_code >= 400:
-                    return
-            except Exception:  # noqa: BLE001
+                r = await client.get(url)
+            except Exception as exc:  # noqa: BLE001
+                if page == 1:
+                    print(f"[shopify] {merchant_slug} page1 GET raised: {exc!r}")
+                return
+            if r.status_code >= 400:
+                if page == 1:
+                    print(f"[shopify] {merchant_slug} page1 HTTP {r.status_code}: {r.text[:300]!r}")
                 return
             try:
                 data = json.loads(r.text)
             except Exception:  # noqa: BLE001 — WAF page or truncated JSON
+                if page == 1:
+                    print(f"[shopify] {merchant_slug} page1 non-JSON (status {r.status_code}): {r.text[:300]!r}")
                 return
             products = data.get("products", [])
             if not products:
+                if page == 1:
+                    print(f"[shopify] {merchant_slug} page1 empty products[] (status {r.status_code}, body head): {r.text[:300]!r}")
                 return
             for p in products:
                 title = (p.get("title") or "").strip()
