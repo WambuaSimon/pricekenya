@@ -219,6 +219,26 @@ from matching import compose_keys
             },
             "microsoft|controller|xbox-elite-2",
         ),
+        (
+            "playstation-5",
+            {
+                "brand": "sony",
+                "revision": "slim",
+                "edition": "disc",
+                "storage": "1TB",
+            },
+            "sony|ps5|slim|disc|1tb",
+        ),
+        (
+            "xbox-series",
+            {"brand": "microsoft", "family": "xbox-series-x", "storage": "2TB"},
+            "microsoft|xbox-series-x|2tb",
+        ),
+        (
+            "nintendo-switch",
+            {"brand": "nintendo", "family": "switch-oled"},
+            "nintendo|switch-oled",
+        ),
     ],
 )
 def test_composer_key_shapes(slug: str, pieces: dict, expected_key: str) -> None:

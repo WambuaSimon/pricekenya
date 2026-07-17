@@ -13,6 +13,7 @@ from matching import (
     accessories,
     audio,
     camera,
+    consoles,
     cooking,
     laptop,
     phone,
@@ -60,6 +61,12 @@ _PARSERS: dict[str, Callable[[str], ParsedTitle]] = {
     "console-accessories": lambda t: accessories.parse_title(
         t, expected_category="console-accessories"
     ),
+    # Consoles — shared matcher module; expected_type keeps a PS5 SKU out of
+    # the Xbox/Switch leaves. Retro-handheld noise, actual games, and
+    # accessories are rejected inside the matcher.
+    "playstation-5": lambda t: consoles.parse_title(t, expected_type="ps5"),
+    "xbox-series": lambda t: consoles.parse_title(t, expected_type="xbox-series"),
+    "nintendo-switch": lambda t: consoles.parse_title(t, expected_type="switch"),
 }
 
 

@@ -1265,6 +1265,123 @@ def compose_console_accessories(pieces: dict) -> ParsedTitle:
 
 
 # ---------------------------------------------------------------------------
+# Consoles: PlayStation 5 / Xbox Series / Nintendo Switch (matching/consoles.py)
+# ---------------------------------------------------------------------------
+
+_PS5_REVISIONS = {"standard", "slim", "pro"}
+_PS5_EDITIONS = {"disc", "digital"}
+_CONSOLE_STORAGE = {"512gb", "825gb", "1tb", "2tb", "4tb"}
+_XBOX_FAMILIES = {"xbox-series-x", "xbox-series-s"}
+_SWITCH_FAMILIES = {"switch", "switch-2", "switch-lite", "switch-oled"}
+
+
+def _norm_storage(value: Any) -> str | None:
+    """Normalise LLM-emitted storage strings ("1 TB", "825 GB") to the same
+    token the regex parser produces ("1tb", "825gb")."""
+    s = _norm(value)
+    if not s:
+        return None
+    s = s.replace(" ", "")
+    return s if s in _CONSOLE_STORAGE else None
+
+
+def compose_playstation_5(pieces: dict) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if brand not in ("sony", "playstation"):
+        return ParsedTitle()
+    revision = _norm(pieces.get("revision")) or "standard"
+    if revision not in _PS5_REVISIONS:
+        return ParsedTitle()
+    edition = _norm(pieces.get("edition"))
+    if edition and edition not in _PS5_EDITIONS:
+        edition = None
+    storage = _norm_storage(pieces.get("storage"))
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = ["sony", "ps5", revision]
+    specs: dict = {"condition": condition, "revision": revision.title()}
+    display_bits = ["Sony", "PlayStation 5"]
+    if revision != "standard":
+        display_bits.append(revision.title())
+    if edition:
+        parts.append(edition)
+        specs["edition"] = edition.title()
+        display_bits.append(f"{edition.title()} Edition")
+    if storage:
+        parts.append(storage)
+        specs["storage"] = storage.upper()
+        display_bits.append(storage.upper())
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand="sony",
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+def compose_xbox_series(pieces: dict) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if brand not in ("microsoft", "xbox"):
+        return ParsedTitle()
+    family = _norm(pieces.get("family"))
+    if family not in _XBOX_FAMILIES:
+        return ParsedTitle()
+    storage = _norm_storage(pieces.get("storage"))
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = ["microsoft", family]
+    family_display = family.replace("-", " ").title()
+    specs: dict = {"condition": condition, "family": family_display}
+    display_bits = ["Microsoft", family_display]
+    if storage:
+        parts.append(storage)
+        specs["storage"] = storage.upper()
+        display_bits.append(storage.upper())
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand="microsoft",
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+def compose_nintendo_switch(pieces: dict) -> ParsedTitle:
+    brand = _norm(pieces.get("brand"))
+    if brand not in ("nintendo",):
+        return ParsedTitle()
+    family = _norm(pieces.get("family"))
+    if family not in _SWITCH_FAMILIES:
+        return ParsedTitle()
+    condition = _norm(pieces.get("condition")) or "new"
+
+    parts = ["nintendo", family]
+    family_display = family.replace("-", " ").title()
+    specs: dict = {"condition": condition, "family": family_display}
+    display_bits = ["Nintendo", family_display]
+    if condition != "new":
+        parts.append(condition)
+        display_bits.append(condition.title())
+
+    return ParsedTitle(
+        brand="nintendo",
+        model=None,
+        canonical_key="|".join(parts),
+        specs=specs,
+        display_title=" ".join(display_bits).strip(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Public registry — slug → composer
 # ---------------------------------------------------------------------------
 
@@ -1291,4 +1408,7 @@ COMPOSERS: dict[str, Any] = {
     "phone-tablet-accessories": compose_phone_tablet_accessories,
     "peripherals-accessories": compose_peripherals_accessories,
     "console-accessories": compose_console_accessories,
+    "playstation-5": compose_playstation_5,
+    "xbox-series": compose_xbox_series,
+    "nintendo-switch": compose_nintendo_switch,
 }
