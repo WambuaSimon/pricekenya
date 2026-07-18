@@ -102,6 +102,12 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "megatech-ke": {
         "meta": {"slug": "megatech-ke", "name": "Megatech Electronics", "base_url": "https://megatechelectronics.co.ke"},
+        # Category pages 200 fine from residential IPs (218 products
+        # locally) but plain httpx from GitHub Actions IPs got a
+        # stripped/challenge shell — zero yield in the 2026-07-19 cron.
+        # Chrome TLS impersonation unblocks the same URLs, same tactic
+        # used for phoneshop-ke / ramtons / brandcart.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://megatechelectronics.co.ke/product-category/audio", "https://megatechelectronics.co.ke/product-category/audio/earbuds-audio", "https://megatechelectronics.co.ke/product-category/audio/earphones"],
             "cameras": ["https://megatechelectronics.co.ke/product-category/cameras", "https://megatechelectronics.co.ke/product-category/cameras/insta-cameras"],
