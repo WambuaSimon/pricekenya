@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 
@@ -43,7 +44,46 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="PriceKenya", lifespan=lifespan)
+app = FastAPI(
+    title="PriceKenya",
+    lifespan=lifespan,
+    # We handle trailing-slash normalization ourselves (see the
+    # _canonical_trailing_slash middleware) so we can return a 301 instead
+    # of Starlette's default 307. Google consolidates ranking signal to
+    # the canonical form only for 301s — 307s stall in "Page with
+    # redirect" in Search Console. Turning off the default here avoids
+    # a double-redirect (307 then 301).
+    redirect_slashes=False,
+)
+
+
+@app.middleware("http")
+async def _canonical_trailing_slash(request: Request, call_next):
+    """301 (permanent) redirect trailing-slash URLs to the canonical form.
+
+    Starlette's built-in `redirect_slashes=True` returns a 307 — Google
+    treats those as temporary and won't consolidate ranking signal, so
+    they end up piled in "Page with redirect" in Search Console. Serving
+    a 301 for the same case tells Google the no-slash form is the
+    permanent home, and the redirect target's ranking is credited to the
+    canonical URL. Only apply to GET/HEAD (safe methods); skip the bare
+    `/` (it IS the canonical form) and `/static/` (asset paths are
+    filesystem-mapped and don't route through the app).
+    """
+    path = request.url.path
+    if (
+        request.method in ("GET", "HEAD")
+        and len(path) > 1
+        and path.endswith("/")
+        and not path.startswith("/static/")
+    ):
+        target_path = path.rstrip("/")
+        # Preserve the query string.
+        target = target_path
+        if request.url.query:
+            target = f"{target_path}?{request.url.query}"
+        return RedirectResponse(target, status_code=301)
+    return await call_next(request)
 
 
 @app.middleware("http")

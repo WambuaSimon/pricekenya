@@ -135,15 +135,42 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
     for slug in session.exec(select(Category.slug).order_by(Category.sort_order)).all():
         entries.append((f"{base}/c/{slug}", site_lastmod_str, None))
 
+    # Prune to "sitemap-worthy" products. Emitting every Product row (7,471
+    # on 2026-07-18) crowded the crawl budget: ~43% ended up as
+    # "Discovered - currently not indexed" in Search Console because Google
+    # decided crawling all 7k+ wasn't worth it. Filters:
+    #  1. Require >= MIN_OFFERS live merchant offers. A single-offer page
+    #     is functionally a merchant redirect, not a comparison — Google
+    #     correctly deprioritises them. Local audit: 73% of products
+    #     (5,431 of 7,461) sit at 1 offer, so raising the bar to 2 cuts
+    #     the sitemap by ~73% and concentrates crawl budget on the
+    #     comparison pages that actually justify indexing.
+    #  2. Require Product.image_url — no image = thin content = Google
+    #     rejects at "Crawled - not indexed".
+    #  3. Require max(last_checked_at) within FRESHNESS_DAYS — products
+    #     whose every listing hasn't been re-verified in months are almost
+    #     certainly delisted upstream.
+    #
+    # Single-offer products remain reachable via category pages and search;
+    # they just don't get promoted to Google via the sitemap.
+    from datetime import timedelta as _timedelta
+
+    MIN_OFFERS = 2
+    FRESHNESS_DAYS = 60
+    freshness_cutoff = _datetime.utcnow() - _timedelta(days=FRESHNESS_DAYS)
+
     product_rows = session.exec(
         select(
             Product.slug,
             Product.image_url,
-            func.coalesce(func.max(Listing.last_checked_at), Product.created_at).label("lastmod"),
+            func.max(Listing.last_checked_at).label("lastmod"),
         )
-        .join(Listing, Listing.product_id == Product.id, isouter=True)
+        .join(Listing, Listing.product_id == Product.id)
+        .where(Product.image_url.is_not(None))
         .group_by(Product.id)
-        .order_by(func.coalesce(func.max(Listing.last_checked_at), Product.created_at).desc())
+        .having(func.count(Listing.id) >= MIN_OFFERS)
+        .having(func.max(Listing.last_checked_at) >= freshness_cutoff)
+        .order_by(func.max(Listing.last_checked_at).desc())
     ).all()
     for slug, image_url, lastmod in product_rows:
         entries.append((f"{base}/p/{slug}", fmt(lastmod), image_url))
