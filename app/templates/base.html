@@ -106,7 +106,12 @@
      Dismissible via the small (x); the dismissal is remembered for 7 days
      in a client cookie so we don't nag every pageload. Sits above HTMX
      swap regions but below any modal (z-30 vs z-40+ for drawers). #}
-  {% set _chat_href = whatsapp_href("Hi PriceKenya — I have a question.") %}
+  {# Deliberately no pre-fill: the "Chat" button opens WhatsApp to an empty
+     compose so users write what they actually want. Scripted pre-fills feel
+     canned and get deleted before anyone types anyway. The product-page
+     "Share" button DOES pre-fill because there it's the point (product
+     title + price + URL for forwarding a deal). #}
+  {% set _chat_href = whatsapp_href() %}
   {% if _chat_href %}
     {# Render visible by default; the JS below only hides the widget when
        the user has clicked (x) and the 7-day dismiss cookie is present.
