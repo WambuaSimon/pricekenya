@@ -217,6 +217,10 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "nairobilaptops-ke": {
         "meta": {"slug": "nairobilaptops-ke", "name": "Nairobi Laptops", "base_url": "https://nairobilaptops.co.ke"},
+        # Yields 106 locally via plain httpx but zero from GitHub Actions
+        # IPs (2026-07-20 cron). Chrome TLS impersonation unblocks it,
+        # same tactic as megatech / ramtons / brandcart / phoneshop.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://nairobilaptops.co.ke/product-category/soundbars"],
             "cameras": ["https://nairobilaptops.co.ke/product-category/camera", "https://nairobilaptops.co.ke/product-category/cctv"],

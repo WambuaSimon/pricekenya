@@ -59,6 +59,99 @@ def _assert_yield_healthy(
         )
 
 
+def _is_deadlock(exc: Exception) -> bool:
+    """True when a SQLAlchemy exception wraps a Postgres deadlock (SQLSTATE
+    40P01). Detected via message substring so we don't have to import
+    psycopg here (SQLite test envs don't have it)."""
+    return "deadlock" in str(exc).lower()
+
+
+def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> None:
+    """Match a RawListing to a Product (creating one if needed) and upsert
+    the corresponding Listing + PriceHistory rows. Commits the whole unit
+    at the end so its locks release before the next listing starts.
+
+    Extracted from `_consume` so the retry-on-deadlock loop there can call
+    the same body twice without duplicating logic.
+    """
+    from scrapers.common.woocommerce import is_placeholder_image
+
+    product = match_or_create_product(
+        session,
+        title=raw.title,
+        image_url=raw.image_url,
+        category=raw.category_slug,
+        description=raw.description,
+    )
+    if not product:
+        # Unparseable title — nothing to write. Roll back any autoflush
+        # side effects so the txn stays clean for the next iteration.
+        session.rollback()
+        return
+
+    # Promote a listing image to the product when the product has none.
+    # Same as before: fixes the "first merchant had no image, second one
+    # does" gap. Placeholder GIFs are rejected so they don't stick.
+    if (
+        raw.image_url
+        and not product.image_url
+        and not is_placeholder_image(raw.image_url)
+    ):
+        product.image_url = raw.image_url
+        session.add(product)
+
+    listing = session.exec(
+        select(Listing).where(
+            Listing.product_id == product.id,
+            Listing.merchant_id == merchant_id,
+        )
+    ).first()
+
+    now = datetime.utcnow()
+    price = Decimal(raw.price_kes)
+
+    if listing:
+        price_changed = listing.price_kes != price
+        listing.price_kes = price
+        listing.url = raw.url
+        listing.title_on_merchant = raw.title
+        listing.in_stock = raw.in_stock
+        listing.last_checked_at = now
+        session.add(listing)
+        if price_changed:
+            session.add(
+                PriceHistory(
+                    listing_id=listing.id,
+                    price_kes=price,
+                    in_stock=raw.in_stock,
+                    observed_at=now,
+                )
+            )
+    else:
+        listing = Listing(
+            product_id=product.id,
+            merchant_id=merchant_id,
+            merchant_sku=raw.merchant_sku,
+            url=raw.url,
+            title_on_merchant=raw.title,
+            price_kes=price,
+            in_stock=raw.in_stock,
+            last_checked_at=now,
+        )
+        session.add(listing)
+        session.flush()
+        session.add(
+            PriceHistory(
+                listing_id=listing.id,
+                price_kes=price,
+                in_stock=raw.in_stock,
+                observed_at=now,
+            )
+        )
+
+    session.commit()
+
+
 async def _consume(
     stream: AsyncIterator[RawListing],
     merchant_meta: dict,
@@ -71,6 +164,15 @@ async def _consume(
     seed step. This is what makes the prod deploy work: nothing needs to be
     manually loaded into Neon before the cron scrape fires.
 
+    Each RawListing commits in its own transaction so row locks release
+    between iterations. The old design held one giant transaction across
+    the whole async stream — with N matrix jobs running concurrently, any
+    two touching an overlapping listing row (e.g. Jumia solar-panels and
+    Jumia inverters both re-scraping a hybrid inverter listing) deadlocked
+    against each other in Postgres. Per-listing commits shrink the lock
+    window to milliseconds and let a retry recover cleanly on the rare
+    conflicts that remain.
+
     `check_yield` opts into the zero-yield guard. Only pass True for callers
     that scrape a merchant's WHOLE catalog in one call (xiaomi's fetch_all,
     Shopify batch, finetech/techstore/patabay/newmatic). Per-category
@@ -78,6 +180,8 @@ async def _consume(
     leave it False — a leg that legitimately yields 0 for a category the
     merchant just doesn't stock would false-positive.
     """
+    from sqlalchemy.exc import OperationalError as _OperationalError
+
     init_db()
     with Session(engine) as session:
         slug = merchant_meta["slug"]
@@ -85,95 +189,35 @@ async def _consume(
         if not merchant:
             merchant = Merchant(**merchant_meta)
             session.add(merchant)
-            session.flush()
-
-        # Snapshot the merchant's existing listing count before any writes.
-        # We compare this to `yielded_count` at the end to catch silent-zero
-        # scrapes (see _assert_yield_healthy).
+            session.flush()  # populate merchant.id; committed by the first listing upsert
+        merchant_id = merchant.id
         prior_count = session.exec(
-            select(func.count(Listing.id)).where(Listing.merchant_id == merchant.id)
+            select(func.count(Listing.id)).where(Listing.merchant_id == merchant_id)
         ).one() or 0
         yielded_count = 0
 
         async for raw in stream:
             yielded_count += 1
-            product = match_or_create_product(
-                session,
-                title=raw.title,
-                image_url=raw.image_url,
-                category=raw.category_slug,
-                description=raw.description,
-            )
-            if not product:
-                continue  # title we couldn't parse; v1: queue for LLM review
-
-            # Promote a listing image to the product when the product has none.
-            # Fixes the case where a merchant that doesn't ship images (Kilimall)
-            # created the product first, then a merchant with images (Jumia)
-            # matched to it later — without this, the product card stays blank.
-            # Defensive: reject known lazy-load placeholders (Avechi's
-            # prod_loading.gif etc.) — otherwise the shopper sees an animated
-            # loading GIF that never resolves.
-            from scrapers.common.woocommerce import is_placeholder_image
-
-            if (
-                raw.image_url
-                and not product.image_url
-                and not is_placeholder_image(raw.image_url)
-            ):
-                product.image_url = raw.image_url
-                session.add(product)
-
-            listing = session.exec(
-                select(Listing).where(
-                    Listing.product_id == product.id,
-                    Listing.merchant_id == merchant.id,
-                )
-            ).first()
-
-            now = datetime.utcnow()
-            price = Decimal(raw.price_kes)
-
-            if listing:
-                price_changed = listing.price_kes != price
-                listing.price_kes = price
-                listing.url = raw.url
-                listing.title_on_merchant = raw.title
-                listing.in_stock = raw.in_stock
-                listing.last_checked_at = now
-                session.add(listing)
-                if price_changed:
-                    session.add(
-                        PriceHistory(
-                            listing_id=listing.id,
-                            price_kes=price,
-                            in_stock=raw.in_stock,
-                            observed_at=now,
-                        )
+            # Retry deadlocked commits once with a short backoff. Postgres
+            # kills the loser of a deadlock with SQLSTATE 40P01; the winner
+            # keeps going. Retrying the same operation almost always
+            # succeeds because the interleaving is unlikely to repeat.
+            for attempt in range(2):
+                try:
+                    _upsert_one_listing(session, raw, merchant_id)
+                    break
+                except _OperationalError as exc:
+                    session.rollback()
+                    if _is_deadlock(exc) and attempt == 0:
+                        await asyncio.sleep(0.25)
+                        continue
+                    # Non-deadlock error, or already retried — log and
+                    # move on rather than aborting the whole scrape.
+                    print(
+                        f"[ingest] {slug}: failed to upsert {raw.url!r}: "
+                        f"{type(exc).__name__}: {exc}"
                     )
-            else:
-                listing = Listing(
-                    product_id=product.id,
-                    merchant_id=merchant.id,
-                    merchant_sku=raw.merchant_sku,
-                    url=raw.url,
-                    title_on_merchant=raw.title,
-                    price_kes=price,
-                    in_stock=raw.in_stock,
-                    last_checked_at=now,
-                )
-                session.add(listing)
-                session.flush()
-                session.add(
-                    PriceHistory(
-                        listing_id=listing.id,
-                        price_kes=price,
-                        in_stock=raw.in_stock,
-                        observed_at=now,
-                    )
-                )
-
-        session.commit()
+                    break
 
     # Sanity check runs OUTSIDE the session block so the writes are already
     # committed. Only applied when the caller opted in — see docstring.
@@ -1096,8 +1140,23 @@ def run_shopify_merchant(merchant_slug: str) -> None:
 def _run_all_shopify() -> None:
     from scrapers.config.shopify_merchants import SHOPIFY_MERCHANTS
 
+    # Continue past one merchant's ScraperYieldTooLow (a single Shopify
+    # store being down or bot-blocked shouldn't kill the other N-1 legs
+    # in the batch). Re-raise at the end if any leg failed so the CI
+    # matrix job still reports failure and the Telegram alert fires.
+    failures: list[tuple[str, Exception]] = []
     for slug in SHOPIFY_MERCHANTS:
-        run_shopify_merchant(slug)
+        try:
+            run_shopify_merchant(slug)
+        except ScraperYieldTooLow as exc:
+            print(f"[shopify] {slug} yield check failed; continuing to next merchant: {exc}")
+            failures.append((slug, exc))
+    if failures:
+        summary = ", ".join(f"{slug}" for slug, _ in failures)
+        raise ScraperYieldTooLow(
+            f"all-shopify: {len(failures)} merchant(s) failed the yield check "
+            f"after finishing the batch — {summary}"
+        )
 
 
 from scrapers.config.shopify_merchants import SHOPIFY_MERCHANTS as _SHOPIFY_MERCHANTS  # noqa: E402
