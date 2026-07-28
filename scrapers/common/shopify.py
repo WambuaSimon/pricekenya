@@ -157,6 +157,34 @@ def _extract_image(images: list) -> str | None:
     return images[0].get("src")
 
 
+def _diagnose_exc(exc: Exception) -> str:
+    """Unwrap a tenacity RetryError so the log tells us the actual HTTP status
+    + body head, not `RetryError(<Future ...raised HTTPError>)`. Every extra
+    retry cycle wastes ~30s of CI time before failing — we need the real
+    status code on the first look at the log, not the fourth.
+    """
+    underlying: BaseException = exc
+    last_attempt = getattr(exc, "last_attempt", None)
+    if last_attempt is not None:
+        try:
+            underlying = last_attempt.exception() or exc
+        except Exception:  # noqa: BLE001
+            pass
+    response = getattr(underlying, "response", None)
+    status = getattr(response, "status_code", None)
+    body_head = ""
+    if response is not None:
+        try:
+            body_head = (response.text or "")[:300]
+        except Exception:  # noqa: BLE001
+            pass
+    return (
+        f"{type(underlying).__name__}: {underlying!r}"
+        f"{f'; HTTP {status}' if status is not None else ''}"
+        f"{f'; body[:300]={body_head!r}' if body_head else ''}"
+    )
+
+
 async def fetch_shopify_catalog(
     site_base_url: str, merchant_slug: str, max_pages: int = 30
 ) -> AsyncIterator[RawListing]:
@@ -183,7 +211,7 @@ async def fetch_shopify_catalog(
                 r = await client.get(url)
             except Exception as exc:  # noqa: BLE001
                 if page == 1:
-                    print(f"[shopify] {merchant_slug} page1 GET raised: {exc!r}")
+                    print(f"[shopify] {merchant_slug} page1 GET raised: {_diagnose_exc(exc)}")
                 return
             if r.status_code >= 400:
                 if page == 1:
