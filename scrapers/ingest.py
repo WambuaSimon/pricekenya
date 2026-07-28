@@ -194,6 +194,12 @@ async def _consume(
         prior_count = session.exec(
             select(func.count(Listing.id)).where(Listing.merchant_id == merchant_id)
         ).one() or 0
+        # Close the transaction opened by the two SELECTs above. Otherwise it
+        # sits idle across the first HTTP fetch, and Neon (Launch tier default
+        # ~5 min idle_in_transaction_session_timeout) kills the connection on
+        # any merchant whose first listing takes longer than that to yield.
+        # Subsequent iterations start their own transactions via _upsert_one_listing.
+        session.commit()
         yielded_count = 0
 
         async for raw in stream:
