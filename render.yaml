@@ -27,3 +27,8 @@ services:
         sync: false
       - key: SECRET_KEY
         sync: false
+      # Same shared secret as the /admin/* routes. Gates the /internal/scrape/
+      # passthrough that GH Actions calls for Shopify merchants whose stores
+      # block Azure DC IPs. Must match the ADMIN_KEY GitHub Actions secret.
+      - key: ADMIN_KEY
+        sync: false

@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 
-from app.routes import admin, categories, meta, pages, products, reviews
+from app.routes import admin, categories, internal, meta, pages, products, reviews
 from app.routes import alerts as alerts_routes
 from db.session import init_db
 
@@ -154,3 +154,4 @@ app.include_router(reviews.router)
 app.include_router(categories.router)
 app.include_router(meta.router)
 app.include_router(admin.router)
+app.include_router(internal.router)

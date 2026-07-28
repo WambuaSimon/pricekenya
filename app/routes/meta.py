@@ -84,6 +84,8 @@ def robots() -> str:
         "Disallow: /alerts\n"
         "Disallow: /alerts/unsubscribe/\n"
         "Disallow: /watchlist\n"
+        "Disallow: /admin\n"
+        "Disallow: /internal/\n"
         f"Sitemap: {settings.base_url.rstrip('/')}/sitemap.xml\n"
     )
 

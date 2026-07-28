@@ -143,10 +143,10 @@ jobs:
           - wc-phoneshop-ke     # phones + gaming accessories
           - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
           - wc-overtech-ke      # Cloudflare Turnstile — Playwright headless
-          # Dedicated leg for brandcart so its outage signals cleanly
-          # without waiting on the all-shopify batch to finish.
-          - shopify-samsung-brandcart-ke
-          - all-shopify         # Shopify batch (auto-picks all merchants from config)
+          # NOTE: Shopify targets moved to the `render_shopify` job below.
+          # Their /products.json endpoints reject GH Actions Azure IPs (403
+          # via Cloudflare/Sucuri) but accept Render's Frankfurt IP cleanly.
+          # See app/routes/internal.py for the passthrough endpoint.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -163,8 +163,39 @@ jobs:
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
 
+  render_shopify:
+    # Shopify /products.json endpoints on Cloudflare/Sucuri stores (brandcart,
+    # zentech, laptopclinic, digitalcity, digitalstore, badili) return 403 to
+    # GH Actions Azure IPs but 200 to Render's Frankfurt IP. This job triggers
+    # the batch through app/routes/internal.py, which runs the scrape server-
+    # side using curl_cffi from Render's outbound IP.
+    #
+    # Requires ADMIN_KEY set in repo Secrets and matching settings.admin_key
+    # on Render. All-shopify runs sequentially inside the endpoint; expect
+    # 3-8 min wall clock for the 7 merchants.
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger Shopify batch via Render
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          if [ -z "$ADMIN_KEY" ]; then
+            echo "::error::ADMIN_KEY secret not set — add it in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          # -sS: quiet but show errors. -f: fail on 4xx/5xx.
+          # --max-time 900 (15min) covers worst-case 7-merchant batch with
+          # polite delays. Server-side timeout is unlimited so the curl
+          # timeout is the effective cap.
+          curl -sSf -X POST \
+            "https://www.pricekenya.co.ke/internal/scrape/all-shopify" \
+            -H "X-Admin-Key: $ADMIN_KEY" \
+            --max-time 900
+
   alerts:
-    needs: scrape
+    needs: [scrape, render_shopify]
     # Even if some scrapes failed, still run alerts against whatever landed.
     if: always()
     runs-on: ubuntu-latest
@@ -195,8 +226,8 @@ jobs:
     #        TELEGRAM_BOT_TOKEN = <token from step 1>
     #        TELEGRAM_CHAT_ID   = <number from step 3>
     #   No secrets set = job silently no-ops (safe default; won't fail CI).
-    needs: scrape
-    if: always() && needs.scrape.result == 'failure'
+    needs: [scrape, render_shopify]
+    if: always() && (needs.scrape.result == 'failure' || needs.render_shopify.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
