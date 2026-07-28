@@ -170,6 +170,17 @@ Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (my
 - Registered as `mybigorder-all` / `all-mybigorder` in `TARGETS`, added to `_run_all`, added `all-mybigorder` row to the GH Actions scrape matrix.
 - Dry run on Simon's local: parser handled the real HTML cleanly; 4 categories yielded 200 listings before the sample cutoff (phones 37, tablets 16, phone-tablet-accessories 35, laptops 112). Laptops on mybigorder includes chargers/adapters — the downstream matcher will drop the ones that don't parse as brand+model.
 
+## 8g. Shopify batch deprecated from CI (2026-07-28)
+
+All 7 Shopify merchants (digitalcity, zentech, digitalstore, samsung-brandcart, laptopclinic, vividgold, badili — ~2,398 listings combined) stopped scraping ~2026-07-20. Diagnosis and decision:
+
+- **Root cause**: Shopify's platform edge rate-limits `/products.json` per IP. GH Actions Azure IPs return HTTP 429 with body `local_rate_limited`. curl_cffi Chrome impersonation doesn't help — it's IP-reputation-based, not TLS-fingerprint-based.
+- **Path Render tried and failed**: routed the batch through Render's Frankfurt IP via a new `/internal/scrape/{target}` endpoint (`app/routes/internal.py`). Render's DC IP is *also* rate-limited (shared pool with other Render tenants who scrape Shopify heavily). Same 429s.
+- **Path A tried and failed**: aggressive 429-aware retry (5 attempts, 30-120s waits, respects Retry-After). Rate limit turned out to be sustained not transient — retry just hangs longer without succeeding. Reverted (it also slowed down non-Shopify CffiPoliteClient users on transient errors).
+- **Landed on Path C**: removed the `render_shopify` job from `scrape.yml`, deleted the manual `scrape-shopify.yml` workflow. Shopify merchants will decay via the normal FRESHNESS_DAYS window and drop out of the sitemap / product pages naturally.
+- **Left in place for future re-enable**: `/internal/scrape/{target}` endpoint (self-diagnostic — captures stdout to the response). Route the scrape through a residential proxy client (ScraperAPI, Bright Data, ~$30/mo entry tier) when ad revenue justifies it. The trigger + endpoint are ready; only the client class needs to change.
+- **Impact assessment**: the 7 merchants are dominated by refurbished phones (Badili) and Samsung reseller (BrandCart). Both categories already have solid coverage from Jumia + Kilimall + Phone Place. Loss is uncomfortable (~13% of merchant count) but not fatal to the value prop.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible

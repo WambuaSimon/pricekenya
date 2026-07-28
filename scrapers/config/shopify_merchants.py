@@ -5,6 +5,17 @@ paginated at `?page=N&limit=250`. No discovery pass is needed — the
 category routing happens inside `scrapers.common.shopify` (product_type
 first, title-keyword fallback). Adding a Shopify merchant = one entry
 here + no code change.
+
+STATUS (2026-07-28): every merchant below is currently un-scrapable from
+CI. GitHub Actions Azure IPs get HTTP 429 `local_rate_limited` from
+Shopify's edge, and Render's Frankfurt IP is also rate-limited (shared
+DC IP pool with heavy scrapers). Local KE residential IPs still work,
+so the code + selectors are fine — it's an IP-reputation problem.
+Deferred until we justify a residential proxy service (Path B in the
+2026-07-28 outage triage). See CONTEXT.md §8g for the full decision log.
+The `/internal/scrape/{target}` endpoint (app/routes/internal.py) is
+still in place so a future proxy client can be dropped in without
+rewriting the trigger.
 """
 
 from __future__ import annotations
