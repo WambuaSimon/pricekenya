@@ -1,0 +1,47 @@
+name: Scrape Shopify (manual)
+
+# Manual-only trigger for the Shopify batch. Fires the same
+# /internal/scrape/{target} endpoint that scrape.yml's `render_shopify` job
+# does, but without dragging along the 50+ non-Shopify matrix legs.
+#
+# Use when:
+#   - Verifying a fresh ADMIN_KEY rotation
+#   - Backfilling after a Shopify site rebuild
+#   - Post-deploy smoke test of the /internal/scrape route
+#
+# Requires ADMIN_KEY set in repo Secrets and matching settings.admin_key on
+# Render (same setup as the scheduled scrape).
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Scrape target — one of the TARGETS keys in scrapers/ingest.py. Default is all-shopify.'
+        required: false
+        default: 'all-shopify'
+        type: string
+
+concurrency:
+  group: scrape-shopify-manual
+  cancel-in-progress: false
+
+jobs:
+  render_shopify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Trigger scrape via Render
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          TARGET: ${{ github.event.inputs.target }}
+        run: |
+          if [ -z "$ADMIN_KEY" ]; then
+            echo "::error::ADMIN_KEY secret not set — add it in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "Triggering scrape target: $TARGET"
+          curl -sSf -X POST \
+            "https://www.pricekenya.co.ke/internal/scrape/${TARGET}" \
+            -H "X-Admin-Key: $ADMIN_KEY" \
+            --max-time 900 \
+            -w "\nHTTP %{http_code} in %{time_total}s\n"
