@@ -22,7 +22,16 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Alert, Listing, Product, ProductMergeCandidate, Review, ReviewReport
+from db.models import (
+    Alert,
+    Click,
+    Listing,
+    Merchant,
+    Product,
+    ProductMergeCandidate,
+    Review,
+    ReviewReport,
+)
 from db.session import get_session
 from scripts.scrape_health import merchant_health
 
@@ -444,6 +453,108 @@ def delist_stale(
     msg = f"Delisted {n} listing{'' if n == 1 else 's'} untouched for >{days} days."
     return RedirectResponse(
         url=f"/admin/scrapes?delist_message={msg}", status_code=303
+    )
+
+
+# ---------------------------------------------------------------------------
+# Outbound clicks — /admin/clicks
+# ---------------------------------------------------------------------------
+
+
+@router.get("/clicks", response_class=HTMLResponse)
+def clicks_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    """Per-merchant outbound click totals over 7d / 30d / 90d, plus the
+    top-clicked listing per merchant. Source data is the append-only
+    `Click` table written on every `/out/{listing_id}` redirect.
+
+    Screenshot-ready for affiliate outreach: this is the "how much traffic
+    are you currently sending us" number a marketing team will ask for
+    before agreeing to a partnership pilot.
+    """
+    now = datetime.now(UTC)
+    windows = {"d7": 7, "d30": 30, "d90": 90}
+    cutoffs = {k: now - timedelta(days=v) for k, v in windows.items()}
+
+    # Per-merchant counts across the three windows. One aggregate query per
+    # window keeps the SQL simple and stays under 4 round-trips regardless of
+    # merchant count.
+    def _counts_since(cutoff: datetime) -> dict[int, int]:
+        # Naive-datetime comparison to match Click.occurred_at (utcnow-based).
+        naive_cutoff = cutoff.replace(tzinfo=None)
+        rows = session.exec(
+            select(Merchant.id, sa_func.count(Click.id))
+            .join(Listing, Listing.merchant_id == Merchant.id)
+            .join(Click, Click.listing_id == Listing.id)
+            .where(Click.occurred_at >= naive_cutoff)
+            .group_by(Merchant.id)
+        ).all()
+        return {mid: n for mid, n in rows}
+
+    counts = {k: _counts_since(cutoffs[k]) for k in windows}
+
+    # Top-clicked listing per merchant in the 30d window — the single line
+    # you'd quote in an outreach email ("your Redmi 15C page got X clicks").
+    naive_30d = cutoffs["d30"].replace(tzinfo=None)
+    top_rows = session.exec(
+        select(
+            Merchant.id,
+            Listing.id,
+            Listing.title_on_merchant,
+            Product.slug,
+            sa_func.count(Click.id).label("n"),
+        )
+        .join(Listing, Listing.merchant_id == Merchant.id)
+        .join(Product, Product.id == Listing.product_id)
+        .join(Click, Click.listing_id == Listing.id)
+        .where(Click.occurred_at >= naive_30d)
+        .group_by(Merchant.id, Listing.id, Listing.title_on_merchant, Product.slug)
+        .order_by(sa_func.count(Click.id).desc())
+    ).all()
+    top_per_merchant: dict[int, dict] = {}
+    for mid, lid, title, slug, n in top_rows:
+        if mid in top_per_merchant:
+            continue
+        top_per_merchant[mid] = {
+            "listing_id": lid,
+            "title": title,
+            "product_slug": slug,
+            "clicks": n,
+        }
+
+    merchants = session.exec(select(Merchant).order_by(Merchant.name)).all()
+    rows = [
+        {
+            "slug": m.slug,
+            "name": m.name,
+            "base_url": m.base_url,
+            "d7": counts["d7"].get(m.id, 0),
+            "d30": counts["d30"].get(m.id, 0),
+            "d90": counts["d90"].get(m.id, 0),
+            "top": top_per_merchant.get(m.id),
+        }
+        for m in merchants
+    ]
+    # Sort by 30d clicks desc so the "worth emailing" merchants sit at top.
+    rows.sort(key=lambda r: (-r["d30"], -r["d90"], r["name"].lower()))
+
+    totals = {
+        "d7": sum(r["d7"] for r in rows),
+        "d30": sum(r["d30"] for r in rows),
+        "d90": sum(r["d90"] for r in rows),
+    }
+
+    return templates.TemplateResponse(
+        request,
+        "admin/clicks.html",
+        {
+            "rows": rows,
+            "totals": totals,
+            "now_utc": now,
+        },
     )
 
 
