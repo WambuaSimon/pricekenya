@@ -16,6 +16,8 @@ Auth: X-Admin-Key header (same shared secret as /admin/*).
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -66,23 +68,49 @@ async def run_scrape(
     if fn is None:
         raise HTTPException(status_code=404, detail=f"unknown target: {target}")
 
+    # Capture the scrape's stdout so the [shopify]/[ingest] diagnostic prints
+    # come back in the HTTP response body instead of only landing in Render's
+    # logs. Every callable in TARGETS is synchronous (they wrap asyncio.run
+    # internally), so a single StringIO under contextlib.redirect_stdout in
+    # the worker thread catches everything the scrape emits. Keeps the endpoint
+    # self-diagnostic — no need to hunt through Render's log viewer to figure
+    # out what a merchant's /products.json actually returned.
+    #
+    # Returns (stdout_str, exception_or_None) so the caller sees the diagnostic
+    # output even when the scrape raises — otherwise the yield-guard's
+    # traceback would drop the [shopify] prints that explain why it fired.
+    def _run_capturing() -> tuple[str, BaseException | None]:
+        buf = io.StringIO()
+        exc: BaseException | None = None
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            try:
+                fn()
+            except BaseException as e:  # noqa: BLE001
+                exc = e
+        return buf.getvalue(), exc
+
     loop = asyncio.get_running_loop()
     started = datetime.utcnow()
-    try:
-        await loop.run_in_executor(_SCRAPE_EXECUTOR, fn)
-    except Exception as exc:  # noqa: BLE001
-        duration = (datetime.utcnow() - started).total_seconds()
+    stdout, exc = await loop.run_in_executor(_SCRAPE_EXECUTOR, _run_capturing)
+    duration = round((datetime.utcnow() - started).total_seconds(), 1)
+    # Last 5KB is enough to see the scrape's diagnostic prints without
+    # flooding the response with per-listing chatter.
+    output_tail = stdout[-5000:]
+
+    if exc is not None:
         raise HTTPException(
             status_code=500,
             detail={
                 "target": target,
                 "error": f"{type(exc).__name__}: {exc}",
-                "duration_seconds": round(duration, 1),
+                "duration_seconds": duration,
+                "output_tail": output_tail,
             },
         ) from exc
 
     return {
         "status": "ok",
         "target": target,
-        "duration_seconds": round((datetime.utcnow() - started).total_seconds(), 1),
+        "duration_seconds": duration,
+        "output_tail": output_tail,
     }
