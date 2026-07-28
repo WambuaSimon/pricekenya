@@ -23,10 +23,16 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
     if not product:
         raise HTTPException(status_code=404)
 
+    # Only show in-stock offers. Merchants (esp. Shopify stores) sometimes
+    # keep sold-out products listed with placeholder prices — surfacing those
+    # sends shoppers to dead pages and erodes trust. Template already handles
+    # offers=[] with a "No offers right now." message; sitemap already
+    # filters by MIN_OFFERS + FRESHNESS_DAYS so we don't index empty pages.
     listings = session.exec(
         select(Listing, Merchant)
         .join(Merchant, Merchant.id == Listing.merchant_id)
         .where(Listing.product_id == product.id)
+        .where(Listing.in_stock.is_(True))
         .order_by(Listing.price_kes.asc())
     ).all()
 
@@ -80,6 +86,7 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             .join(Listing, Listing.product_id == Product.id)
             .where(Product.category_slug == product.category_slug)
             .where(Product.id != product.id)
+            .where(Listing.in_stock.is_(True))
             .group_by(Product.id)
             .order_by(func.abs(func.min(Listing.price_kes) - float(min_price)).asc())
             .limit(6)
