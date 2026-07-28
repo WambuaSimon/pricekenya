@@ -11,8 +11,11 @@ name: Scheduled scrape
 
 on:
   schedule:
-    # Every 6 hours, at :17 past to avoid the top-of-hour Actions rush
-    - cron: '17 */6 * * *'
+    # Every 12 hours, at :17 past to avoid the top-of-hour Actions rush.
+    # Kenyan merchant prices don't move hourly; 12h is well within the
+    # 24h staleness threshold from CONTEXT.md §10 and halves Neon
+    # compute-hour cost from scrape wakes.
+    - cron: '17 */12 * * *'
   workflow_dispatch:  # allow manual runs from the Actions tab
 
 concurrency:
@@ -54,6 +57,12 @@ jobs:
     strategy:
       # One failing merchant shouldn't kill the others.
       fail-fast: false
+      # Cap concurrent legs to keep Neon at 1-2 CU during the write burst.
+      # Unbounded parallelism (~50 jobs opening connections at once) triggers
+      # Neon autoscale up to the ceiling, and every step above 1 CU multiplies
+      # the CU-hour cost of that window. Wall clock rises to ~2h per run but
+      # nobody's watching — the alerts job at the end still runs on completion.
+      max-parallel: 5
       matrix:
         target:
           - all-phones          # Jumia + Kilimall phones

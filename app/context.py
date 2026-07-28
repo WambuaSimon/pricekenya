@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from functools import lru_cache
 from urllib.parse import quote
 
 from sqlmodel import Session, select
@@ -106,7 +108,28 @@ def _has_products_in_subtree(session: Session, root_id: int) -> bool:
     return exists is not None
 
 
+# Nav bar renders on every page (twice — base.html + _sidebar_nav.html) and
+# each call fires 8-15 SELECTs (root lookup + BFS + Product existence probe
+# per top-level). At 500 page views/day that's ~15k queries/day burning Neon
+# compute hours for a result that changes only when a category gets its first
+# product. 10-minute TTL is invisible to users and drops nav queries to ~144/day
+# per worker.
+_NAV_CACHE_TTL_SECONDS = 600
+_nav_cache: tuple[list[dict], float] | None = None
+
+
 def get_nav_categories() -> list[dict]:
+    global _nav_cache
+    now = time.monotonic()
+    cached = _nav_cache
+    if cached is not None and (now - cached[1]) < _NAV_CACHE_TTL_SECONDS:
+        return cached[0]
+    result = _compute_nav_categories()
+    _nav_cache = (result, now)
+    return result
+
+
+def _compute_nav_categories() -> list[dict]:
     """Return the top-level category buckets shown in the site nav.
 
     Excludes the single "electronics" root because it's a wrapper node,
@@ -151,25 +174,31 @@ def _walk_to_top_level_slug(session: Session, current_slug: str) -> str | None:
     return None
 
 
+# Product.category_slug is effectively immutable for a given product slug, and
+# a category's position in the tree only changes on deploy. Cache both lookups
+# without a TTL — process restart on deploy is the natural invalidation.
+@lru_cache(maxsize=4096)
+def _top_slug_for_category(cat_slug: str) -> str | None:
+    with Session(engine) as s:
+        return _walk_to_top_level_slug(s, cat_slug)
+
+
+@lru_cache(maxsize=4096)
+def _top_slug_for_product(product_slug: str) -> str | None:
+    with Session(engine) as s:
+        product = s.exec(select(Product).where(Product.slug == product_slug)).first()
+        if not product:
+            return None
+        return _walk_to_top_level_slug(s, product.category_slug)
+
+
 def get_active_top_slug(request) -> str | None:
     """Return the top-level nav slug that should be marked active for the
     given request. Works for /c/<slug> and /p/<slug> — everything else
     returns None (home, search, healthz, etc.)."""
     path = request.url.path if hasattr(request, "url") else ""
-    slug: str | None = None
     if path.startswith("/c/"):
-        slug = path[3:].split("/", 1)[0]
-    elif path.startswith("/p/"):
-        product_slug = path[3:].split("/", 1)[0]
-        with Session(engine) as s:
-            product = s.exec(
-                select(Product).where(Product.slug == product_slug)
-            ).first()
-            if product:
-                slug = product.category_slug
-
-    if not slug:
-        return None
-
-    with Session(engine) as s:
-        return _walk_to_top_level_slug(s, slug)
+        return _top_slug_for_category(path[3:].split("/", 1)[0])
+    if path.startswith("/p/"):
+        return _top_slug_for_product(path[3:].split("/", 1)[0])
+    return None

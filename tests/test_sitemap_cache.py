@@ -38,7 +38,7 @@ def test_first_hit_builds_and_persists_cache() -> None:
     c = TestClient(app)
     r = c.get("/sitemap.xml")
     assert r.status_code == 200
-    assert r.headers.get("cache-control") == "public, max-age=3600, s-maxage=3600"
+    assert r.headers.get("cache-control") == "public, max-age=21600, s-maxage=21600"
     assert "<urlset" in r.text
     assert "</urlset>" in r.text
 
@@ -72,10 +72,10 @@ def test_stale_cache_gets_regenerated() -> None:
     c = TestClient(app)
     c.get("/sitemap.xml")
 
-    # Force the cache to look ancient — beyond the 6-hour TTL.
+    # Force the cache to look ancient — beyond the 24-hour TTL.
     with Session(engine) as s:
         row = s.get(CachedSitemap, 1)
-        row.generated_at = datetime.utcnow() - timedelta(hours=12)
+        row.generated_at = datetime.utcnow() - timedelta(hours=30)
         s.add(row)
         s.commit()
         stale_generated_at = row.generated_at

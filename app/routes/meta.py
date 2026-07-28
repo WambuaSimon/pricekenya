@@ -89,15 +89,16 @@ def robots() -> str:
 
 
 # How stale can the cached sitemap get before we regenerate on the next
-# request? Six hours is a very safe over-estimate: Google re-fetches a
-# sitemap this size every 1-3 days, so six hours of staleness is invisible
-# to indexing. Meanwhile it caps how often we hit the expensive
-# product+listing join on a Render Starter dyno.
-_SITEMAP_CACHE_TTL_HOURS = 6
+# request? Google re-fetches a sitemap this size every 1-3 days, so a day
+# of staleness is invisible to indexing. 24h caps the expensive
+# product+listing join at one rebuild per day.
+_SITEMAP_CACHE_TTL_HOURS = 24
 
 # Response headers applied to every /sitemap.xml response, whether it
-# came from cache or was just built. `s-maxage` targets Cloudflare's edge.
-_SITEMAP_HEADERS = {"Cache-Control": "public, max-age=3600, s-maxage=3600"}
+# came from cache or was just built. `s-maxage=21600` (6h) at the Cloudflare
+# edge means keep-warm pings + Googlebot polls hit CF instead of Render/Neon
+# for most of the day, so /sitemap.xml stops waking Neon every ~10 min.
+_SITEMAP_HEADERS = {"Cache-Control": "public, max-age=21600, s-maxage=21600"}
 
 
 def _build_sitemap_xml(session: Session) -> tuple[str, int]:
