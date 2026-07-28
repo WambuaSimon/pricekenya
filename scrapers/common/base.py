@@ -7,9 +7,36 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryCallState, retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+
+
+def _wait_with_retry_after(retry_state: RetryCallState) -> float:
+    """Custom tenacity wait that honors HTTP 429 Retry-After when present.
+
+    Shopify's /products.json 429s from DC IPs (Render's Frankfurt pool is
+    shared with heavy scrapers). Their rate-limit window is typically 60s,
+    so the default 1-4s exponential just burns attempts inside the same
+    window and gives up before the limit resets. When the response carries
+    a Retry-After header, honor it (capped at 120s). Otherwise fall back to
+    a longer exponential backoff (5s → 60s).
+    """
+    outcome = retry_state.outcome
+    if outcome is not None and outcome.failed:
+        exc = outcome.exception()
+        resp = getattr(exc, "response", None)
+        if resp is not None and getattr(resp, "status_code", None) == 429:
+            retry_after = ""
+            try:
+                retry_after = resp.headers.get("Retry-After", "") or ""
+            except Exception:  # noqa: BLE001
+                pass
+            if retry_after.isdigit():
+                return min(int(retry_after), 120)
+            # 429 without Retry-After — use a longer default than other errors
+            return min(30 * retry_state.attempt_number, 120)
+    return min(5 * (2 ** (retry_state.attempt_number - 1)), 60)
 
 
 @dataclass
@@ -170,7 +197,10 @@ class CffiPoliteClient:
         self._session = AsyncSession(impersonate=impersonate, timeout=30)
         self._delay = settings.scraper_request_delay_seconds
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+    # 5 attempts with 429-aware backoff (see _wait_with_retry_after). Worst-
+    # case total time: ~2 min per URL under sustained 429; fine within the
+    # 15-min curl timeout the render_shopify GH Actions job uses.
+    @retry(stop=stop_after_attempt(5), wait=_wait_with_retry_after)
     async def get(self, url: str):
         resp = await self._session.get(url)
         resp.raise_for_status()
