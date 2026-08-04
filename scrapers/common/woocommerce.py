@@ -174,11 +174,32 @@ async def fetch_woocommerce_category(
                 url = url + f"page/{page}/"
             try:
                 resp = await client.get(url)
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                # Log the underlying HTTP error on page 1 so a merchant that
+                # started returning 403/429/500 doesn't just show up as a
+                # silent zero-yield → ScraperYieldTooLow. Same pattern as
+                # shopify.py's page-1 diagnostic. Subsequent pages fail quiet
+                # (normal end-of-pagination indistinguishable from transient).
+                if page == 1:
+                    print(
+                        f"[wc] {merchant_slug}/{category_slug} page1 GET failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
                 return
             html = HTMLParser(resp.text)
             cards = html.css("li.product") or html.css(".product")
             if not cards:
+                # Selector-rot canary: page 1 with no cards means the site
+                # served a 200 but the WC theme changed or the URL is now
+                # something else. Prints the response head so we can tell
+                # 'empty catalog' from 'challenge page' from 'wrong URL'
+                # without hunting Render logs.
+                if page == 1:
+                    body_head = (resp.text or "")[:300].replace("\n", " ")
+                    print(
+                        f"[wc] {merchant_slug}/{category_slug} page1 zero cards "
+                        f"(status {resp.status_code}, body head): {body_head!r}"
+                    )
                 return
             for card in cards:
                 listing = _extract_product(card, site_base_url, merchant_slug, category_slug)
