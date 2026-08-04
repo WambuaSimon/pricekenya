@@ -98,19 +98,60 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "megatech-ke": {
         "meta": {"slug": "megatech-ke", "name": "Megatech Electronics", "base_url": "https://megatechelectronics.co.ke"},
-        # Category pages 200 fine from residential IPs (218 products
-        # locally) but plain httpx from GitHub Actions IPs got a
-        # stripped/challenge shell — zero yield in the 2026-07-19 cron.
-        # Chrome TLS impersonation unblocks the same URLs, same tactic
-        # used for phoneshop-ke / ramtons / brandcart.
+        # Category pages 200 fine from residential IPs but plain httpx
+        # from GitHub Actions got a stripped/challenge shell — Chrome TLS
+        # impersonation unblocks them (same tactic as phoneshop-ke /
+        # ramtons / brandcart).
+        #
+        # 2026-08-04 catalog audit: /smartphones has 16 pages of SKUs;
+        # the shared fetcher caps at 3, so each per-brand feed (samsung,
+        # tecno, oppo…) is enumerated separately to reach the full ~300
+        # phone catalog. /laptops was entirely missing (57+ SKUs). Empty
+        # categories (cameras/*, gaming/*, audio/microphones|speakers,
+        # accessories/car-chargers, smartwatches — no parser anyway) are
+        # excluded: each costs 3 wasted requests and enlarges the failure
+        # window on flaky CI hits (the shared fetcher swallows request
+        # errors silently, so a single bad 55s window zero-yields the leg).
         "client_type": "cffi",
         "leaf_to_urls": {
-            "audio": ["https://megatechelectronics.co.ke/product-category/audio", "https://megatechelectronics.co.ke/product-category/audio/earbuds-audio", "https://megatechelectronics.co.ke/product-category/audio/earphones"],
-            "cameras": ["https://megatechelectronics.co.ke/product-category/cameras", "https://megatechelectronics.co.ke/product-category/cameras/insta-cameras"],
-            "console-accessories": ["https://megatechelectronics.co.ke/product-category/gaming/controllers", "https://megatechelectronics.co.ke/product-category/gaming/accessories-gaming", "https://megatechelectronics.co.ke/product-category/gaming/headsets-gaming"],
-            "phone-tablet-accessories": ["https://megatechelectronics.co.ke/product-category/accessories", "https://megatechelectronics.co.ke/product-category/accessories/car-chargers", "https://megatechelectronics.co.ke/product-category/accessories/chargers"],
-            "phones": ["https://megatechelectronics.co.ke/product-category/audio/microphones", "https://megatechelectronics.co.ke/product-category/smartphones", "https://megatechelectronics.co.ke/product-category/smartphones/iphone"],
-            "tablets": ["https://megatechelectronics.co.ke/product-category/tablets", "https://megatechelectronics.co.ke/product-category/tablets/infinix-tablet", "https://megatechelectronics.co.ke/product-category/tablets/oppo-tablets"],
+            "audio": [
+                "https://megatechelectronics.co.ke/product-category/audio",
+                "https://megatechelectronics.co.ke/product-category/audio/earbuds-audio",
+                "https://megatechelectronics.co.ke/product-category/audio/earphones",
+                "https://megatechelectronics.co.ke/product-category/audio/headphones",
+            ],
+            "phone-tablet-accessories": [
+                "https://megatechelectronics.co.ke/product-category/accessories",
+                "https://megatechelectronics.co.ke/product-category/accessories/chargers",
+            ],
+            "phones": [
+                "https://megatechelectronics.co.ke/product-category/smartphones",
+                "https://megatechelectronics.co.ke/product-category/smartphones/iphone",
+                "https://megatechelectronics.co.ke/product-category/smartphones/samsung",
+                "https://megatechelectronics.co.ke/product-category/smartphones/tecno",
+                "https://megatechelectronics.co.ke/product-category/smartphones/oppo",
+                "https://megatechelectronics.co.ke/product-category/smartphones/vivo",
+                "https://megatechelectronics.co.ke/product-category/smartphones/infinix",
+                "https://megatechelectronics.co.ke/product-category/smartphones/itel",
+                "https://megatechelectronics.co.ke/product-category/smartphones/redmi",
+                "https://megatechelectronics.co.ke/product-category/smartphones/realme",
+                "https://megatechelectronics.co.ke/product-category/smartphones/one-plus",
+                "https://megatechelectronics.co.ke/product-category/smartphones/google-pixel",
+                "https://megatechelectronics.co.ke/product-category/smartphones/nothing-phone",
+                "https://megatechelectronics.co.ke/product-category/smartphones/honor-phones",
+            ],
+            "laptops": [
+                "https://megatechelectronics.co.ke/product-category/laptops",
+                "https://megatechelectronics.co.ke/product-category/laptops/hp-laptops",
+                "https://megatechelectronics.co.ke/product-category/laptops/lenovo-laptops",
+                "https://megatechelectronics.co.ke/product-category/laptops/dell-laptops",
+            ],
+            "tablets": [
+                "https://megatechelectronics.co.ke/product-category/tablets",
+                "https://megatechelectronics.co.ke/product-category/tablets/infinix-tablet",
+                "https://megatechelectronics.co.ke/product-category/tablets/oppo-tablets",
+                "https://megatechelectronics.co.ke/product-category/tablets/samsung-tablets",
+            ],
         },
     },
     "zurimall-ke": {
