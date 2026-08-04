@@ -173,6 +173,12 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "smartphoneskenya-ke": {
         "meta": {"slug": "smartphoneskenya-ke", "name": "Smartphones Kenya", "base_url": "https://smartphoneskenya.co.ke"},
+        # Category pages return healthy HTML (133 products) from residential
+        # IPs on plain httpx, but every cron since 2026-08-03 yielded ZERO
+        # from GitHub Actions IPs — identical failure mode to megatech-ke
+        # on 2026-07-19 (see the "megatech-ke: switch to cffi client" fix).
+        # Chrome TLS impersonation via curl_cffi unblocks the CI runner IPs.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://smartphoneskenya.co.ke/product-category/soundbar"],
             "laptops": ["https://smartphoneskenya.co.ke/product-category/computers", "https://smartphoneskenya.co.ke/product-category/computers/laptops"],
