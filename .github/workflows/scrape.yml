@@ -121,7 +121,6 @@ jobs:
           - wc-smartdevices-ke
           - wc-smartphoneskenya-ke
           - wc-tclke-ke
-          - wc-techonline-ke
           - wc-zurimall-ke
           - wc-zuka-ke
           - techstore-ke        # WC Store API scraper (was wc-*)

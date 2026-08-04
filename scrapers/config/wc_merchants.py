@@ -61,20 +61,16 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://www.dixons.co.ke/product-category/washers-dryers/dishwasher", "https://www.dixons.co.ke/product-category/washers-dryers/dryers", "https://www.dixons.co.ke/product-category/washers-dryers/washing-machines"],
         },
     },
-    "techonline-ke": {
-        "meta": {"slug": "techonline-ke", "name": "TechOnline", "base_url": "https://techonline.co.ke"},
-        "leaf_to_urls": {
-            "audio": ["https://techonline.co.ke/product-category/sound-system/party-speaker", "https://techonline.co.ke/product-category/sound-system/soundbar"],
-            "blenders": ["https://techonline.co.ke/product-category/blenders"],
-            "cameras": ["https://techonline.co.ke/product-category/accessories/cameras"],
-            "cooking": ["https://techonline.co.ke/product-category/built-in-appliances/built-in-gas-hob", "https://techonline.co.ke/product-category/built-in-appliances/built-in-microwave", "https://techonline.co.ke/product-category/built-in-appliances/built-in-oven"],
-            "ironing-laundry": ["https://techonline.co.ke/product-category/iron"],
-            "phone-tablet-accessories": ["https://techonline.co.ke/product-category/accessories"],
-            "refrigerators": ["https://techonline.co.ke/product-category/freezer", "https://techonline.co.ke/product-category/fridge"],
-            "tvs": ["https://techonline.co.ke/product-category/smart-tvs", "https://techonline.co.ke/product-category/smart_tvs"],
-            "washers-dryers": ["https://techonline.co.ke/product-category/dryer", "https://techonline.co.ke/product-category/washing-machines"],
-        },
-    },
+    # techonline-ke removed 2026-08-04: site owner turned on a strict
+    # Cloudflare Managed Challenge that blocks every category / product /
+    # sitemap / wp-json path with the "Just a moment..." interstitial.
+    # Plain httpx, curl_cffi (chrome/safari/firefox/edge impersonation),
+    # and Playwright (headless AND headed real Chrome + stealth patches)
+    # all fail the challenge — a 30s+ wait never clears it. GitHub
+    # Actions runners will fare worse. Residential-proxy Playwright
+    # would be needed to bring the merchant back; not worth the cost for
+    # a mostly-appliance catalog already covered by Hotpoint / Fivestar
+    # / Dixons / Ramtons.
     "jojabo-ke": {
         "meta": {"slug": "jojabo-ke", "name": "Jojabo Technologies", "base_url": "https://jojabotechnologies.co.ke"},
         "leaf_to_urls": {
