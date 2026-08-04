@@ -189,6 +189,13 @@ WC_MERCHANTS: dict[str, dict] = {
     # merchant online would need a per-product-page fetcher (Hotpoint style).
     "zuka-ke": {
         "meta": {"slug": "zuka-ke", "name": "Zuka Electronics", "base_url": "https://zuka.co.ke"},
+        # LiteSpeed's Bot Verification (reCAPTCHA challenge page) fires on
+        # GitHub Actions IPs — plain httpx got a 403 challenge shell and
+        # yielded ZERO from the 2026-08-04 cron. Same URLs 200 fine from
+        # residential IPs (16+ blender listings locally). Chrome TLS
+        # impersonation via curl_cffi unblocks the same pattern used for
+        # megatech-ke / phoneshop-ke / ramtons / brandcart.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://zuka.co.ke/product-category/sound-systems/bluetooth-speakers"],
             "blenders": ["https://zuka.co.ke/product-category/blenders"],
