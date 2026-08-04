@@ -58,6 +58,13 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
 
     min_price = offers[0]["listing"].price_kes if offers else None
     max_price = offers[-1]["listing"].price_kes if offers else None
+    # Freshest listing check across all in-stock offers. Rendered in the
+    # meta description ("updated 28 Jul 2026") and as a visible on-page
+    # line so both users and Googlebot see a recency signal.
+    last_updated = max(
+        (o["listing"].last_checked_at for o in offers if o["listing"].last_checked_at),
+        default=None,
+    )
     # When every merchant lists the same price, "Best price" is misleading —
     # nothing is "best" if the value equals every other value. The template
     # uses these to hide the badge, background highlight, and emerald price
@@ -120,6 +127,7 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             "offers": offers,
             "min_price": min_price,
             "max_price": max_price,
+            "last_updated": last_updated,
             "best_price_count": best_price_count,
             "all_tied": all_tied,
             "related": related,

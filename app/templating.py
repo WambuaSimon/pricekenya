@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
@@ -25,3 +26,4 @@ templates.env.globals["nav_categories"] = get_nav_categories
 templates.env.globals["get_active_top_slug"] = get_active_top_slug
 templates.env.globals["product_placeholder_icon"] = product_placeholder_icon
 templates.env.globals["whatsapp_href"] = whatsapp_href
+templates.env.globals["now"] = lambda: datetime.now(UTC)
