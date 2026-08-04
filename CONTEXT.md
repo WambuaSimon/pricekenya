@@ -181,6 +181,27 @@ All 7 Shopify merchants (digitalcity, zentech, digitalstore, samsung-brandcart, 
 - **Left in place for future re-enable**: `/internal/scrape/{target}` endpoint (self-diagnostic — captures stdout to the response). Route the scrape through a residential proxy client (ScraperAPI, Bright Data, ~$30/mo entry tier) when ad revenue justifies it. The trigger + endpoint are ready; only the client class needs to change.
 - **Impact assessment**: the 7 merchants are dominated by refurbished phones (Badili) and Samsung reseller (BrandCart). Both categories already have solid coverage from Jumia + Kilimall + Phone Place. Loss is uncomfortable (~13% of merchant count) but not fatal to the value prop.
 
+## 8h. WooCommerce merchant outage triage (2026-08-04)
+
+`/admin/scrapes` flagged 6 non-Shopify merchants stale — all `wc-*` matrix legs failing with `ScraperYieldTooLow — yielded ZERO listings but had N on record`. Traced across the last 3 scheduled scrape runs (2026-08-03 → 2026-08-04). Root causes clustered into 3 categories, all fixed in one parallel batch (PRs #1-#5 from six worker agents):
+
+| Merchant | Root cause | Fix | Prior → post |
+|---|---|---|---|
+| **solarstore-ke** | WordPress frontend throwing "critical error" on every `/product-category/*` (HTTP 500). `/wp-json/wc/store/v1/products` returned clean JSON. | Migrated to shared WC Store API scraper (`scrapers/merchants/solarstore.py` new file). Same escape hatch previously used for finetech / techstore / audiocom / patabay / newmatic. Renamed matrix leg `wc-solarstore-ke` → `solarstore-ke`. | 0 → 46 listings |
+| **smartphoneskenya-ke** | GH Actions Azure IPs got HTTP 200 with empty catalog. Same site returned 133 products to residential IPs on plain httpx. | One-line: `client_type: "cffi"`. Chrome TLS impersonation defeats the CI-IP filter. | 0 → 133 (locally verified; CI-only failure) |
+| **zuka-ke** | LiteSpeed "Bot Verification" reCAPTCHA challenge page (HTTP 403) on `/product-category/*` for scripted clients. | One-line: `client_type: "cffi"`. Same as smartphoneskenya. | 0 → yielding |
+| **megatech-ke** | Not a hard break — intermittent CI failures + shared fetcher silently swallowed exceptions (see below). Also: `/smartphones` had 16 pages but `wc_batch.py` caps at 3, so most SKUs were invisible. | Expanded `leaf_to_urls` with per-brand feeds (samsung, tecno, oppo, iphone…) + added missing `laptops` leaf + dropped merchant-side empty categories. Retained `client_type: "cffi"`. | 235 → 407 unique listings |
+| **overtech-ke** | Cloudflare Turnstile challenge was dropped by the merchant. Playwright was overkill (running ~25 min/leg near the 30-min CI budget). | Downgraded `client_type: "playwright"` → `"cffi"`. Retains Chrome TLS fingerprint as a defensive shield-hop; unlocks `max_pages=3` for fuller coverage. Removed from Chromium-install gate in workflow. | 220 → 393 listings, 25 min → ~1 min per leg |
+| **techonline-ke** | Strict Cloudflare Managed Challenge ("Just a moment...") on every path except `/robots.txt`. Tried 11 curl_cffi impersonation profiles + Playwright + real installed Chrome + stealth — all 403. | **Deprecated.** Removed from `wc_merchants.py` config and `.github/workflows/scrape.yml` matrix. Catalog is heavily covered by Hotpoint / Fivestar / Dixons / Ramtons anyway. Residential proxy would be needed to revive; not worth the cost. | Removed |
+
+**Systemic fix landed alongside the merchant fixes** (`scrapers/common/woocommerce.py`): the shared fetcher's `except Exception: return` at line 177-178 was silently eating every HTTP failure, so a single 403/429/500 window produced a zero-yield → `ScraperYieldTooLow` with no clue *why*. Diagnosing this outage required re-running each merchant locally with curl to see what the site actually returned. Now the fetcher prints `[wc] <merchant>/<category> page1 GET failed: HTTPError: HTTP 403` and `[wc] ... page1 zero cards (status 200, body head: ...)` so the next outage surfaces the actual reason in the CI log. Same pattern as `scrapers/common/shopify.py`'s page-1 diagnostic (shipped in commit `0d898e6` during the 2026-07-28 Shopify triage).
+
+**Coordinator commit also unblocked CI** by registering `now()` as a Jinja global in `app/templating.py` (`product.html` references `{{ now().year }}` in the title block — without the registration, every rendered product-page test raises `UndefinedError`). Previously staged as WIP that never got committed.
+
+**Not fixed by this batch** — pre-existing "1 NEVER SCRAPED" merchant flagged in `/admin/scrapes`. Different failure mode from the 6 above (never got a first scrape at all, not a regression from a working state). Deferred.
+
+**Outcome**: 6-of-6 broken merchants resolved (5 fixed, 1 deprecated). WooCommerce fetcher no longer silently eats errors. Next stale-merchant outage should be diagnosable from a CI log line rather than a re-run + local-curl loop.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
