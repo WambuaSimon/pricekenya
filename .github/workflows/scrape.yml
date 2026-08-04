@@ -141,7 +141,7 @@ jobs:
           - pricepoint-ke       # WC Store API scraper (was wc-*)
           - wc-phoneshop-ke     # phones + gaming accessories
           - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
-          - wc-overtech-ke      # Cloudflare Turnstile — Playwright headless
+          - wc-overtech-ke      # Cloudflare TLS shield — curl_cffi (was Playwright until 2026-08-04)
           # NOTE: Shopify targets (all-shopify + shopify-*) are intentionally
           # not in this matrix. GH Actions Azure IPs get HTTP 429
           # ('local_rate_limited') from Shopify's edge, AND Render's
@@ -162,7 +162,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || startsWith(matrix.target, 'wc-overtech')
+        if: startsWith(matrix.target, 'wc-hisense-kenya')
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}

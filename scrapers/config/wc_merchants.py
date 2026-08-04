@@ -334,7 +334,16 @@ WC_MERCHANTS: dict[str, dict] = {
     # heavy coverage from Jumia/Kilimall/Hotpoint/etc.
     "overtech-ke": {
         "meta": {"slug": "overtech-ke", "name": "Overtech Kenya", "base_url": "https://overtech.co.ke"},
-        "client_type": "playwright",  # Cloudflare Turnstile — plain httpx returns 403
+        # Originally Playwright because of a Cloudflare Turnstile challenge, but
+        # as of 2026-08-04 the site serves category pages 200 to plain httpx +
+        # curl_cffi from residential and CI IPs — Turnstile has been dropped
+        # (verified with both clients returning full 500KB DOM with 40 product
+        # cards). Playwright was also blowing the 30-min job budget: ~25 min
+        # per run with the 4s Turnstile-wait + max_pages=1. Downgrading to
+        # curl_cffi keeps a Chrome TLS fingerprint (same shield-hopping tactic
+        # as megatech / nairobilaptops / phoneshop) in case Cloudflare
+        # posture-shifts back, and unlocks max_pages=3 for fuller coverage.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://overtech.co.ke/product-category/audio-systems/earphones-headphones", "https://overtech.co.ke/product-category/audio-systems/portable-speakers", "https://overtech.co.ke/product-category/audio-systems/soundbars"],
             "cameras": ["https://overtech.co.ke/product-category/cameras", "https://overtech.co.ke/product-category/cameras/photography"],
