@@ -128,7 +128,7 @@ jobs:
           - wc-devicestech-ke
           - wc-nairobilaptops-ke
           - wc-solarshop-ke     # solar specialist: inverters + batteries
-          - wc-solarstore-ke    # solar specialist: hybrid inverters
+          - solarstore-ke       # WC Store API scraper — solar specialist: hybrid inverters + batteries
           # sollatek moved to shopify_merchants (shop.sollatek.com) — picked
           # up automatically by the all-shopify matrix leg below.
           - audiocom-ke         # WC Store API scraper (was wc-*)

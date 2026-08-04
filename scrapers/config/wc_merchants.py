@@ -241,12 +241,9 @@ WC_MERCHANTS: dict[str, dict] = {
             "solar-batteries": ["https://solarshop.co.ke/product-category/solar-batteries", "https://solarshop.co.ke/product-category/solar-batteries/lithium-ion-batteries"],
         },
     },
-    "solarstore-ke": {
-        "meta": {"slug": "solarstore-ke", "name": "Solar Store East Africa", "base_url": "https://solarstore.co.ke"},
-        "leaf_to_urls": {
-            "inverters": ["https://solarstore.co.ke/product-category/solar-inverters", "https://solarstore.co.ke/product-category/solar-inverters/hybrid-inverters"],
-        },
-    },
+    # solarstore-ke moved to scrapers/merchants/solarstore.py (WC Store API).
+    # Their frontend theme throws WordPress critical errors (HTTP 500 on every
+    # /product-category/*/ URL) as of 2026-08. Store API endpoint still works.
     # sollatek-ke moved to shopify_merchants.py — their store is Shopify at
     # shop.sollatek.com, not WooCommerce at sollatek.co.ke (which is the
     # corporate marketing site).
