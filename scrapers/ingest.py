@@ -895,6 +895,11 @@ def run_audiocom() -> None:
     asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
+def run_solarstore() -> None:
+    from scrapers.merchants.solarstore import MERCHANT_META, fetch_all
+    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
+
+
 def _run_all() -> None:
     run_jumia_phones()
     run_kilimall_phones()
@@ -1097,6 +1102,7 @@ TARGETS = {
     "patabay-ke": run_patabay,
     "pricepoint-ke": run_pricepoint,
     "audiocom-ke": run_audiocom,
+    "solarstore-ke": run_solarstore,
     "all": _run_all,
 }
 
