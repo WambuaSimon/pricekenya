@@ -209,16 +209,18 @@ def category_page(
     if isinstance(price_max, str) and price_max.isdigit():
         q = q.having(func.min(Listing.price_kes) <= int(price_max))
 
-    # Ordering: newest products first. Product.created_at is the moment a
-    # new canonical_key first landed in the DB (via a scrape or retro
-    # cleanup). Sorting by it means newly-discovered SKUs surface at the
-    # top of a category page instead of getting buried at #197 behind the
-    # already-multi-merchant popular products. Ties within a day fall back
-    # to offer_count (multi-merchant products still rank higher within the
-    # same day) then to freshness of the most recent listing check.
+    # Ordering: multi-offer products first, then freshest. A comparison
+    # site's value prop is "see all merchants for this product side by
+    # side" — putting single-offer products at the top (which the prior
+    # `created_at DESC` sort did) buried the actually-shoppable pages
+    # under the newest-scraped singletons. Reversed on 2026-08-05 after
+    # the phones-category audit showed the top of /c/phones was
+    # dominated by 1-offer products, which is exactly the failure users
+    # see. Ties within an offer count fall back to freshness so
+    # newly-scraped products still surface within their tier.
     q = q.order_by(
-        Product.created_at.desc(),
         func.count(Listing.id).desc(),
+        Product.created_at.desc(),
         func.max(Listing.last_checked_at).desc(),
     )
 
