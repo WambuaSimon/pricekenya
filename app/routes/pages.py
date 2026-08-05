@@ -1,3 +1,5 @@
+import random
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
@@ -9,6 +11,47 @@ from db.models import Click, Listing, Product
 from db.session import get_session
 
 router = APIRouter()
+
+# Home page rotation config. The pool is ordered by the same
+# offer_count → clicks_7d → freshness ranking as before; the shuffle +
+# category cap is what makes the grid feel fresh across visits.
+_HOME_POOL_SIZE = 150       # how many top-ranked products enter the rotation pool
+_HOME_DISPLAY = 24          # how many the grid actually shows
+_HOME_MAX_PER_CATEGORY = 4  # cap per top-level category slug for visual diversity
+_HOME_ROTATION_HOURS = 6    # bucket width → 4 rotations/day
+
+
+def _time_bucket(now: datetime | None = None) -> int:
+    """Deterministic shuffle seed. Same seed for every request inside the
+    same 6h window so a page refresh returns the same order (avoids the
+    jarring reshuffle-on-every-visit feel) while still cycling 4× a day."""
+    now = now or datetime.utcnow()
+    return now.timetuple().tm_yday * 24 + now.hour // _HOME_ROTATION_HOURS
+
+
+def _select_home_rows(pool, bucket_seed: int, max_per_category: int, display: int):
+    """From a ranked pool, produce a deterministically-shuffled slice with
+    at most `max_per_category` products per category_slug.
+
+    Category cap is important: without it the multi-offer set skews toward
+    the categories with the most inventory (phones, TVs) and the grid
+    reads as monoculture. With it, one refresh might surface a fridge, a
+    solar inverter, a kettle, and a laptop alongside the phones.
+    """
+    shuffled = list(pool)
+    random.Random(bucket_seed).shuffle(shuffled)
+    seen: dict[str, int] = defaultdict(int)
+    selected = []
+    for row in shuffled:
+        product = row[0]  # (Product, min_price, offer_count)
+        cat = product.category_slug or ""
+        if seen[cat] >= max_per_category:
+            continue
+        selected.append(row)
+        seen[cat] += 1
+        if len(selected) >= display:
+            break
+    return selected
 
 
 def _humanize_ago(ts: datetime | None) -> str:
@@ -30,7 +73,8 @@ def _humanize_ago(ts: datetime | None) -> str:
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, session: Session = Depends(get_session)):
-    # Ranking:
+    # Ranking (for the pool — the top-N eligible products the rotation
+    # picks from):
     #   1. offer_count DESC — showcase what the site is for (price comparison).
     #   2. clicks over the last 7d DESC — real-user signal on which listings
     #      matter, computed as a correlated scalar subquery so the main
@@ -38,6 +82,10 @@ def home(request: Request, session: Session = Depends(get_session)):
     #      multiply the min-price / offer-count aggregates).
     #   3. last_checked_at DESC — final tiebreak so untouched products don't
     #      tie forever.
+    # Then _select_home_rows shuffles the pool with a 6h-bucket seed and
+    # enforces category diversity so the grid rotates + reads mixed.
+    # Pool filters: multi-offer (>=2) so we don't showcase single-offer
+    # noindex'd pages, and image_url present so cards render properly.
     week_ago = datetime.utcnow() - timedelta(days=7)
     clicks_7d = (
         select(func.count(Click.id))
@@ -47,21 +95,29 @@ def home(request: Request, session: Session = Depends(get_session)):
         .correlate(Product)
         .scalar_subquery()
     )
-    rows = session.exec(
+    pool = session.exec(
         select(
             Product,
             func.min(Listing.price_kes).label("min_price"),
             func.count(Listing.id).label("offer_count"),
         )
         .join(Listing, Listing.product_id == Product.id)
+        .where(Product.image_url.is_not(None))
         .group_by(Product.id)
+        .having(func.count(Listing.id) >= 2)
         .order_by(
             func.count(Listing.id).desc(),
             clicks_7d.desc(),
             func.max(Listing.last_checked_at).desc(),
         )
-        .limit(24)
+        .limit(_HOME_POOL_SIZE)
     ).all()
+    rows = _select_home_rows(
+        pool,
+        bucket_seed=_time_bucket(),
+        max_per_category=_HOME_MAX_PER_CATEGORY,
+        display=_HOME_DISPLAY,
+    )
 
     # Hero stats — cheap counts + one MAX(). All three land in the same
     # gradient card at the top of home.html. Merchant count is limited to
