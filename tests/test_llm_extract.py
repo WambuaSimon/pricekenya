@@ -89,7 +89,9 @@ def test_extract_writes_log_and_produces_key(session, enable_llm, monkeypatch):
     )
     session.commit()
     assert parsed is not None
-    assert parsed.canonical_key == "tecno|spark-30c|256|8"
+    # Coarsened key: storage/RAM live in specs, not the canonical_key
+    # (2026-08-05 phones coarsening).
+    assert parsed.canonical_key == "tecno|spark-30c"
     assert counter["calls"] == 1
 
     logged = session.exec(select(LlmExtractionLog)).all()

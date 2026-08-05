@@ -78,11 +78,11 @@ def compose_phones(pieces: dict) -> ParsedTitle:
     if ram:
         specs["ram_gb"] = int(ram)
 
+    # Canonical key excludes storage/RAM — see matching/phone.py for the
+    # rationale (2026-08-05 phones-category audit). Composer output must
+    # stay bit-identical with the regex parser or test_compose_parity
+    # will scream.
     parts = [slugify(brand), slugify(model)]
-    if storage:
-        parts.append(str(int(storage)))
-    if ram:
-        parts.append(str(int(ram)))
 
     suffix = (
         f"{int(ram)}/{int(storage)}GB"

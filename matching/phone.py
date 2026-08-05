@@ -234,11 +234,17 @@ def parse_title(title: str, description: str | None = None) -> ParsedTitle:
     if not (brand and model):
         return ParsedTitle(brand=brand, model=model, specs=specs)
 
+    # Canonical key intentionally EXCLUDES storage/RAM — those live in
+    # specs for display but not in the key. Rationale: on 2026-08-05 we
+    # audited the phones category and found 467 brand+model pairs split
+    # across 2-9 separate Products by storage/RAM tier (e.g. Samsung S25
+    # existed as 8 products: `samsung|s25`, `samsung|s25|128|8`,
+    # `samsung|s25|256|12` …). Every merchant lists their inventory with
+    # slightly different specs in the title, so tier-in-key fragments the
+    # comparison across N thin pages instead of one comparable page.
+    # Variant granularity moves to the display layer + spec filters; the
+    # canonical product is `brand|model`.
     parts = [slugify(brand), slugify(model)]
-    if storage:
-        parts.append(str(storage))
-    if ram:
-        parts.append(str(ram))
     return ParsedTitle(
         brand=brand,
         model=model,

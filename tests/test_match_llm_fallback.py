@@ -94,7 +94,7 @@ def test_llm_fallback_creates_product(session, monkeypatch):
     )
     session.commit()
     assert result is not None
-    assert result.canonical_key == "tecno|spark-30c|256|8"
+    assert result.canonical_key == "tecno|spark-30c"
     assert result.brand == "tecno"
     products = session.exec(select(Product)).all()
     assert len(products) == 1

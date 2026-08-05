@@ -22,15 +22,18 @@ from matching import compose_keys
 @pytest.mark.parametrize(
     "slug,pieces,expected_key",
     [
+        # Phones canonical_key is coarsened to `brand|model` — storage/RAM
+        # live in specs but not the key (2026-08-05 coarsening; see
+        # matching/phone.py for rationale).
         (
             "phones",
             {"brand": "tecno", "model": "spark 30c", "storage_gb": 256, "ram_gb": 8},
-            "tecno|spark-30c|256|8",
+            "tecno|spark-30c",
         ),
         (
             "phones",
             {"brand": "apple", "model": "iphone 15", "storage_gb": 128},
-            "apple|iphone-15|128",
+            "apple|iphone-15",
         ),
         (
             "tablets",
@@ -275,16 +278,19 @@ def test_phone_composer_applies_brand_aliases() -> None:
     parsed = compose_keys.compose_phones(
         {"brand": "iphone", "model": "iphone 14", "storage_gb": 256, "ram_gb": 6}
     )
-    assert parsed.canonical_key == "apple|iphone-14|256|6"
+    # Coarsened key: brand|model only. Alias guard still critical for the
+    # brand part — misfiring `iphone|iphone-14` would still split from
+    # `apple|iphone-14`.
+    assert parsed.canonical_key == "apple|iphone-14"
     # `redmi` and `pixel` are the other two aliases in the regex parser.
     parsed_redmi = compose_keys.compose_phones(
         {"brand": "redmi", "model": "note 13 pro", "storage_gb": 256, "ram_gb": 8}
     )
-    assert parsed_redmi.canonical_key == "xiaomi|note-13-pro|256|8"
+    assert parsed_redmi.canonical_key == "xiaomi|note-13-pro"
     parsed_pixel = compose_keys.compose_phones(
         {"brand": "pixel", "model": "pixel 8 pro", "storage_gb": 128}
     )
-    assert parsed_pixel.canonical_key == "google|pixel-8-pro|128"
+    assert parsed_pixel.canonical_key == "google|pixel-8-pro"
 
 
 def test_audio_composer_normalises_hyphens_in_model_code() -> None:

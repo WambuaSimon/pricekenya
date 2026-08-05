@@ -13,38 +13,38 @@ from matching.normalize import parse_title
     "title,expected_key",
     [
         # Tecno Spark 30C — three spellings all merge.
-        ("Tecno Spark 30C 5G 8GB+256GB Black", "tecno|spark-30c|256|8"),
-        ("Tecno Spark 30 C (8+256) 5G - Magic Skin Black", "tecno|spark-30c|256|8"),
-        ("Tecno Spark 30C 5G 8/256GB", "tecno|spark-30c|256|8"),
+        ("Tecno Spark 30C 5G 8GB+256GB Black", "tecno|spark-30c"),
+        ("Tecno Spark 30 C (8+256) 5G - Magic Skin Black", "tecno|spark-30c"),
+        ("Tecno Spark 30C 5G 8/256GB", "tecno|spark-30c"),
         # Infinix Hot 50 Pro+ — "Pro+" and "Pro Plus" merge (but do NOT
         # merge with plain "Hot 50 Pro"; see the Pro-vs-Pro+ collision
         # test below).
-        ("Infinix Hot 50 Pro+ 8GB 256GB", "infinix|hot-50-pro-plus|256|8"),
-        ("Infinix Hot 50 Pro Plus 256GB+8GB", "infinix|hot-50-pro-plus|256|8"),
+        ("Infinix Hot 50 Pro+ 8GB 256GB", "infinix|hot-50-pro-plus"),
+        ("Infinix Hot 50 Pro Plus 256GB+8GB", "infinix|hot-50-pro-plus"),
         # iPhone Pro vs Pro Max — the visible regression that made the
         # /p/apple-iphone-14-pro page span KSh 60k–205k because both
         # variants extracted model="iphone 14 pro" (2026-07-14 fix).
         ("Apple iPhone 14 Pro", "apple|iphone-14-pro"),
         ("Apple iPhone 14 Pro Max", "apple|iphone-14-pro-max"),
         ("Apple iPhone 14 Pro Max 5G", "apple|iphone-14-pro-max"),
-        ("Apple iPhone 14 Pro Max 256GB", "apple|iphone-14-pro-max|256"),
+        ("Apple iPhone 14 Pro Max 256GB", "apple|iphone-14-pro-max"),
         ("Apple iPhone 15 Pro Max", "apple|iphone-15-pro-max"),
         # Samsung S24 vs S24+ — slugify used to strip the "+", collapsing
         # both into "s24".
-        ("Samsung Galaxy S24 8GB+128GB", "samsung|s24|128|8"),
-        ("Samsung Galaxy S24+ 8GB+256GB", "samsung|s24-plus|256|8"),
-        ("Samsung Galaxy S24 Plus 8GB+256GB", "samsung|s24-plus|256|8"),
-        ("Samsung Galaxy S24 Ultra 12GB+512GB", "samsung|s24-ultra|512|12"),
+        ("Samsung Galaxy S24 8GB+128GB", "samsung|s24"),
+        ("Samsung Galaxy S24+ 8GB+256GB", "samsung|s24-plus"),
+        ("Samsung Galaxy S24 Plus 8GB+256GB", "samsung|s24-plus"),
+        ("Samsung Galaxy S24 Ultra 12GB+512GB", "samsung|s24-ultra"),
         # Samsung A55 — "Galaxy" noise + word-order RAM/storage all merge.
-        ("Samsung Galaxy A55 5G 8GB 256GB", "samsung|a55|256|8"),
-        ("Samsung A55 5G - 8/256GB - Awesome Navy", "samsung|a55|256|8"),
-        ("Samsung Galaxy A55 5G 256GB 8GB RAM", "samsung|a55|256|8"),
+        ("Samsung Galaxy A55 5G 8GB 256GB", "samsung|a55"),
+        ("Samsung A55 5G - 8/256GB - Awesome Navy", "samsung|a55"),
+        ("Samsung Galaxy A55 5G 256GB 8GB RAM", "samsung|a55"),
         # Redmi → Xiaomi alias: both forms share the canonical key.
-        ("Xiaomi Redmi Note 13 Pro 8+256GB", "xiaomi|note-13-pro|256|8"),
-        ("Redmi Note 13 Pro 256GB 8GB", "xiaomi|note-13-pro|256|8"),
+        ("Xiaomi Redmi Note 13 Pro 8+256GB", "xiaomi|note-13-pro"),
+        ("Redmi Note 13 Pro 256GB 8GB", "xiaomi|note-13-pro"),
         # iPhone → Apple alias: model retains "iphone" prefix.
-        ("Apple iPhone 15 128GB Blue", "apple|iphone-15|128"),
-        ("iPhone 15 - 128GB - Black", "apple|iphone-15|128"),
+        ("Apple iPhone 15 128GB Blue", "apple|iphone-15"),
+        ("iPhone 15 - 128GB - Black", "apple|iphone-15"),
     ],
 )
 def test_known_phone_titles_produce_expected_canonical_key(title: str, expected_key: str) -> None:
@@ -88,7 +88,9 @@ def test_decimal_plus_number_is_not_treated_as_storage_pair() -> None:
     parsed = parse_title(title, category="phones")
     assert parsed.specs.get("storage_gb") == 128
     assert parsed.specs.get("ram_gb") == 4
-    assert parsed.canonical_key == "realme|c100i|128|4"
+    # Key intentionally omits storage/RAM after the 2026-08-05 coarsening.
+    # Specs still populated for display + variant filters.
+    assert parsed.canonical_key == "realme|c100i"
 
 
 def test_full_seed_set_collapses_to_five_products() -> None:
@@ -136,7 +138,13 @@ def test_terse_phone_title_recovers_specs_from_description() -> None:
         ),
     )
     full = parse_title("Apple iPhone 14 Pro 128GB 6GB RAM", category="phones")
-    assert terse.canonical_key == full.canonical_key == "apple|iphone-14-pro|128|6"
+    # Coarsened key drops storage/RAM — both variants merge on
+    # brand|model regardless of spec-recovery from description. Specs
+    # are still extracted and available on the resulting ParsedTitle.
+    assert terse.canonical_key == full.canonical_key == "apple|iphone-14-pro"
+    # Terse title still recovers specs from description (for display).
+    assert terse.specs.get("storage_gb") == 128
+    assert terse.specs.get("ram_gb") == 6
 
 
 def test_description_never_overrides_title_spec() -> None:
@@ -149,7 +157,11 @@ def test_description_never_overrides_title_spec() -> None:
         category="phones",
         description="Also supports up to 1TB microSD expansion.",
     )
-    assert parsed.canonical_key == "samsung|a55|128|8"
+    # Coarsened key omits storage/RAM. Description-vs-title precedence
+    # still guarded by the specs check below.
+    assert parsed.canonical_key == "samsung|a55"
+    assert parsed.specs.get("storage_gb") == 128
+    assert parsed.specs.get("ram_gb") == 8
 
 
 def test_description_never_re_triggers_accessory_veto() -> None:
@@ -162,4 +174,4 @@ def test_description_never_re_triggers_accessory_veto() -> None:
         category="phones",
         description="Comes with a free silicone case and tempered glass screen protector.",
     )
-    assert parsed.canonical_key == "tecno|spark-30c|256|8"
+    assert parsed.canonical_key == "tecno|spark-30c"
