@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, func, select
 
 from app.templating import templates
-from db.models import Click, Listing, Product
+from db.models import Click, Listing, Merchant, Product
 from db.session import get_session
 
 router = APIRouter()
@@ -20,6 +20,13 @@ _HOME_DISPLAY = 24          # how many the grid actually shows
 _HOME_MAX_PER_CATEGORY = 4  # cap per top-level category slug for visual diversity
 _HOME_ROTATION_HOURS = 6    # bucket width → 4 rotations/day
 
+# Featured "head-to-head" product in the hero. Draws from the top slice of
+# the pool so the highlighted product actually has enough merchant offers
+# to make the comparison compelling. 30 * 6h buckets = ~7.5 days to cycle
+# through the top slice.
+_FEATURED_POOL_SLICE = 30
+_FEATURED_MAX_OFFERS = 4    # cards shown in the hero comparison strip
+
 
 def _time_bucket(now: datetime | None = None) -> int:
     """Deterministic shuffle seed. Same seed for every request inside the
@@ -27,6 +34,42 @@ def _time_bucket(now: datetime | None = None) -> int:
     jarring reshuffle-on-every-visit feel) while still cycling 4× a day."""
     now = now or datetime.utcnow()
     return now.timetuple().tm_yday * 24 + now.hour // _HOME_ROTATION_HOURS
+
+
+def _select_featured(pool, bucket_seed: int, slice_size: int):
+    """Deterministically pick one product from the top slice of the pool
+    to headline the hero. Rotates as the bucket_seed advances.
+
+    Returns (Product, min_price, offer_count) or None if the pool is empty.
+    """
+    if not pool:
+        return None
+    top_slice = pool[:slice_size]
+    return top_slice[bucket_seed % len(top_slice)]
+
+
+def _fetch_featured_offers(
+    session: Session, product_id: int, limit: int
+) -> tuple[list[tuple], object | None, object | None]:
+    """Fetch top-N in-stock offers for the featured product, sorted cheapest
+    first. Returns (offers, savings_abs, savings_pct) where offers is a list
+    of (Listing, Merchant) tuples and savings compares cheapest vs most
+    expensive shown."""
+    offers = session.exec(
+        select(Listing, Merchant)
+        .join(Merchant, Merchant.id == Listing.merchant_id)
+        .where(Listing.product_id == product_id)
+        .where(Listing.in_stock.is_(True))
+        .order_by(Listing.price_kes.asc())
+        .limit(limit)
+    ).all()
+    if len(offers) < 2:
+        return offers, None, None
+    cheapest = offers[0][0].price_kes
+    dearest = offers[-1][0].price_kes
+    savings_abs = dearest - cheapest
+    savings_pct = round((savings_abs / dearest) * 100) if dearest else None
+    return offers, savings_abs, savings_pct
 
 
 def _select_home_rows(pool, bucket_seed: int, max_per_category: int, display: int):
@@ -112,17 +155,39 @@ def home(request: Request, session: Session = Depends(get_session)):
         )
         .limit(_HOME_POOL_SIZE)
     ).all()
+    bucket = _time_bucket()
     rows = _select_home_rows(
         pool,
-        bucket_seed=_time_bucket(),
+        bucket_seed=bucket,
         max_per_category=_HOME_MAX_PER_CATEGORY,
         display=_HOME_DISPLAY,
     )
 
-    # Hero stats — cheap counts + one MAX(). All three land in the same
-    # gradient card at the top of home.html. Merchant count is limited to
-    # merchants that actually have listings, so the number reflects live
-    # coverage rather than the seed catalog.
+    # Featured head-to-head — pick one product from the top slice of the
+    # pool and fetch its cheapest N offers so the hero can render a real
+    # side-by-side comparison rather than abstract stat chips.
+    featured_row = _select_featured(pool, bucket, _FEATURED_POOL_SLICE)
+    featured = None
+    if featured_row is not None:
+        product = featured_row[0]
+        offers, savings_abs, savings_pct = _fetch_featured_offers(
+            session, product.id, _FEATURED_MAX_OFFERS
+        )
+        # Only expose the featured block when the comparison is meaningful
+        # (2+ offers). If the top-of-pool product got its second offer
+        # delisted between the pool query and here, degrade to no hero
+        # comparison rather than showing a 1-merchant "comparison".
+        if len(offers) >= 2:
+            featured = {
+                "product": product,
+                "offers": offers,          # list of (Listing, Merchant)
+                "min_price": offers[0][0].price_kes,
+                "savings_abs": savings_abs,
+                "savings_pct": savings_pct,
+                "total_offer_count": featured_row[2],  # from the pool aggregate
+            }
+
+    # Hero stats — cheap counts + one MAX().
     product_count = session.exec(select(func.count(Product.id))).one()
     merchant_count = session.exec(
         select(func.count(func.distinct(Listing.merchant_id)))
@@ -133,6 +198,7 @@ def home(request: Request, session: Session = Depends(get_session)):
         "home.html",
         {
             "rows": rows,
+            "featured": featured,
             "product_count": product_count or 0,
             "merchant_count": merchant_count or 0,
             "last_updated_ago": _humanize_ago(last_listing_check),

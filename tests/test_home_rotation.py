@@ -1,8 +1,8 @@
-"""Home-page rotation + category-diversity logic.
+"""Home-page rotation + category-diversity logic + featured comparison.
 
-The pure helpers (`_time_bucket`, `_select_home_rows`) are tested in
-isolation — the home-page route calls them but the interesting logic
-is here.
+The pure helpers (`_time_bucket`, `_select_home_rows`, `_select_featured`)
+are tested in isolation. `_fetch_featured_offers` + the end-to-end hero
+render are covered by fixture-backed route tests at the bottom.
 """
 
 from __future__ import annotations
@@ -11,7 +11,10 @@ from collections import Counter
 from datetime import datetime
 from decimal import Decimal
 
-from db.models import Product
+import pytest
+from fastapi.testclient import TestClient
+
+from db.models import Listing, Merchant, Product
 
 
 def _mock_row(product_id: int, category: str, offer_count: int = 3):
@@ -108,3 +111,112 @@ def test_select_home_rows_returns_less_when_pool_thin():
     pool = [_mock_row(i, "phones") for i in range(1, 11)]
     rows = _select_home_rows(pool, bucket_seed=42, max_per_category=4, display=24)
     assert len(rows) == 4
+
+
+def test_select_featured_rotates_within_top_slice():
+    """Different buckets pick different featured products; same bucket
+    returns the same one."""
+    from app.routes.pages import _select_featured
+
+    pool = [_mock_row(i, "phones") for i in range(1, 60)]
+    a = _select_featured(pool, bucket_seed=0, slice_size=30)
+    b = _select_featured(pool, bucket_seed=0, slice_size=30)
+    c = _select_featured(pool, bucket_seed=1, slice_size=30)
+    assert a[0].id == b[0].id
+    assert a[0].id != c[0].id
+
+
+def test_select_featured_stays_within_top_slice():
+    """Even for a large bucket seed, we never dip below the top slice —
+    the featured product should always be a comparison-worthy one."""
+    from app.routes.pages import _select_featured
+
+    pool = [_mock_row(i, "phones") for i in range(1, 100)]
+    for seed in (0, 1, 29, 30, 100, 9999):
+        featured = _select_featured(pool, bucket_seed=seed, slice_size=30)
+        assert featured[0].id in {row[0].id for row in pool[:30]}
+
+
+def test_select_featured_returns_none_on_empty_pool():
+    from app.routes.pages import _select_featured
+    assert _select_featured([], bucket_seed=0, slice_size=30) is None
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: home route renders the head-to-head hero when data supports it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def client(session):
+    from app.main import app
+    from db.session import get_session
+
+    def _override_session():
+        yield session
+
+    app.dependency_overrides[get_session] = _override_session
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def _seed_hero_ready_product(session):
+    """One phone with three merchant offers — enough to trigger the
+    head-to-head hero."""
+    session.add(Merchant(id=1, slug="jumia", name="Jumia Kenya", base_url="https://jumia.co.ke"))
+    session.add(Merchant(id=2, slug="kilimall", name="Kilimall Kenya", base_url="https://kilimall.co.ke"))
+    session.add(Merchant(id=3, slug="phoneplace", name="Phone Place", base_url="https://phoneplacekenya.com"))
+    session.commit()
+
+    product = Product(
+        slug="redmi-note-15",
+        canonical_key="xiaomi|note-15",
+        brand="xiaomi",
+        model="note 15",
+        title="Xiaomi Redmi Note 15 5G",
+        category_slug="phones",
+        image_url="https://example.com/note15.jpg",
+    )
+    session.add(product)
+    session.commit()
+
+    session.add(Listing(product_id=product.id, merchant_id=1, url="https://x/1",
+                        title_on_merchant="Note 15", price_kes=Decimal("26200"), in_stock=True))
+    session.add(Listing(product_id=product.id, merchant_id=2, url="https://x/2",
+                        title_on_merchant="Note 15", price_kes=Decimal("24500"), in_stock=True))
+    session.add(Listing(product_id=product.id, merchant_id=3, url="https://x/3",
+                        title_on_merchant="Note 15", price_kes=Decimal("25800"), in_stock=True))
+    session.commit()
+
+
+def test_home_hero_renders_head_to_head(client, session):
+    _seed_hero_ready_product(session)
+    resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+
+    # Product title + all three merchant names appear in the hero.
+    assert "Xiaomi Redmi Note 15 5G" in body
+    assert "Jumia Kenya" in body
+    assert "Kilimall Kenya" in body
+    assert "Phone Place" in body
+
+    # Cheapest badge shows on the winner (Kilimall @ 24,500).
+    assert "Cheapest" in body
+
+    # Savings line: max - min = 26,200 - 24,500 = 1,700 KSh (~6%).
+    assert "Save" in body
+    assert "1,700" in body
+
+
+def test_home_hero_degrades_when_no_multi_offer_products(client, session):
+    """Empty catalog → hero falls back to the generic tagline without
+    crashing."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.text
+    # No head-to-head content, but the page still renders the tagline.
+    assert "who's cheapest" in body
+    assert "Cheapest" not in body  # winner-badge string absent
