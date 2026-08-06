@@ -20,35 +20,85 @@
 </script>
 {% endblock %}
 {% block content %}
-  {# Emerald gradient hero. Two absolute-positioned blurred circles create
-     a soft radial glow so the card doesn't read as a flat rectangle. Three
-     live-data chips underneath make the site feel alive without any JS. #}
-  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 sm:p-10 mb-8 shadow-lg shadow-emerald-900/10 dark:shadow-emerald-950/40">
-    <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/25 blur-3xl"></div>
-    <div class="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-teal-300/30 blur-3xl"></div>
+  {# Live head-to-head hero. Instead of abstract stat chips (products /
+     merchants / last-updated), the hero shows ONE real product being
+     compared across 2-4 Kenyan merchants right now. Rotates every 6h in
+     sync with the home-grid rotation seed. Falls back to a simpler
+     title-only card if no featured product is available (empty DB,
+     everything single-offer). #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-5 sm:p-8 mb-8 shadow-lg shadow-emerald-900/10 dark:shadow-emerald-950/40">
+    <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/20 blur-3xl"></div>
+    <div class="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl"></div>
 
     <div class="relative">
-      <h1 class="text-3xl sm:text-4xl font-bold text-white leading-tight tracking-tight">
-        Compare prices<br class="hidden sm:inline"> across Kenya.
-      </h1>
-      <p class="mt-3 max-w-xl text-emerald-50/90 text-sm sm:text-base">
-        The fastest way to see who's cheapest on phones, TVs, appliances and more.
-      </p>
-
-      <div class="mt-6 grid grid-cols-3 gap-2 sm:gap-3 sm:max-w-md">
-        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(product_count) }}</div>
-          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Products</div>
-        </div>
-        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ merchant_count }}</div>
-          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Merchants</div>
-        </div>
-        <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-          <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ last_updated_ago }}</div>
-          <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Last updated</div>
+      <div class="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+        <h1 class="text-2xl sm:text-3xl font-bold text-white leading-tight tracking-tight">
+          Compare prices across Kenya
+        </h1>
+        <div class="text-[11px] sm:text-xs uppercase tracking-wider text-emerald-50/80">
+          {{ "{:,}".format(product_count) }} products · {{ merchant_count }} merchants · fresh {{ last_updated_ago }}
         </div>
       </div>
+
+      {% if featured %}
+        {# The head-to-head. Uses the pool query the grid also runs, so no
+           extra round-trip cost worth mentioning. #}
+        <div class="text-emerald-50/80 text-xs uppercase tracking-wider mt-4 mb-1">Right now on PriceKenya</div>
+        <a href="/p/{{ featured.product.slug }}"
+           class="group inline-flex items-baseline gap-2 text-white hover:underline decoration-emerald-200/70 underline-offset-4">
+          <span class="text-lg sm:text-xl font-semibold">{{ featured.product.title }}</span>
+          <span class="text-xs text-emerald-50/70 hidden sm:inline">→ view comparison</span>
+        </a>
+
+        <div class="mt-4 grid gap-2 grid-cols-2 sm:grid-cols-4">
+          {% for listing, merchant in featured.offers %}
+            {% set is_best = loop.first %}
+            <a href="/out/{{ listing.id }}"
+               rel="nofollow sponsored"
+               class="block rounded-xl border px-3 py-3
+                      {% if is_best %}
+                        bg-white text-emerald-800 border-white shadow-lg shadow-emerald-950/20
+                      {% else %}
+                        bg-white/10 text-white border-white/20 hover:bg-white/15
+                      {% endif %}
+                      backdrop-blur-sm transition">
+              <div class="flex items-center gap-1.5">
+                {% if is_best %}
+                  <span class="text-xs">🏆</span>
+                  <span class="text-[10px] font-bold uppercase tracking-wider">Cheapest</span>
+                {% endif %}
+              </div>
+              <div class="mt-1 text-[11px] uppercase tracking-wider {% if is_best %}text-emerald-700/70{% else %}text-emerald-50/70{% endif %} truncate">
+                {{ merchant.name }}
+              </div>
+              <div class="text-base sm:text-lg font-bold leading-tight tabular-nums mt-0.5">
+                {{ listing.price_kes | kes }}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+
+        {% if featured.savings_abs and featured.savings_abs > 0 %}
+          <p class="mt-3 text-sm text-emerald-50">
+            <span class="font-semibold text-white">Save {{ featured.savings_abs | kes }}</span>
+            {% if featured.savings_pct %}<span class="text-emerald-50/80">({{ featured.savings_pct }}%)</span>{% endif %}
+            by shopping the cheapest.
+            {% set more = featured.total_offer_count - featured.offers | length %}
+            {% if more > 0 %}
+              <a href="/p/{{ featured.product.slug }}" class="underline decoration-emerald-200/70 underline-offset-2 hover:text-white">
+                Compare {{ more }} more offer{{ '' if more == 1 else 's' }} →
+              </a>
+            {% endif %}
+          </p>
+        {% endif %}
+      {% else %}
+        {# Degraded fallback — no product has enough offers to headline.
+           Shouldn't happen once the catalog has any multi-offer products,
+           but keeps the hero from breaking in a fresh-install / test DB. #}
+        <p class="mt-3 max-w-xl text-emerald-50/90 text-sm sm:text-base">
+          The fastest way to see who's cheapest on phones, TVs, appliances and more.
+        </p>
+      {% endif %}
     </div>
   </section>
 
