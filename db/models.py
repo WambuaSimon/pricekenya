@@ -237,6 +237,30 @@ class CachedSitemap(SQLModel, table=True):
     url_count: int = 0
 
 
+class ProductRedirect(SQLModel, table=True):
+    """Maps a deleted product slug → the surviving product slug.
+
+    Populated by scripts/coarsen_phones_backfill (and any future merge
+    tooling) whenever we delete a Product because it was merged into a
+    winner. The product_detail handler checks this table on 404 and
+    returns a 301 to /p/<new_slug> if a mapping exists.
+
+    Why: after PR #9's phone coarsening merged ~450 duplicate Products,
+    Google Search Console flagged 87 "Not found (404)" — those are old
+    slugs Google indexed before the merge. Serving 301s preserves any
+    accrued link equity and stops the 404 count growing every time we
+    run a merge.
+
+    Chain-safe writes: when we merge X → Y, any existing rows pointing
+    at X get rewritten to point at Y. Reads never follow chains, so
+    the redirect always resolves in one hop.
+    """
+
+    old_slug: str = Field(primary_key=True)
+    new_slug: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Alert(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="product.id", index=True)

@@ -39,7 +39,7 @@ from collections import defaultdict
 from sqlalchemy import delete, update
 from sqlmodel import Session, func, select
 
-from db.models import Listing, PriceHistory, Product
+from db.models import Listing, PriceHistory, Product, ProductRedirect
 from db.session import engine
 from matching.base import slugify
 
@@ -72,16 +72,43 @@ def _select_winner(products: list[Product], listing_counts: dict[int, int]) -> P
     return sorted(products, key=sort_key)[0]
 
 
+def _record_redirect(session: Session, *, old_slug: str, new_slug: str) -> None:
+    """Insert-or-update a ProductRedirect row and rewrite any existing rows
+    that pointed at `old_slug` so all chains collapse to at most one hop.
+
+    Before: A → B, then B is merged into C.
+    Without chain-collapse: A → B (stale, B is deleted) — the redirect
+    breaks and product_detail 404s the A visitor.
+    With chain-collapse: rewrite A → C alongside B → C in the same call.
+
+    Idempotent: re-running a merge that already registered the same
+    redirect is a no-op.
+    """
+    # Rewrite chains: anything currently pointing at old_slug should
+    # now point at new_slug.
+    session.execute(
+        update(ProductRedirect)
+        .where(ProductRedirect.new_slug == old_slug)
+        .values(new_slug=new_slug)
+    )
+    # Upsert the primary mapping.
+    existing = session.get(ProductRedirect, old_slug)
+    if existing:
+        existing.new_slug = new_slug
+        session.add(existing)
+    else:
+        session.add(ProductRedirect(old_slug=old_slug, new_slug=new_slug))
+
+
 def _merge_group(
     session: Session, winner: Product, losers: list[Product], dry_run: bool
 ) -> tuple[int, int]:
     """Reparent listings from losers → winner, dedupe merchant collisions,
     delete loser Products. Returns (reparented_count, dropped_dup_count)."""
-    winner_merchants = {
-        row[0] for row in session.exec(
-            select(Listing.merchant_id).where(Listing.product_id == winner.id)
-        ).all()
-    }
+    # session.exec on a single-column select returns scalars, not Row tuples.
+    winner_merchants = set(session.exec(
+        select(Listing.merchant_id).where(Listing.product_id == winner.id)
+    ).all())
     reparented = 0
     dropped_dups = 0
 
@@ -113,6 +140,14 @@ def _merge_group(
                 winner_merchants.add(lst.merchant_id)
                 reparented += 1
         if not dry_run:
+            # Preserve Google-side link equity: register a 301 mapping from
+            # the loser's slug to the winner. app/routes/products.py checks
+            # ProductRedirect on 404 and serves a 301 if a mapping exists.
+            #
+            # Chain-safe: if the winner is later itself merged, we rewrite
+            # any redirects that pointed at it to point at the new winner
+            # (see the second-pass loop after all merges finish).
+            _record_redirect(session, old_slug=loser.slug, new_slug=winner.slug)
             session.execute(delete(Product).where(Product.id == loser.id))
 
     if not dry_run:

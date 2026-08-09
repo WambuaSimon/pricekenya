@@ -4,7 +4,7 @@ from sqlmodel import Session, func, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Click, Listing, Merchant, PriceHistory, Product, Review
+from db.models import Click, Listing, Merchant, PriceHistory, Product, ProductRedirect, Review
 from db.session import get_session
 
 router = APIRouter()
@@ -21,6 +21,15 @@ def _affiliate_url(merchant: Merchant, raw_url: str) -> str:
 def product_detail(slug: str, request: Request, session: Session = Depends(get_session)):
     product = session.exec(select(Product).where(Product.slug == slug)).first()
     if not product:
+        # Before 404'ing, check if this slug was merged into another product
+        # (via scripts/coarsen_phones_backfill or similar). 301 preserves
+        # any Google link equity accrued to the old URL. See CONTEXT.md §8h
+        # / ProductRedirect model for the outage log.
+        redirect = session.exec(
+            select(ProductRedirect).where(ProductRedirect.old_slug == slug)
+        ).first()
+        if redirect:
+            return RedirectResponse(url=f"/p/{redirect.new_slug}", status_code=301)
         raise HTTPException(status_code=404)
 
     # Only show in-stock offers. Merchants (esp. Shopify stores) sometimes
