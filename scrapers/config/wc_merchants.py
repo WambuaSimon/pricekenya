@@ -87,6 +87,13 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "tclke-ke": {
         "meta": {"slug": "tclke-ke", "name": "TCL Kenya", "base_url": "https://tclke.co.ke"},
+        # Category pages return 200 fine from residential IPs on plain httpx
+        # (198KB DOM per page, prior 87 listings) but the 2026-08 crons blew
+        # up with RetryError[HTTPStatusError] on every URL from GitHub
+        # Actions IPs — same bot-posture discrimination pattern as
+        # megatech-ke / smartphoneskenya-ke / zuka-ke / nairobilaptops-ke.
+        # Chrome TLS impersonation via curl_cffi unblocks the CI runner IPs.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://tclke.co.ke/product-category/jbl/jbl-earbuds", "https://tclke.co.ke/product-category/jbl/jbl-headphones", "https://tclke.co.ke/product-category/jbl/jbl-portable-speakers"],
             "cooking": ["https://tclke.co.ke/product-category/scl/scl-cookers"],
