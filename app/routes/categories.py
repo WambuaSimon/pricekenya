@@ -265,6 +265,16 @@ def category_page(
         select(func.count()).select_from(compared_subq)
     ).one() or 0
 
+    # Noindex category views that shouldn't compete with the base URL:
+    #   - Any filter active (?brand=…&storage=…) — filtered facet views
+    #     produce combinatorial URL space, textbook noindex territory
+    #   - Zero products for the current view — thin/empty page
+    #   - page > 1 — paginated views duplicate the ranking signal of the
+    #     canonical (page 1) URL; noindex + rel-canonical would be even
+    #     better long-term but this is the low-risk half
+    # Base /c/<slug> with results stays indexed — that's where the
+    # category-level SEO value lives.
+    noindex = bool(active) or total_rows == 0 or page > 1
     return templates.TemplateResponse(
         request,
         "category.html",
@@ -282,5 +292,6 @@ def category_page(
             "total_pages": total_pages,
             "page_size": PAGE_SIZE,
             "total_matching": total_rows,
+            "noindex": noindex,
         },
     )

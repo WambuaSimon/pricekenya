@@ -2,6 +2,11 @@
 {% block title %}{{ category.name }} in Kenya — compare prices — PriceKenya{% endblock %}
 {% block description %}Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants{% if min_price %}. Prices from {{ min_price | kes }}{% endif %}.{% endblock %}
 {% block head_extra %}
+{# Noindex filter/pagination/empty variants — see app/routes/categories.py
+   for the exact conditions. Base URL /c/<slug> with default page stays
+   indexed; anything with ?filter=… or ?page=2 gets noindex,follow so link
+   equity still flows through but the URL doesn't compete with the canonical. #}
+{% if noindex %}<meta name="robots" content="noindex,follow">{% endif %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{% if q %}{{ q }} — {% endif %}PriceKenya{% endblock %}
+{% block head_extra %}
+  {# /search is always noindex,follow — unbounded ?q= URL space would
+     otherwise balloon the "Discovered - not indexed" bucket. See
+     app/routes/pages.py:search for rationale. #}
+  {% if noindex %}<meta name="robots" content="noindex,follow">{% endif %}
+{% endblock %}
 {% block content %}
   <h1 class="text-xl font-semibold mb-4">
     {% if q %}Results for "{{ q }}"{% else %}Popular products{% endif %}

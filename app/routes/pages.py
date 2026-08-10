@@ -248,6 +248,11 @@ def search(request: Request, q: str = "", session: Session = Depends(get_session
         return templates.TemplateResponse(
             request, "partials/_product_grid.html", {"rows": rows}
         )
+    # Always noindex the search page. The URL space is unbounded (any q= is a
+    # valid page), and thin/empty-result variants would balloon the
+    # "Discovered - not indexed" bucket. Standard SEO practice — Wikipedia,
+    # Amazon, prisjakt all noindex their /search. Bare /search with no query
+    # is functionally a duplicate of home, also noindex-worthy.
     return templates.TemplateResponse(
-        request, "search.html", {"rows": rows, "q": q_clean}
+        request, "search.html", {"rows": rows, "q": q_clean, "noindex": True}
     )
