@@ -202,6 +202,30 @@ All 7 Shopify merchants (digitalcity, zentech, digitalstore, samsung-brandcart, 
 
 **Outcome**: 6-of-6 broken merchants resolved (5 fixed, 1 deprecated). WooCommerce fetcher no longer silently eats errors. Next stale-merchant outage should be diagnosable from a CI log line rather than a re-run + local-curl loop.
 
+## 8i. Second WC outage triage (2026-08-11)
+
+One week after §8h, `/admin/scrapes` flagged 4 more merchants stale (+ 1 infra blip):
+
+| Merchant | Symptom in CI | Local (KE IP) reality | Fix | PR |
+|---|---|---|---|---|
+| wc-tclke-ke (87 prior) | `RetryError[HTTPStatusError]` on every leg | `curl_cffi` returns 200 with 198KB DOM per page, selectors intact | `client_type: "cffi"` | #16 |
+| wc-zuka-ke (42 prior) | `RetryError[Timeout]` — packets dropped at network layer | LiteSpeed firewall drops GHA IPs before any HTTP handshake; even Playwright/Render pool shares the same burned IPs | **Deprecated**. Categories covered by Hotpoint / Fivestar / Housewife's Paradise / Kilimall / Jumia. | #14 |
+| wc-housewife-ke | 200 + JS-refresh challenge shell served to GHA IPs by WP Rocket / bot mitigation | Both plain httpx AND curl_cffi return the real 750KB WooCommerce HTML | `client_type: "cffi"` (same tactic as tclke) | #15 |
+| patabay-ke (435 prior) | Zero-yield in ~7s with NO diagnostic prints; Cloudflare IP-reputation blocking | curl_cffi from KE IP yields 788 listings across 13-page catalog | Bigger fix — see below | #17 |
+| `all-laptops` | `psycopg.OperationalError: Network is unreachable` on Neon IPv6 addresses | N/A (infrastructure) | No action — transient | — |
+
+**Pattern this week:** every non-deprecated failure was CI IP-reputation-based, and every one solved with `cffi` (Chrome TLS impersonation) or `playwright-stealth`. Kenyan merchants are progressively rolling out bot-posture rules; regex/selectors are fine.
+
+**patabay-ke fix (PR #17) was more than one line:**
+- Added a `client_type` parameter to the shared `fetch_wc_store_catalog` (`scrapers/common/wc_store_api.py`) — mirrors the pattern in `scrapers/common/woocommerce.py`.
+- Added page-1 diagnostic prints to every silent-return branch (GET exception, HTTP 4xx/5xx, JSON parse fail, empty products). Previously the WC Store API scraper ate all failure signatures silently — same class of blindness §8h/§8g addressed for woocommerce.py + shopify.py.
+- New `_extract_json_payload` helper strips Chromium's `<pre>JSON</pre>` wrapper so `json.loads` works on both raw-httpx bodies and Playwright-navigated ones.
+- Switched patabay to `client_type="playwright-stealth"`, bumped `max_pages` 60 → 15, added Chromium install gate.
+
+**Worktree gotcha for future /batch runs:** worker prompts that include `cd ~/work/pricekenya` move OUT of the assigned isolated worktree back into the main working copy — one worker's initial edit landed in the main worktree on the wrong branch and had to be re-applied. Fix in future batches: use `cd $CLAUDE_WORKTREE_PATH` or omit `cd` entirely.
+
+**Cumulative merchant loss YTD:** 7 Shopify (§8g) + 1 techonline (§8h) + 1 zuka (§8i). All three loss causes fundamentally need paid infrastructure (residential proxy pool) to revive. Every other outage was fixed with a config flip.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
