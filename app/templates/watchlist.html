@@ -11,11 +11,12 @@
     <ul class="space-y-3">
       {% for item in items %}
         <li class="bg-white border rounded-lg p-3 flex items-center gap-4 dark:bg-slate-900 dark:border-slate-800">
-          <a href="/p/{{ item.product.slug }}" class="shrink-0 w-16 h-16 bg-slate-100 rounded flex items-center justify-center overflow-hidden dark:bg-slate-800">
+          <a href="/p/{{ item.product.slug }}" class="shrink-0 w-16 h-16 bg-slate-100 rounded relative overflow-hidden dark:bg-slate-800">
+            <span class="absolute inset-0 flex items-center justify-center text-2xl opacity-70">
+              {{ product_placeholder_icon(item.product) }}
+            </span>
             {% if item.product.image_url %}
-              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="object-contain w-full h-full" referrerpolicy="no-referrer">
-            {% else %}
-              <span class="text-slate-300 text-[10px] dark:text-slate-600">no image</span>
+              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="relative object-contain w-full h-full" referrerpolicy="no-referrer" onerror="this.style.display='none'">
             {% endif %}
           </a>
           <div class="min-w-0 flex-1">
