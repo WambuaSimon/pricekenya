@@ -28,13 +28,22 @@ MERCHANT_META = {
 # Patabay uses `theater` as a top-level bucket that mixes home theater
 # systems AND some AV accessories. Their `laptop` (singular) is another
 # quirk. Both are in UNIVERSAL_CATEGORY_MAP so no override needed.
-# Cap max_pages higher because their catalog is genuinely big.
+#
+# 2026-08-11: patabay's Cloudflare posture started blocking GHA IPs at the
+# TLS / IP-reputation layer — curl_cffi returned nothing in CI even
+# though the same code hits HTTP 200 with 1284 products from a KE
+# residential IP. Switched to `client_type="playwright-stealth"` which
+# runs a real headless Chromium and clears the challenge cleanly (same
+# path wc-hisense-kenya-ke already uses successfully from CI). Playwright
+# per-request cost is ~5s so max_pages must stay tight; the catalog is
+# ~13 pages at per_page=100 so 15 is enough with headroom for growth.
 
 
 async def fetch_all() -> AsyncIterator[RawListing]:
     async for r in fetch_wc_store_catalog(
         MERCHANT_META["base_url"],
         MERCHANT_META["slug"],
-        max_pages=60,  # per_page=100 × 60 = 6k products ceiling
+        max_pages=15,  # per_page=100 × 15 = ~1500 ceiling, catalog is ~1284
+        client_type="playwright-stealth",
     ):
         yield r

@@ -28,7 +28,12 @@ import json
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
-from scrapers.common.base import CffiPoliteClient, RawListing
+from scrapers.common.base import (
+    CffiPoliteClient,
+    PlaywrightPoliteClient,
+    PoliteClient,
+    RawListing,
+)
 
 # WooCommerce category slug → PriceKenya leaf. Insertion order matters
 # ONLY when two entries would route the same product to different leaves
@@ -219,6 +224,27 @@ def _route(categories: list[dict], override_map: dict[str, str] | None = None) -
     return None
 
 
+def _extract_json_payload(text: str) -> str:
+    """Return the JSON payload out of `text`.
+
+    Plain HTTP clients (httpx / curl_cffi) get the raw response body — so
+    `text` IS the JSON string already. The Playwright client, however,
+    navigates to the URL like a browser, and Chromium wraps the JSON
+    response in `<html><head></head><body><pre style="...">…</pre></body></html>`.
+    We unwrap that when it's present so the caller can json.loads the
+    return value regardless of which client fetched it.
+    """
+    if (text or "").lstrip()[:1] in ("[", "{"):
+        return text
+    # Only import selectolax when we actually need it — same reason base.py
+    # defers heavy imports (keeps environments without the parser importable
+    # for other paths).
+    from selectolax.parser import HTMLParser
+
+    pre = HTMLParser(text).css_first("pre")
+    return pre.text() if pre else text
+
+
 async def fetch_wc_store_catalog(
     base_url: str,
     merchant_slug: str,
@@ -226,30 +252,80 @@ async def fetch_wc_store_catalog(
     override_category_map: dict[str, str] | None = None,
     per_page: int = 100,
     max_pages: int = 40,
+    client_type: str = "cffi",
 ) -> AsyncIterator[RawListing]:
     """Iterate `/wp-json/wc/store/v1/products` and yield RawListings.
 
     Pagination stops when either (a) the response has fewer results than
     per_page, (b) X-WP-TotalPages says we've served the last page, or
     (c) max_pages is hit as a safety cap.
+
+    `client_type` picks the HTTP client:
+      - "cffi" (default): curl_cffi with Chrome TLS impersonation. Works
+        for most Cloudflare-shielded WC stores.
+      - "playwright-stealth": headless Chromium with anti-fingerprint
+        patches. Escalation path for merchants whose Cloudflare posture
+        blocks the GHA IP pool even with cffi's TLS impersonation (patabay
+        exhibited a 7-second zero-yield in CI on 2026-08-10 while cffi
+        worked cleanly from KE residential — same IP-reputation signature
+        as wc-hisense-kenya-ke, which already runs on this path
+        successfully). Much slower — cap `max_pages` accordingly.
+      - "playwright": same as above without stealth patches.
+      - "polite": plain httpx. Only useful for merchants with no bot
+        posture at all (mostly historical; kept for parity with the
+        WooCommerce HTML helper).
     """
     base = base_url.rstrip("/")
     api = f"{base}/wp-json/wc/store/v1/products"
-    client = CffiPoliteClient()
+    if client_type == "playwright-stealth":
+        client = PlaywrightPoliteClient(stealth=True)
+    elif client_type == "playwright":
+        client = PlaywrightPoliteClient()
+    elif client_type == "polite":
+        client = PoliteClient()
+    else:
+        client = CffiPoliteClient()
     seen: set = set()
     try:
         for page in range(1, max_pages + 1):
+            page_url = f"{api}?per_page={per_page}&page={page}"
             try:
-                resp = await client.get(f"{api}?per_page={per_page}&page={page}")
-            except Exception:  # noqa: BLE001 — network flake, stop the loop
+                resp = await client.get(page_url)
+            except Exception as exc:  # noqa: BLE001 — network flake, stop the loop
+                # Diagnostic on page 1 so a merchant that started returning
+                # timeouts / 403s from CI IPs doesn't look identical to a
+                # legitimately empty catalog. Same pattern as woocommerce.py.
+                if page == 1:
+                    print(
+                        f"[wc-store] {merchant_slug} page1 GET failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
                 return
             if resp.status_code >= 400:
+                if page == 1:
+                    body_head = (resp.text or "")[:200].replace("\n", " ")
+                    print(
+                        f"[wc-store] {merchant_slug} page1 HTTP {resp.status_code}, "
+                        f"body head: {body_head!r}"
+                    )
                 return
             try:
-                products = json.loads(resp.text)
-            except Exception:  # noqa: BLE001 — WAF page, HTML error etc.
+                products = json.loads(_extract_json_payload(resp.text))
+            except Exception as exc:  # noqa: BLE001 — WAF page, HTML error etc.
+                if page == 1:
+                    body_head = (resp.text or "")[:200].replace("\n", " ")
+                    print(
+                        f"[wc-store] {merchant_slug} page1 JSON parse failed "
+                        f"({type(exc).__name__}: {exc}); status {resp.status_code}, "
+                        f"body head: {body_head!r}"
+                    )
                 return
             if not isinstance(products, list) or not products:
+                if page == 1:
+                    print(
+                        f"[wc-store] {merchant_slug} page1 empty products "
+                        f"(status {resp.status_code}, type={type(products).__name__})"
+                    )
                 return
             try:
                 total_pages = int(resp.headers.get("X-WP-TotalPages") or 0)

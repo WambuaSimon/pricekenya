@@ -138,7 +138,7 @@ jobs:
           - wc-housewife-ke     # kitchen appliances (long — may need retry)
           - wc-armco-ke         # Kenyan brand appliances
           - newmatic-ke         # WC Store API scraper (was wc-*) — built-in kitchen appliances
-          - patabay-ke          # WC Store API scraper — unblocked (theme hid prices from cards)
+          - patabay-ke          # WC Store API scraper — Playwright-stealth (Cloudflare blocks GHA IPs on cffi)
           - wc-nextbuy-ke       # refurbished phones
           - pricepoint-ke       # WC Store API scraper (was wc-*)
           - wc-phoneshop-ke     # phones + gaming accessories
@@ -164,7 +164,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya')
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
