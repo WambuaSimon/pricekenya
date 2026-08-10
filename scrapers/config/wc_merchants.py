@@ -230,28 +230,16 @@ WC_MERCHANTS: dict[str, dict] = {
     # The shared fetch_woocommerce_category helper works off the card, so
     # every listing dropped for lack of a .price element. Bringing this
     # merchant online would need a per-product-page fetcher (Hotpoint style).
-    "zuka-ke": {
-        "meta": {"slug": "zuka-ke", "name": "Zuka Electronics", "base_url": "https://zuka.co.ke"},
-        # LiteSpeed's Bot Verification (reCAPTCHA challenge page) fires on
-        # GitHub Actions IPs — plain httpx got a 403 challenge shell and
-        # yielded ZERO from the 2026-08-04 cron. Same URLs 200 fine from
-        # residential IPs (16+ blender listings locally). Chrome TLS
-        # impersonation via curl_cffi unblocks the same pattern used for
-        # megatech-ke / phoneshop-ke / ramtons / brandcart.
-        "client_type": "cffi",
-        "leaf_to_urls": {
-            "audio": ["https://zuka.co.ke/product-category/sound-systems/bluetooth-speakers"],
-            "blenders": ["https://zuka.co.ke/product-category/blenders"],
-            "cooking": ["https://zuka.co.ke/product-category/cookers", "https://zuka.co.ke/product-category/hobs", "https://zuka.co.ke/product-category/in-built-cookers"],
-            "phone-tablet-accessories": ["https://zuka.co.ke/product-category/accessories"],
-            "phones": ["https://zuka.co.ke/product-category/mobile-phones"],
-            # showcase-chillers is a display fridge category despite the "case" substring
-            # tripping the accessories keyword — route to refrigerators.
-            "refrigerators": ["https://zuka.co.ke/product-category/freezer", "https://zuka.co.ke/product-category/showcase-chillers"],
-            "tvs": ["https://zuka.co.ke/product-category/televisions"],
-            "washers-dryers": ["https://zuka.co.ke/product-category/washing-machines"],
-        },
-    },
+    # zuka-ke deprecated 2026-08-11: LiteSpeed firewall now silently drops
+    # GitHub Actions Azure IPs at the network layer — every category fetch
+    # exits as RetryError[Future ... raised Timeout] with no HTTP response,
+    # even via curl_cffi's Chrome TLS impersonation (the 2026-08-04 fix).
+    # From CI's POV the site is unreachable; residential-proxy Playwright
+    # is the only path back and isn't cost-justified for a 42-listing
+    # mid-tier catalog whose categories are deeply covered by Hotpoint /
+    # Fivestar / Housewife's Paradise / Kilimall / Jumia. URLs still return
+    # 200 with intact WC product cards from residential IPs, so the entry
+    # is drop-not-restructure — restore verbatim if the block ever lifts.
     # techstore-ke moved to scrapers/merchants/techstore.py (WC Store API path).
     "devicestech-ke": {
         "meta": {"slug": "devicestech-ke", "name": "Devices Technology Store", "base_url": "https://www.devicestech.co.ke"},

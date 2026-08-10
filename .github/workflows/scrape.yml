@@ -122,7 +122,9 @@ jobs:
           - wc-smartphoneskenya-ke
           - wc-tclke-ke
           - wc-zurimall-ke
-          - wc-zuka-ke
+          # wc-zuka-ke deprecated 2026-08-11: LiteSpeed firewall silently drops
+          # GHA IPs at network layer (RetryError[Future ... raised Timeout]);
+          # curl_cffi no longer bypasses. See wc_merchants.py for rationale.
           - techstore-ke        # WC Store API scraper (was wc-*)
           - wc-devicestech-ke
           - wc-nairobilaptops-ke
