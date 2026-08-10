@@ -307,6 +307,14 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "housewife-ke": {
         "meta": {"slug": "housewife-ke", "name": "Housewife's Paradise", "base_url": "https://housewifesparadise.com"},
+        # WP Rocket + bot-mitigation on housewifesparadise.com serves a
+        # JS-refresh shell (`setTimeout(...window.location.reload...)`) to
+        # scripted clients on GitHub Actions IPs — plain httpx yielded ZERO
+        # from CI while local repro with either httpx or curl_cffi returned
+        # 20+ product cards per page. Chrome TLS impersonation via curl_cffi
+        # bypasses the challenge, same tactic as megatech-ke / phoneshop-ke
+        # / ramtons / zuka-ke. Selectors and URLs unchanged.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://housewifesparadise.com/product-category/bluetooth-speakers"],
             "blenders": ["https://housewifesparadise.com/product-category/small-domestic-appliances/blenders", "https://housewifesparadise.com/product-category/small-domestic-appliances/hand-mixers", "https://housewifesparadise.com/product-category/small-domestic-appliances/juicers"],
