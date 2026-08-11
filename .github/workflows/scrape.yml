@@ -114,8 +114,8 @@ jobs:
           - wc-fivestar-ke
           - wc-jojabo-ke
           - wc-le-ke
-          - wc-megatech-ke
-          - wc-nairobitvshop-ke
+          - wc-megatech-ke        # playwright-stealth (was cffi; JS-refresh challenge escalated 2026-08-11)
+          # wc-nairobitvshop-ke deprecated 2026-08-11 — see wc_merchants.py
           - wc-pixels-ke
           - wc-quest-ke
           - wc-smartdevices-ke
@@ -164,7 +164,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke'
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}

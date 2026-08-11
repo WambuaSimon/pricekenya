@@ -105,21 +105,21 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "megatech-ke": {
         "meta": {"slug": "megatech-ke", "name": "Megatech Electronics", "base_url": "https://megatechelectronics.co.ke"},
-        # Category pages 200 fine from residential IPs but plain httpx
-        # from GitHub Actions got a stripped/challenge shell — Chrome TLS
-        # impersonation unblocks them (same tactic as phoneshop-ke /
-        # ramtons / brandcart).
+        # Category pages 200 fine from residential IPs. Bot posture has
+        # escalated in stages:
+        #   - 2026-08-04: plain httpx got a stripped shell → moved to cffi
+        #   - 2026-08-11: cffi now gets a JS-refresh challenge shell too
+        #     (setTimeout(...window.location.reload...)). Only Playwright
+        #     with stealth can execute the JS and land on the real page.
+        #     Same escalation seen for housewife-ke, and same fix as
+        #     patabay-ke / wc-hisense-kenya-ke.
         #
         # 2026-08-04 catalog audit: /smartphones has 16 pages of SKUs;
         # the shared fetcher caps at 3, so each per-brand feed (samsung,
         # tecno, oppo…) is enumerated separately to reach the full ~300
         # phone catalog. /laptops was entirely missing (57+ SKUs). Empty
-        # categories (cameras/*, gaming/*, audio/microphones|speakers,
-        # accessories/car-chargers, smartwatches — no parser anyway) are
-        # excluded: each costs 3 wasted requests and enlarges the failure
-        # window on flaky CI hits (the shared fetcher swallows request
-        # errors silently, so a single bad 55s window zero-yields the leg).
-        "client_type": "cffi",
+        # categories were excluded.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": [
                 "https://megatechelectronics.co.ke/product-category/audio",
@@ -423,13 +423,13 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://hisense-kenya.co.ke/product-category/washing-machines"],
         },
     },
-    "nairobitvshop-ke": {
-        "meta": {"slug": "nairobitvshop-ke", "name": "Nairobi TV Shop", "base_url": "https://nairobitvshop.co.ke"},
-        "leaf_to_urls": {
-            "audio": ["https://nairobitvshop.co.ke/product-category/headphones", "https://nairobitvshop.co.ke/product-category/portable-speakers", "https://nairobitvshop.co.ke/product-category/soundbars"],
-            "laptops": ["https://nairobitvshop.co.ke/product-category/laptops-desktops"],
-            "phone-tablet-accessories": ["https://nairobitvshop.co.ke/product-category/accessories"],
-            "tvs": ["https://nairobitvshop.co.ke/product-category/television", "https://nairobitvshop.co.ke/product-category/tv-mounts"],
-        },
-    },
+    # nairobitvshop-ke deprecated 2026-08-11 — compound failure:
+    #   1. GHA IPs get ConnectTimeout at the network layer (same LiteSpeed-
+    #      style packet drop as zuka-ke; residential-proxy-only fix).
+    #   2. /product-category/tvs/ + /television/ both return 404 even from
+    #      KE residential IPs — the leaf_to_urls have gone stale on top of
+    #      the CI block.
+    # TV catalog is deeply covered elsewhere: Hotpoint, TCL Kenya, Ramtons,
+    # Dixons, Fivestar, Housewife's Paradise. Not worth per-URL rediscovery
+    # + residential proxy to revive.
 }
