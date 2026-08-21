@@ -55,6 +55,18 @@ class PoliteClient:
         await self._client.aclose()
 
 
+def _is_js_refresh_shell(html: str) -> bool:
+    """True when `html` is a bot-mitigation stub that reloads itself.
+
+    Signature (housewife-ke, megatech-ke — WP Rocket / LiteSpeed style):
+    a near-empty document whose only script is
+    `setTimeout(function(){window.location.reload();}, 5000)`. A real
+    WooCommerce category page is 100s of KB, so the size bound keeps this
+    from matching a genuine page that happens to call reload() somewhere.
+    """
+    return "window.location.reload" in html and len(html) < 20_000
+
+
 class PlaywrightPoliteClient:
     """Headless Chromium wrapper for sites behind JS-challenge shields
     (Cloudflare Turnstile etc.) that curl_cffi's TLS impersonation can't
@@ -118,6 +130,30 @@ class PlaywrightPoliteClient:
             except Exception:  # noqa: BLE001
                 pass
             html = await page.content()
+            if _is_js_refresh_shell(html):
+                # WP Rocket / bot-mitigation shells (housewife-ke, megatech-ke)
+                # self-reload via `setTimeout(...window.location.reload...,
+                # 5000)`. Both waits above complete BEFORE that timer fires —
+                # the shell makes no requests, so `networkidle` resolves almost
+                # immediately — which means the read above captured the shell,
+                # not the real page. Wait out the reload and re-read. Only paid
+                # when the shell is actually served (i.e. on blocked CI IPs),
+                # so Turnstile merchants see no extra cost.
+                await asyncio.sleep(8)
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=10000)
+                except Exception:  # noqa: BLE001
+                    pass
+                html = await page.content()
+                if _is_js_refresh_shell(html):
+                    # Raise rather than return the shell: the @retry above gets
+                    # two more attempts on the same browser context (so any
+                    # cookie the challenge did set carries over), and if all
+                    # three fail the leg dies loudly instead of zero-yielding.
+                    raise RuntimeError(
+                        f"JS-refresh challenge unresolved on {url} "
+                        f"(status={resp.status if resp else 0})"
+                    )
             status = resp.status if resp else 0
             await asyncio.sleep(self._delay)
             # DO NOT reject on status alone. Cloudflare frequently serves

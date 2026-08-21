@@ -15,7 +15,11 @@ from __future__ import annotations
 
 import pytest
 
-from scrapers.ingest import ScraperYieldTooLow, _assert_yield_healthy
+from scrapers.ingest import (
+    MIN_PRIOR_LISTINGS_FOR_CHECK,
+    ScraperYieldTooLow,
+    _assert_yield_healthy,
+)
 
 
 def test_zero_yield_on_established_merchant_raises() -> None:
@@ -61,13 +65,30 @@ def test_growth_is_accepted() -> None:
 def test_small_merchant_below_floor_skipped() -> None:
     """Merchants below the MIN_PRIOR floor are skipped so brand-new
     merchants (prior=0) don't false-alarm on their first run."""
-    # 15 listings on record < 20 floor → no check even if yield is 0.
+    # Derived from the constant rather than hardcoded: the floor moved
+    # 20 → 5 on 2026-08-21 (finetech-ke sat under the old one and
+    # zero-yielded green for 400h), and this test silently encoded 20.
     _assert_yield_healthy(
-        merchant_slug="newbie-ke", prior_count=15, yielded_count=0
+        merchant_slug="newbie-ke",
+        prior_count=MIN_PRIOR_LISTINGS_FOR_CHECK - 1,
+        yielded_count=0,
     )
     _assert_yield_healthy(
         merchant_slug="newbie-ke", prior_count=0, yielded_count=0
     )
+
+
+def test_small_merchant_at_floor_still_checked() -> None:
+    """A merchant sitting exactly on the floor is in scope — the 5-19
+    listing band is where the single-leg full-catalog scrapers live, and
+    zero there is a real failure (dead domain, bot block), not a quiet
+    first run."""
+    with pytest.raises(ScraperYieldTooLow):
+        _assert_yield_healthy(
+            merchant_slug="finetech-ke",
+            prior_count=MIN_PRIOR_LISTINGS_FOR_CHECK,
+            yielded_count=0,
+        )
 
 
 def test_one_yielded_row_is_enough() -> None:

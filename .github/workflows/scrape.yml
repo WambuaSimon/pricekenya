@@ -110,7 +110,8 @@ jobs:
           # WooCommerce batch — one leg per merchant so each gets its own
           # 30-min budget. Bundled `all-wc` hit the timeout at 14 merchants.
           - wc-dixons-ke
-          - finetech-ke         # WC Store API scraper
+          # finetech-ke deprecated 2026-08-21: finetech.co.ke is NXDOMAIN
+          # (domain lapsed, not a bot block). See wc_merchants.py.
           - wc-fivestar-ke
           - wc-jojabo-ke
           - wc-le-ke
@@ -135,7 +136,7 @@ jobs:
           - audiocom-ke         # WC Store API scraper (was wc-*)
           - wc-camerastore-ke   # camera specialist
           - wc-eamobitech-ke    # cameras + computers
-          - wc-housewife-ke     # kitchen appliances (long — may need retry)
+          - wc-housewife-ke     # kitchen appliances — Playwright-stealth (JS-refresh challenge got past cffi 2026-08-21)
           - wc-armco-ke         # Kenyan brand appliances
           - newmatic-ke         # WC Store API scraper (was wc-*) — built-in kitchen appliances
           - patabay-ke          # WC Store API scraper — Playwright-stealth (Cloudflare blocks GHA IPs on cffi)
@@ -164,7 +165,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke'
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}

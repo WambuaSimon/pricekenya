@@ -44,8 +44,15 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://le.co.ke/product-category/smart-digital-tvs"],
         },
     },
-    # finetech-ke moved to scrapers/merchants/finetech.py (WC Store API path).
-    # Kept as `finetech-ke` target in ingest.py (not the wc-* prefix).
+    # finetech-ke deprecated 2026-08-21 — the merchant is gone, not blocked:
+    # finetech.co.ke is NXDOMAIN at both 8.8.8.8 and 1.1.1.1 (the domain
+    # lapsed; finetech.ke is an unrelated parked host on Namecheap shared
+    # hosting). CI printed `[wc-store] finetech-ke page1 GET failed:
+    # RetryError[...DNSError]` on every run since ~2026-08-05 but the leg
+    # still exited 0 — see MIN_PRIOR_LISTINGS_FOR_CHECK in scrapers/ingest.py.
+    # Only 12 listings; catalog (Infinix/Tecno/Oppo phones + HP/Lenovo
+    # laptops) is fully covered by Jumia / Kilimall / Phone Place / Avechi.
+    # scrapers/merchants/finetech.py deleted along with this entry.
     "dixons-ke": {
         "meta": {"slug": "dixons-ke", "name": "Dixons", "base_url": "https://www.dixons.co.ke"},
         "leaf_to_urls": {
@@ -316,12 +323,21 @@ WC_MERCHANTS: dict[str, dict] = {
         "meta": {"slug": "housewife-ke", "name": "Housewife's Paradise", "base_url": "https://housewifesparadise.com"},
         # WP Rocket + bot-mitigation on housewifesparadise.com serves a
         # JS-refresh shell (`setTimeout(...window.location.reload...)`) to
-        # scripted clients on GitHub Actions IPs — plain httpx yielded ZERO
-        # from CI while local repro with either httpx or curl_cffi returned
-        # 20+ product cards per page. Chrome TLS impersonation via curl_cffi
-        # bypasses the challenge, same tactic as megatech-ke / phoneshop-ke
-        # / ramtons / zuka-ke. Selectors and URLs unchanged.
-        "client_type": "cffi",
+        # scripted clients on GitHub Actions IPs. Escalated in two stages:
+        #   - 2026-08-11: plain httpx got the shell → moved to cffi (#15)
+        #   - 2026-08-21: cffi now gets the shell too. Every category logged
+        #     `page1 zero cards (status 200, ...window.location.reload...)`
+        #     in run 32485421591 → ScraperYieldTooLow. curl_cffi can't clear
+        #     it because nothing executes the JS.
+        # Only a real browser can ride out the reload, so: playwright-stealth
+        # — the same escalation megatech-ke made on 2026-08-11 (#19) and the
+        # same path patabay-ke / wc-hisense-kenya-ke took. Selectors and URLs
+        # unchanged; both clients still parse 20 cards/page from a
+        # residential IP. Depends on the reload handling in
+        # _is_js_refresh_shell (scrapers/common/base.py) — without it
+        # Playwright reads the DOM before the shell reloads and yields zero
+        # just like cffi.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://housewifesparadise.com/product-category/bluetooth-speakers"],
             "blenders": ["https://housewifesparadise.com/product-category/small-domestic-appliances/blenders", "https://housewifesparadise.com/product-category/small-domestic-appliances/hand-mixers", "https://housewifesparadise.com/product-category/small-domestic-appliances/juicers"],
