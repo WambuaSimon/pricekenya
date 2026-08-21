@@ -1,0 +1,84 @@
+name: Rebuild sitemap
+
+# Keeps CachedSitemap(id=1) fresher than the 24h TTL in app/routes/meta.py,
+# so the lazy in-request rebuild there becomes a safety net that never
+# actually fires in production. See scripts/rebuild_sitemap.py for why that
+# matters (Googlebot eating a ~1MB build on a 0.5-CPU dyno → Cloudflare 524
+# → "sitemap could not be read" in Search Console, plus an unlocked write
+# race when several requests arrive after the TTL lapses).
+
+on:
+  schedule:
+    # 03:15 and 15:15 UTC — roughly 25 min after each scheduled scrape run
+    # finishes. scrape.yml starts at 01:17 / 13:17 and takes ~1h20-1h30, so
+    # each rebuild reads a catalog that was just refreshed. Offset off the
+    # top of the hour for the same reason scrape.yml is.
+    #
+    # Twice daily rather than daily because the scrape cadence is 12h: a
+    # daily rebuild would leave the sitemap describing 12-hour-old stock
+    # state for half of every day, and in-stock status is exactly what
+    # decides whether a product page is indexable.
+    - cron: '15 3,15 * * *'
+  workflow_dispatch:  # allow manual rebuilds from the Actions tab
+
+# Never let two rebuilds overlap — they'd both build the full XML and race
+# to write the same single row. A queued run is pointless work, so cancel it.
+concurrency:
+  group: sitemap
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    # The build is a GROUP BY over ~13.7k listings + ~8.6k products and
+    # ~640KB of serialization. Takes well under a minute on a runner; 10
+    # is headroom for a Neon cold start.
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # _build_sitemap_xml reads settings.base_url for every <loc>, so this
+      # MUST match the host Render serves and the canonical tag emits.
+      # Mismatch here is not a crash — it silently publishes a sitemap of
+      # URLs that redirect, which is the single worst SEO failure mode this
+      # workflow could have. Keep in step with BASE_URL in render.yaml.
+      BASE_URL: https://pricekenya.co.ke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+      - name: Rebuild cached sitemap
+        run: python -m scripts.rebuild_sitemap
+
+  notify:
+    # Same Telegram path as scrape.yml. A silently-failing sitemap rebuild
+    # is invisible until Search Console notices weeks later, which is
+    # exactly the 400h-blind-spot pattern from CONTEXT.md §8j.
+    needs: rebuild
+    if: always() && needs.rebuild.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Notify Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets not configured — skipping notification."
+            exit 0
+          fi
+          MSG="⚠️ PriceKenya sitemap rebuild failed.%0AView: ${RUN_URL}%0A/sitemap.xml will fall back to the in-request build until this is fixed."
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MSG}" \
+            --data "disable_web_page_preview=true" \
+            > /tmp/tg_resp.json
+          if ! grep -q '"ok":true' /tmp/tg_resp.json; then
+            echo "Telegram send failed:"; cat /tmp/tg_resp.json; exit 1
+          fi
+          echo "Telegram notification sent."
