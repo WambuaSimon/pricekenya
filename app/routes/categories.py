@@ -269,12 +269,30 @@ def category_page(
     #   - Any filter active (?brand=…&storage=…) — filtered facet views
     #     produce combinatorial URL space, textbook noindex territory
     #   - Zero products for the current view — thin/empty page
-    #   - page > 1 — paginated views duplicate the ranking signal of the
-    #     canonical (page 1) URL; noindex + rel-canonical would be even
-    #     better long-term but this is the low-risk half
     # Base /c/<slug> with results stays indexed — that's where the
     # category-level SEO value lives.
-    noindex = bool(active) or total_rows == 0 or page > 1
+    #
+    # `page > 1` was in this list until 2026-08-22 and is deliberately not
+    # any more. Paginated views were emitting BOTH `noindex` and a canonical
+    # pointing at a different URL (page 1, because base.html strips the query
+    # string). Google's own guidance calls that pair contradictory — the
+    # noindex can propagate to the canonical target, which here is the page
+    # we most want indexed. It also stranded products that only appear on
+    # page 2+: `noindex,follow` still allows crawling, but a noindexed page
+    # is a weak path and those products were reachable no other way.
+    #
+    # Standard pagination handling instead: let page 2+ be indexable with a
+    # self-referential canonical (see `canonical_url` below). Thin-content
+    # risk is low — each page carries PAGE_SIZE distinct products.
+    noindex = bool(active) or total_rows == 0
+
+    # Self-referential canonical for paginated views, so the page no longer
+    # claims to be a different URL. Filtered views keep pointing at the clean
+    # base URL: they're noindex either way, and self-canonicalising them
+    # would mint a canonical for every facet combination.
+    canonical_url = str(request.url).split("?")[0]
+    if page > 1 and not active:
+        canonical_url = f"{canonical_url}?page={page}"
     return templates.TemplateResponse(
         request,
         "category.html",
@@ -293,5 +311,6 @@ def category_page(
             "page_size": PAGE_SIZE,
             "total_matching": total_rows,
             "noindex": noindex,
+            "canonical_url": canonical_url,
         },
     )
