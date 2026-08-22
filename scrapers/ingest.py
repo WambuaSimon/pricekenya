@@ -16,7 +16,18 @@ from matching.match import match_or_create_product
 from scrapers.common.base import RawListing
 
 # Post-run sanity check threshold. See _assert_yield_healthy for context.
-MIN_PRIOR_LISTINGS_FOR_CHECK = 20
+#
+# Lowered 20 → 5 on 2026-08-21: finetech-ke's domain lapsed (NXDOMAIN) and
+# every scrape since ~2026-08-05 yielded zero, but with only 12 listings on
+# record it sat under the old floor, so the leg exited 0 and nothing went
+# red for 400h. Safe to lower because the false positives this floor exists
+# to suppress come from per-category legs (all-phones, all-tvs…) whose
+# `prior_count` is the merchant's whole-catalog total — Jumia 2301, Kilimall
+# 1679, Hotpoint 217. Those are nowhere near either threshold, so the only
+# merchants whose behaviour changes are the 5-19-listing ones, and every one
+# of those is a single-leg full-catalog scrape where zero genuinely is a
+# failure.
+MIN_PRIOR_LISTINGS_FOR_CHECK = 5
 
 
 class ScraperYieldTooLow(RuntimeError):
@@ -865,11 +876,8 @@ def _run_mybigorder_all() -> None:
 
 # WC Store API merchants — use shared scrapers/common/wc_store_api.py.
 # All full-catalog scrapers so they opt into the zero-yield guard.
-def run_finetech() -> None:
-    from scrapers.merchants.finetech import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
-
-
+# run_finetech removed 2026-08-21 — finetech.co.ke is NXDOMAIN (domain
+# lapsed). See scrapers/config/wc_merchants.py for the full rationale.
 def run_techstore() -> None:
     from scrapers.merchants.techstore import MERCHANT_META, fetch_all
     asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
@@ -1095,8 +1103,7 @@ TARGETS = {
     "all-xiaomi": _run_xiaomi_all,
     "mybigorder-all": run_mybigorder_all,
     "all-mybigorder": _run_mybigorder_all,
-    # WC Store API merchants (see run_finetech etc. above)
-    "finetech-ke": run_finetech,
+    # WC Store API merchants (see run_techstore etc. above)
     "techstore-ke": run_techstore,
     "newmatic-ke": run_newmatic,
     "patabay-ke": run_patabay,
