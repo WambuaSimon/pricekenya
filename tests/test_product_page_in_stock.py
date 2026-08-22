@@ -121,16 +121,26 @@ def test_single_offer_product_has_noindex(client, session):
 
 
 def test_multi_offer_product_is_indexable(client, session):
-    """2+ live offers = worth indexing; no robots meta emitted."""
+    """2+ live MERCHANTS = worth indexing; no robots meta emitted.
+
+    The second live offer has to come from a different merchant. Until
+    2026-08-22 this test added it at merchant 1 and passed, because the
+    rule was a raw offer count — but two listings from one merchant is a
+    duplicate SKU, not a comparison. app/indexing.py counts distinct
+    merchants now; tests/test_sitemap_indexability.py covers the
+    same-merchant case explicitly.
+    """
     slug = _seed_product_with_mixed_offers(session)
-    # Add a second in-stock offer so we have 2 live.
+    # Add a second in-stock offer at a DIFFERENT merchant so we have 2 live.
+    session.add(Merchant(id=3, slug="phoneplace", name="Phone Place",
+                         base_url="https://phoneplace.co.ke"))
     product = session.exec(select(Product).where(Product.slug == slug)).first()
     session.add(
         Listing(
             product_id=product.id,
-            merchant_id=1,
-            url="https://jumia.co.ke/live-2",
-            title_on_merchant="Test Phone (Second Live at Jumia)",
+            merchant_id=3,
+            url="https://phoneplace.co.ke/live-2",
+            title_on_merchant="Test Phone (Live at Phone Place)",
             price_kes=Decimal("18500"),
             in_stock=True,
         )

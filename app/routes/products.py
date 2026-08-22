@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, func, select
 
 from app.config import settings
+from app.indexing import offers_are_indexable
 from app.templating import templates
 from db.models import Click, Listing, Merchant, PriceHistory, Product, ProductRedirect, Review
 from db.session import get_session
@@ -134,6 +135,11 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
         {
             "product": product,
             "offers": offers,
+            # Computed here rather than counted in the template so the
+            # sitemap and the page's robots meta read the same rule from
+            # app/indexing.py. They disagreed until 2026-08-22 and nothing
+            # caught it — see that module's docstring.
+            "is_indexable": offers_are_indexable(offers),
             "min_price": min_price,
             "max_price": max_price,
             "last_updated": last_updated,

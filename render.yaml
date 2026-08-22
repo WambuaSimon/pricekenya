@@ -11,8 +11,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      # MUST be the www host. Cloudflare 301-redirects the apex to www for
+      # every path, and base.html emits a self-referential canonical off the
+      # request host — so it always said www. With BASE_URL on the apex,
+      # every <loc> in the sitemap and the Sitemap: line in robots.txt
+      # pointed at a URL that redirects: 2,553 of 2,553, which is the 1,214
+      # "Page with redirect" in Search Console. Keep in step with the
+      # BASE_URL in .github/workflows/sitemap.yml, which builds the same XML.
       - key: BASE_URL
-        value: https://pricekenya.co.ke
+        value: https://www.pricekenya.co.ke
       - key: SCRAPER_USER_AGENT
         value: PriceKenyaBot/0.1 (+https://pricekenya.co.ke)
       - key: SCRAPER_REQUEST_DELAY_SECONDS
