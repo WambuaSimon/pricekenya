@@ -12,14 +12,14 @@
 {% block head_extra %}
   {# Noindex product pages that don't clear the "worth serving" bar:
        - 0 live offers (all merchants sold-out or delisted — a dead page)
-       - 1 live offer (functionally a merchant redirect, not a comparison)
-     Matches the sitemap's MIN_OFFERS=2 prune threshold from meta.py so
-     Google gets a consistent signal across sitemap + on-page meta. Prevents
-     the "Discovered - currently not indexed" bucket in Search Console from
-     growing every time a scraper flips a listing to out-of-stock. Uses
-     noindex,follow so link equity still flows through category/related
-     nav to the multi-offer pages that DO deserve indexing. #}
-  {% if offers | length < 2 %}
+       - 1 live merchant (functionally a merchant redirect, not a comparison)
+     `is_indexable` comes from app/indexing.py, which is also what the
+     sitemap builder queries — do NOT reintroduce a count here. This comment
+     used to claim it matched meta.py's threshold while counting a different
+     set (in-stock offers vs all listings), and the two drifted 47% apart
+     before anyone noticed. Uses noindex,follow so link equity still flows
+     through category/related nav to the pages that DO deserve indexing. #}
+  {% if not is_indexable %}
     <meta name="robots" content="noindex,follow">
   {% endif %}
   {# Product JSON-LD. Using |tojson for every string keeps us safe from titles

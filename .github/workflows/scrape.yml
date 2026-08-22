@@ -24,7 +24,11 @@ concurrency:
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  BASE_URL: https://pricekenya.co.ke
+  # www, not the apex — Cloudflare 301s apex → www. The alerts job builds
+  # price-drop links and signed unsubscribe URLs off this (alerts/
+  # dispatcher.py), so the apex would send every email recipient through a
+  # redirect. Keep in step with render.yaml and sitemap.yml.
+  BASE_URL: https://www.pricekenya.co.ke
   SCRAPER_USER_AGENT: "PriceKenyaBot/0.1 (+https://pricekenya.co.ke)"
   SCRAPER_REQUEST_DELAY_SECONDS: "2"
   # Alert dispatcher needs these to send real email + sign unsubscribe URLs.

@@ -103,6 +103,41 @@ _SITEMAP_CACHE_TTL_HOURS = 24
 _SITEMAP_HEADERS = {"Cache-Control": "public, max-age=21600, s-maxage=21600"}
 
 
+def _non_empty_category_slugs(session: Session) -> list[str]:
+    """Category slugs whose own subtree contains at least one Product.
+
+    Kept in sitemap order (`Category.sort_order`). One pass up the parent
+    chain rather than a descendant walk per category — 46 categories today,
+    but the walk is O(n²) and this is O(n).
+    """
+    from sqlalchemy import func
+
+    from db.models import Category
+
+    cats = session.exec(select(Category).order_by(Category.sort_order)).all()
+    parent_of = {c.id: c.parent_id for c in cats}
+    slug_of = {c.id: c.slug for c in cats}
+    id_of_slug = {c.slug: c.id for c in cats}
+
+    direct = session.exec(
+        select(Product.category_slug, func.count(Product.id))
+        .group_by(Product.category_slug)
+    ).all()
+
+    non_empty: set[int] = set()
+    for cat_slug, count in direct:
+        if not count:
+            continue
+        # Mark the owning category and every ancestor above it. Products
+        # attach to leaves; the structural parents aggregate them.
+        node = id_of_slug.get(cat_slug)
+        while node is not None and node not in non_empty:
+            non_empty.add(node)
+            node = parent_of.get(node)
+
+    return [slug_of[c.id] for c in cats if c.id in non_empty]
+
+
 def _build_sitemap_xml(session: Session) -> tuple[str, int]:
     """Build the full urlset. Returns (xml_body, url_count).
 
@@ -115,7 +150,7 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
 
     from sqlalchemy import func
 
-    from db.models import Category, Listing
+    from db.models import Listing
 
     base = settings.base_url.rstrip("/")
 
@@ -135,31 +170,49 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
 
     entries: list[tuple[str, str | None, str | None]] = []
     entries.append((f"{base}/", site_lastmod_str, None))
-    for slug in session.exec(select(Category.slug).order_by(Category.sort_order)).all():
+
+    # Only categories that actually have something to show. `categories.py`
+    # sets noindex when `total_rows == 0`, so emitting every slug
+    # unconditionally advertised empty categories that then refused to be
+    # indexed — 7 of 46 on 2026-08-22 (/c/toilets, /c/storage, /c/freezers,
+    # /c/bathroom-fixtures, /c/water-dispensers-coolers, /c/printers-scanners,
+    # /c/games-digital-cards). Same bug class as the product predicate below,
+    # just smaller.
+    #
+    # A parent counts as non-empty when ANY descendant holds products —
+    # non-leaf categories are structural and their landing pages aggregate
+    # the subtree (see the Category model docstring), so `/c/electronics`
+    # is a real page even though no product attaches to it directly.
+    for slug in _non_empty_category_slugs(session):
         entries.append((f"{base}/c/{slug}", site_lastmod_str, None))
 
     # Prune to "sitemap-worthy" products. Emitting every Product row (7,471
     # on 2026-07-18) crowded the crawl budget: ~43% ended up as
     # "Discovered - currently not indexed" in Search Console because Google
     # decided crawling all 7k+ wasn't worth it. Filters:
-    #  1. Require >= MIN_OFFERS live merchant offers. A single-offer page
-    #     is functionally a merchant redirect, not a comparison — Google
-    #     correctly deprioritises them. Local audit: 73% of products
-    #     (5,431 of 7,461) sit at 1 offer, so raising the bar to 2 cuts
-    #     the sitemap by ~73% and concentrates crawl budget on the
-    #     comparison pages that actually justify indexing.
+    #  1. Require >= MIN_DISTINCT_MERCHANTS merchants with an IN-STOCK
+    #     offer — the shared rule in app/indexing.py, the same one
+    #     product.html uses to decide `noindex`. A single-offer page is
+    #     functionally a merchant redirect, not a comparison.
     #  2. Require Product.image_url — no image = thin content = Google
     #     rejects at "Crawled - not indexed".
     #  3. Require max(last_checked_at) within FRESHNESS_DAYS — products
     #     whose every listing hasn't been re-verified in months are almost
     #     certainly delisted upstream.
     #
-    # Single-offer products remain reachable via category pages and search;
+    # The in-stock restriction is the fix for the 2026-08-22 bug: this
+    # query used to count ALL listings while the page counted only in-stock
+    # ones, so 1,175 of the 2,504 product URLs advertised here (46.9%)
+    # served `noindex` when Google fetched them. Filtering the join (rather
+    # than adding another HAVING) is what makes the distinct-merchant count
+    # see live offers only — see indexable_having()'s docstring.
+    #
+    # Sub-threshold products remain reachable via category pages and search;
     # they just don't get promoted to Google via the sitemap.
     from datetime import timedelta as _timedelta
 
-    MIN_OFFERS = 2
-    FRESHNESS_DAYS = 60
+    from app.indexing import FRESHNESS_DAYS, indexable_having
+
     freshness_cutoff = _datetime.utcnow() - _timedelta(days=FRESHNESS_DAYS)
 
     product_rows = session.exec(
@@ -170,8 +223,9 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.image_url.is_not(None))
+        .where(Listing.in_stock.is_(True))
         .group_by(Product.id)
-        .having(func.count(Listing.id) >= MIN_OFFERS)
+        .having(indexable_having())
         .having(func.max(Listing.last_checked_at) >= freshness_cutoff)
         .order_by(func.max(Listing.last_checked_at).desc())
     ).all()

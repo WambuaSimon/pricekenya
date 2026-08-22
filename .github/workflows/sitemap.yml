@@ -41,7 +41,9 @@ jobs:
       # Mismatch here is not a crash — it silently publishes a sitemap of
       # URLs that redirect, which is the single worst SEO failure mode this
       # workflow could have. Keep in step with BASE_URL in render.yaml.
-      BASE_URL: https://pricekenya.co.ke
+      #
+      # www, not the apex: Cloudflare 301s apex → www on every path.
+      BASE_URL: https://www.pricekenya.co.ke
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
