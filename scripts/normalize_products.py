@@ -22,7 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from slugify import slugify
@@ -30,6 +30,7 @@ from sqlalchemy import delete as sa_delete
 from sqlmodel import Session, select
 
 from db.models import Listing, PriceHistory, Product
+from db.redirects import record_redirect
 from db.session import engine
 from matching.base import clean_title
 
@@ -202,10 +203,20 @@ def _apply(session: Session, plan: Plan, creates_meta: dict) -> None:
         new_ids[key] = product.id
 
     # 2. Move listings. Resolve "NEW:<key>" placeholders to real ids.
+    #
+    # While moving, remember which product each listing came FROM and where
+    # it landed. Step 4 deletes the products these listings vacated, and it
+    # needs that mapping to write a ProductRedirect — otherwise every merged
+    # slug becomes a permanent 404. (Reading it here is the only chance:
+    # once listing.product_id is reassigned the original owner is gone.)
+    move_targets: dict[int, Counter] = defaultdict(Counter)
+
     for listing_id, target, _old_key, new_key in plan.moves:
         target_id = new_ids[new_key] if isinstance(target, str) else target
         listing = session.get(Listing, listing_id)
         if listing:
+            if listing.product_id is not None and listing.product_id != target_id:
+                move_targets[listing.product_id][target_id] += 1
             listing.product_id = target_id
             session.add(listing)
 
@@ -224,7 +235,7 @@ def _apply(session: Session, plan: Plan, creates_meta: dict) -> None:
 
     session.flush()
 
-    # 4. Delete now-empty products.
+    # 4. Delete now-empty products, recording a redirect for each.
     for product_id, _key in plan.deletes_products:
         product = session.get(Product, product_id)
         if not product:
@@ -233,8 +244,28 @@ def _apply(session: Session, plan: Plan, creates_meta: dict) -> None:
         remaining = session.exec(
             select(Listing).where(Listing.product_id == product_id).limit(1)
         ).first()
-        if remaining is None:
-            session.delete(product)
+        if remaining is not None:
+            continue
+
+        # Where did this product's listings go? Usually one target; when a
+        # product's listings scattered across several, redirect to the one
+        # that took the most — that's the closest thing to "this product's
+        # successor", and a 301 to the plurality destination beats a 404
+        # for every visitor. Ties break on the lower product id so a re-run
+        # produces the same mapping rather than flapping.
+        targets = move_targets.get(product_id)
+        if targets:
+            winner_id = min(targets.items(), key=lambda kv: (-kv[1], kv[0]))[0]
+            winner = session.get(Product, winner_id)
+            if winner is not None:
+                record_redirect(
+                    session, old_slug=product.slug, new_slug=winner.slug
+                )
+        # No recorded target means the product emptied out via deleted
+        # listings rather than moves — there is no successor to point at,
+        # and a 404 is the honest answer.
+
+        session.delete(product)
 
     session.commit()
 
