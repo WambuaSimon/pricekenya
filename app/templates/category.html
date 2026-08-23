@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ category.name }} in Kenya — compare prices — PriceKenya{% endblock %}
 {% block description %}Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants{% if min_price %}. Prices from {{ min_price | kes }}{% endif %}.{% endblock %}
+{# Overrides base.html, which strips the query string. Paginated views need
+   a canonical that includes ?page=N — pointing page 2 at page 1 while also
+   marking it noindex was the contradictory pair Search Console flagged as
+   "Duplicate, Google chose different canonical than user". See
+   app/routes/categories.py for how this is built. #}
+{% block canonical %}{{ canonical_url }}{% endblock %}
 {% block head_extra %}
-{# Noindex filter/pagination/empty variants — see app/routes/categories.py
-   for the exact conditions. Base URL /c/<slug> with default page stays
-   indexed; anything with ?filter=… or ?page=2 gets noindex,follow so link
-   equity still flows through but the URL doesn't compete with the canonical. #}
+{# Noindex filtered and empty variants — see app/routes/categories.py for
+   the exact conditions. Base /c/<slug> stays indexed, and so does ?page=N
+   now: it carries a self-referential canonical instead of a noindex. #}
 {% if noindex %}<meta name="robots" content="noindex,follow">{% endif %}
 <script type="application/ld+json">
 {

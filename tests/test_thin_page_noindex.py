@@ -122,12 +122,38 @@ def test_category_with_filter_is_noindexed(client, session):
     assert NOINDEX_META in resp.text
 
 
-def test_category_page_two_is_noindexed(client, session):
-    """Paginated views duplicate base ranking signal — noindex. Seed
-    enough products (PAGE_SIZE=48) that page=2 is a real page and not
-    clamped to page 1."""
+def test_category_page_two_is_indexable_with_self_canonical(client, session):
+    """Paginated views are INDEXED, with a canonical pointing at themselves.
+
+    Changed 2026-08-22. They used to emit `noindex,follow` AND a canonical
+    pointing at page 1 (base.html strips the query string) — a pair Google
+    documents as contradictory, since the noindex can propagate to the
+    canonical target, which here is the page we most want indexed. It also
+    stranded products that only appear on page 2+.
+
+    Seed enough products (PAGE_SIZE=48) that page=2 is a real page and not
+    clamped back to page 1.
+    """
     _seed_category_with_products(session, n=60)
     resp = client.get("/c/phones?page=2")
+    assert resp.status_code == 200
+    assert NOINDEX_META not in resp.text
+    assert 'rel="canonical" href="http://testserver/c/phones?page=2"' in resp.text
+
+
+def test_category_page_one_canonical_has_no_page_param(client, session):
+    """Page 1 must not canonicalise to `?page=1` — that would split the
+    signal from the bare /c/<slug> URL the sitemap advertises."""
+    _seed_category_with_products(session, n=60)
+    resp = client.get("/c/phones")
+    assert resp.status_code == 200
+    assert 'rel="canonical" href="http://testserver/c/phones"' in resp.text
+
+
+def test_filtered_view_stays_noindexed(client, session):
+    """Facet combinations remain noindex — that part was always right."""
+    _seed_category_with_products(session, n=60)
+    resp = client.get("/c/phones?brand=samsung")
     assert resp.status_code == 200
     assert NOINDEX_META in resp.text
 
