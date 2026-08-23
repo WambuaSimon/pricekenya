@@ -32,12 +32,48 @@ from __future__ import annotations
 
 import argparse
 from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 from sqlmodel import Session
 
+from app.config import settings
 from app.routes.meta import _build_sitemap_xml
 from db.models import CachedSitemap
 from db.session import engine
+
+
+class UnsafeBaseUrl(RuntimeError):
+    """Raised when BASE_URL isn't a production host — see _assert_safe_base_url."""
+
+
+def _assert_safe_base_url(base_url: str) -> None:
+    """Refuse to publish a sitemap built from a non-production BASE_URL.
+
+    Learned the hard way on 2026-08-22: this script was run from a laptop
+    without BASE_URL set, inherited `http://localhost:8000` from the local
+    .env, and published 1,377 localhost URLs to the production sitemap. It
+    was live for about a minute. Nothing failed — every layer did exactly
+    what it was told.
+
+    The workflow always passes BASE_URL explicitly so it was never at risk;
+    this guard exists for the manual run, which is precisely the case with
+    no review step. `--dry-run` skips it, so you can still inspect a build
+    locally.
+    """
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https":
+        raise UnsafeBaseUrl(
+            f"BASE_URL is {base_url!r} — refusing to write a sitemap that "
+            f"isn't https. Re-run with BASE_URL set to the production host, "
+            f"or pass --dry-run to build without writing."
+        )
+    host = (parsed.hostname or "").lower()
+    if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".local"):
+        raise UnsafeBaseUrl(
+            f"BASE_URL is {base_url!r} — that's a local host. Publishing it "
+            f"would put dev URLs in the production sitemap. Re-run with "
+            f"BASE_URL set to the production host, or pass --dry-run."
+        )
 
 
 def rebuild(session: Session, *, if_older_than: float | None = None, dry_run: bool = False) -> int:
@@ -46,6 +82,11 @@ def rebuild(session: Session, *, if_older_than: float | None = None, dry_run: bo
     Returns the existing row's `url_count` unchanged when `if_older_than`
     is set and the row is still within that many hours.
     """
+    # Check before doing any work — a bad BASE_URL makes the whole build
+    # worthless, so fail on the first line rather than after the GROUP BY.
+    if not dry_run:
+        _assert_safe_base_url(settings.base_url)
+
     # `generated_at` is written with utcnow() by the route, so stay in the
     # same naive-UTC frame — an aware datetime here would raise on the
     # subtraction below. This is the non-deprecated spelling of utcnow().
@@ -106,7 +147,12 @@ def main() -> None:
     args = parser.parse_args()
 
     with Session(engine) as session:
-        rebuild(session, if_older_than=args.if_older_than, dry_run=args.dry_run)
+        try:
+            rebuild(session, if_older_than=args.if_older_than, dry_run=args.dry_run)
+        except UnsafeBaseUrl as exc:
+            # Exit non-zero with a readable one-liner rather than a traceback:
+            # in CI this is what shows up in the Telegram-notified job log.
+            raise SystemExit(f"[sitemap] refusing to publish — {exc}") from None
 
 
 if __name__ == "__main__":

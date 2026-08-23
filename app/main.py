@@ -90,26 +90,43 @@ async def _canonical_trailing_slash(request: Request, call_next):
 
 @app.middleware("http")
 async def _neon_cold_start_retry(request: Request, call_next):
-    """Retry idempotent (GET/HEAD) requests once when Neon compute is cold.
+    """Retry idempotent (GET/HEAD) requests while Neon compute is cold.
 
-    Neon's free-tier Postgres suspends compute after ~5 minutes idle. The
-    first request that arrives during the wake-up window can hit an SSL
+    Neon's Postgres suspends compute after ~5 minutes idle. The first
+    request that arrives during the wake-up window can hit an SSL
     handshake timeout that pool_pre_ping can't catch (the pool is empty,
     so there's no cached socket to validate — the fresh connect is what
-    fails). Sleep briefly to let compute finish booting, then replay.
+    fails). Wait for compute to finish booting, then replay.
 
     POST/PUT/PATCH/DELETE are NOT retried: they may have side effects
     (review submit, alert signup) that must never double-execute. Those
     still surface a 500 to the caller — one retry from the user's side
     is safer than silently repeating a mutation.
+
+    Backoff widened 2026-08-22. This used to sleep 1.5s once. A Neon
+    wake-from-suspend routinely exceeds that, so the single retry raced the
+    cold start, lost, and 500'd — a candidate for the 31 "Server error
+    (5xx)" pages in Search Console. 1.5s + 3s + 6s covers ~10.5s of
+    cold-start, comfortably past the observed wake time, and still bounded
+    well under any sane proxy timeout.
+
+    Replaying via `call_next` is only sound because this is restricted to
+    GET/HEAD. Starlette's BaseHTTPMiddleware gives each call a single-use
+    receive stream, so a request WITH a body could not be replayed this
+    way — the second attempt would see an exhausted stream. Do not relax
+    the method check without restructuring this.
     """
-    try:
-        return await call_next(request)
-    except OperationalError:
-        if request.method not in ("GET", "HEAD"):
-            raise
-        await asyncio.sleep(1.5)
-        return await call_next(request)
+    backoffs = (1.5, 3.0, 6.0)
+    for delay in backoffs:
+        try:
+            return await call_next(request)
+        except OperationalError:
+            if request.method not in ("GET", "HEAD"):
+                raise
+            await asyncio.sleep(delay)
+    # Final attempt — let OperationalError propagate to the 500 handler if
+    # Neon still isn't up. Something is wrong beyond a cold start.
+    return await call_next(request)
 
 
 @app.middleware("http")

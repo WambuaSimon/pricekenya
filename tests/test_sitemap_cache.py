@@ -1,6 +1,15 @@
-"""Cache-first sitemap: first hit builds + writes CachedSitemap(id=1),
-subsequent hits inside the TTL serve the row without re-running the
-product/listing join. Once the TTL expires the next request regenerates.
+"""Read-only sitemap route: it serves CachedSitemap(id=1) and, once a row
+exists, never rebuilds on a request no matter how stale the row is.
+
+Rebuilds belong to .github/workflows/sitemap.yml (03:15 / 15:15 UTC) and
+scripts/rebuild_sitemap.py. Before 2026-08-22 this route regenerated
+inline once the row passed a 24h TTL, which meant Googlebot usually paid
+a GROUP BY over every Listing plus ~640KB of serialization on a 0.5-CPU
+dyno, and every request arriving after the TTL lapsed raced the others to
+write the same single row. Both are candidates for the 31 "Server error
+(5xx)" pages Search Console reports.
+
+The only surviving build path is a genuinely cold DB with no row at all.
 """
 
 from __future__ import annotations
@@ -68,26 +77,49 @@ def test_second_hit_serves_from_cache() -> None:
         assert row_after.generated_at == original_generated_at
 
 
-def test_stale_cache_gets_regenerated() -> None:
+def test_stale_cache_is_served_not_regenerated() -> None:
+    """A stale row is served AS-IS. Yesterday's sitemap beats a timeout,
+    and the cron replaces it within 12h.
+
+    This asserts the opposite of what it did before 2026-08-22 — the
+    regeneration it used to require is exactly the request-path build that
+    had Googlebot paying for the join.
+    """
     c = TestClient(app)
     c.get("/sitemap.xml")
 
-    # Force the cache to look ancient — beyond the 24-hour TTL.
     with Session(engine) as s:
         row = s.get(CachedSitemap, 1)
-        row.generated_at = datetime.utcnow() - timedelta(hours=30)
+        row.body = "<urlset>SENTINEL</urlset>"
+        row.generated_at = datetime.utcnow() - timedelta(days=30)
         s.add(row)
         s.commit()
         stale_generated_at = row.generated_at
 
-    # Even a small sleep guarantees the new generated_at is monotonically later.
     time.sleep(0.05)
+    resp = c.get("/sitemap.xml")
 
-    c.get("/sitemap.xml")
+    assert resp.status_code == 200
+    assert "SENTINEL" in resp.text, "route rebuilt instead of serving the row"
 
     with Session(engine) as s:
         row = s.get(CachedSitemap, 1)
-        assert row.generated_at > stale_generated_at
+        assert row.generated_at == stale_generated_at, "route wrote on a read"
+        assert row.body == "<urlset>SENTINEL</urlset>"
+
+
+def test_cold_db_still_builds_once() -> None:
+    """No row at all — a fresh deploy must not serve nothing until the
+    next cron fires. This is the one remaining inline build."""
+    with Session(engine) as s:
+        assert s.get(CachedSitemap, 1) is None
+
+    resp = TestClient(app).get("/sitemap.xml")
+    assert resp.status_code == 200
+    assert "<urlset" in resp.text
+
+    with Session(engine) as s:
+        assert s.get(CachedSitemap, 1) is not None
 
 
 def test_response_has_product_urls_and_lastmod() -> None:
