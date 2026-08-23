@@ -32,6 +32,7 @@ from db.models import (
     Review,
     ReviewReport,
 )
+from db.redirects import record_redirect
 from db.session import get_session
 from scripts.scrape_health import merchant_health
 
@@ -222,6 +223,12 @@ def approve(
     cand.status = "approved"
     cand.reviewed_at = datetime.utcnow()
     session.add(cand)
+
+    # Record where the slug went BEFORE deleting the row — /p/<source.slug>
+    # is a URL Google has likely indexed, and without this it 404s forever.
+    # Every approve here used to create one; the prod redirect table sat at
+    # 0 rows while Search Console reported 93 of them.
+    record_redirect(session, old_slug=source.slug, new_slug=target.slug)
 
     session.delete(source)
     session.commit()

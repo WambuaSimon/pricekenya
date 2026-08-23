@@ -39,7 +39,8 @@ from collections import defaultdict
 from sqlalchemy import delete, update
 from sqlmodel import Session, func, select
 
-from db.models import Listing, PriceHistory, Product, ProductRedirect
+from db.models import Listing, PriceHistory, Product
+from db.redirects import record_redirect
 from db.session import engine
 from matching.base import slugify
 
@@ -70,34 +71,6 @@ def _select_winner(products: list[Product], listing_counts: dict[int, int]) -> P
             p.id,  # final tiebreak — never mixes across sessions
         )
     return sorted(products, key=sort_key)[0]
-
-
-def _record_redirect(session: Session, *, old_slug: str, new_slug: str) -> None:
-    """Insert-or-update a ProductRedirect row and rewrite any existing rows
-    that pointed at `old_slug` so all chains collapse to at most one hop.
-
-    Before: A → B, then B is merged into C.
-    Without chain-collapse: A → B (stale, B is deleted) — the redirect
-    breaks and product_detail 404s the A visitor.
-    With chain-collapse: rewrite A → C alongside B → C in the same call.
-
-    Idempotent: re-running a merge that already registered the same
-    redirect is a no-op.
-    """
-    # Rewrite chains: anything currently pointing at old_slug should
-    # now point at new_slug.
-    session.execute(
-        update(ProductRedirect)
-        .where(ProductRedirect.new_slug == old_slug)
-        .values(new_slug=new_slug)
-    )
-    # Upsert the primary mapping.
-    existing = session.get(ProductRedirect, old_slug)
-    if existing:
-        existing.new_slug = new_slug
-        session.add(existing)
-    else:
-        session.add(ProductRedirect(old_slug=old_slug, new_slug=new_slug))
 
 
 def _merge_group(
@@ -147,7 +120,7 @@ def _merge_group(
             # Chain-safe: if the winner is later itself merged, we rewrite
             # any redirects that pointed at it to point at the new winner
             # (see the second-pass loop after all merges finish).
-            _record_redirect(session, old_slug=loser.slug, new_slug=winner.slug)
+            record_redirect(session, old_slug=loser.slug, new_slug=winner.slug)
             session.execute(delete(Product).where(Product.id == loser.id))
 
     if not dry_run:

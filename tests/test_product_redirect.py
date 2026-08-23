@@ -139,10 +139,13 @@ def test_backfill_writes_redirect_row(session, monkeypatch):
 def test_record_redirect_collapses_chains(session):
     """If A → B is registered, then later B → C is registered, the A row
     gets rewritten to A → C in one hop."""
-    from scripts.coarsen_phones_backfill import _record_redirect
+    # Moved to db/redirects.py 2026-08-22 so /admin/merge-review and
+    # scripts/normalize_products share it — both used to delete products
+    # without recording a redirect. See tests/test_redirect_on_delete.py.
+    from db.redirects import record_redirect
 
-    _record_redirect(session, old_slug="a", new_slug="b")
-    _record_redirect(session, old_slug="b", new_slug="c")
+    record_redirect(session, old_slug="a", new_slug="b")
+    record_redirect(session, old_slug="b", new_slug="c")
     session.commit()
 
     a = session.get(ProductRedirect, "a")
@@ -154,10 +157,13 @@ def test_record_redirect_collapses_chains(session):
 def test_record_redirect_upserts_existing_mapping(session):
     """Re-running the same merge doesn't duplicate; the existing row
     gets its new_slug updated (idempotent)."""
-    from scripts.coarsen_phones_backfill import _record_redirect
+    # Moved to db/redirects.py 2026-08-22 so /admin/merge-review and
+    # scripts/normalize_products share it — both used to delete products
+    # without recording a redirect. See tests/test_redirect_on_delete.py.
+    from db.redirects import record_redirect
 
-    _record_redirect(session, old_slug="a", new_slug="b")
-    _record_redirect(session, old_slug="a", new_slug="c")
+    record_redirect(session, old_slug="a", new_slug="b")
+    record_redirect(session, old_slug="a", new_slug="c")
     session.commit()
 
     a = session.get(ProductRedirect, "a")
