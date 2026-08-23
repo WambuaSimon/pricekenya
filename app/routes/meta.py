@@ -90,10 +90,12 @@ def robots() -> str:
     )
 
 
-# How stale can the cached sitemap get before we regenerate on the next
-# request? Google re-fetches a sitemap this size every 1-3 days, so a day
-# of staleness is invisible to indexing. 24h caps the expensive
-# product+listing join at one rebuild per day.
+# Retired 2026-08-22 — kept only as documentation of the old behaviour.
+# The /sitemap.xml route no longer regenerates on a request at ANY age;
+# `.github/workflows/sitemap.yml` owns rebuilds (03:15 / 15:15 UTC) and
+# `scripts/rebuild_sitemap.py --if-older-than N` is the manual equivalent.
+# Nothing reads this constant. See the sitemap() docstring for why the
+# request-path rebuild had to go.
 _SITEMAP_CACHE_TTL_HOURS = 24
 
 # Response headers applied to every /sitemap.xml response, whether it
@@ -255,36 +257,45 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
 
 @router.get("/sitemap.xml")
 def sitemap(session: Session = Depends(get_session)) -> Response:
-    """Cache-first sitemap. First request in every _SITEMAP_CACHE_TTL_HOURS
-    window pays the ~5k-URL build cost + writes the result to
-    CachedSitemap(id=1); every subsequent request in that window is a
-    single-row SELECT plus a 1MB Response. The Cloudflare edge cache
-    (`s-maxage=3600`) makes the middle layer of the sandwich even cheaper.
+    """Serve CachedSitemap(id=1). Read-only whenever a row exists.
 
-    On cold DB (no cached row yet) we build inline and cache the result.
-    Deliberately no admin auth on the fallback build — it's the same route
-    Googlebot hits."""
+    This route used to rebuild inline once the row passed
+    _SITEMAP_CACHE_TTL_HOURS. Two things were wrong with that, and both
+    are candidates for the "Server error (5xx)" pages in Search Console:
+
+      1. Whoever ate the rebuild was usually Googlebot — it hits
+         /sitemap.xml more reliably than humans do. A GROUP BY over every
+         Listing joined to every Product plus ~640KB of serialization, on
+         a 0.5-CPU dyno, can approach Cloudflare's 100s origin timeout;
+         Google then reports "sitemap could not be read".
+      2. There was no lock. EVERY request arriving after the TTL lapsed
+         ran its own build and they all raced to write the same single
+         row — row-lock contention on the write path of a live request.
+
+    `.github/workflows/sitemap.yml` now rebuilds the row on a schedule
+    (03:15 / 15:15 UTC), so the TTL has nothing left to trigger. A stale
+    row is served as-is: yesterday's sitemap is a far better answer than a
+    timeout, and the cron will replace it within 12h.
+
+    The ONE case that still builds inline is a genuinely cold DB with no
+    row at all — otherwise a fresh deploy would serve nothing until the
+    next cron. That path can't stampede: it only exists before the first
+    successful build, and it writes the row it just created.
+    """
     from datetime import datetime as _datetime
-    from datetime import timedelta as _timedelta
 
     from db.models import CachedSitemap
 
-    now = _datetime.utcnow()
-    ttl = _timedelta(hours=_SITEMAP_CACHE_TTL_HOURS)
-
     cached = session.get(CachedSitemap, 1)
-    if cached and (now - cached.generated_at) < ttl:
+    if cached:
         return Response(cached.body, media_type="application/xml", headers=_SITEMAP_HEADERS)
 
     body, url_count = _build_sitemap_xml(session)
-
-    if cached:
-        cached.body = body
-        cached.generated_at = now
-        cached.url_count = url_count
-        session.add(cached)
-    else:
-        session.add(CachedSitemap(id=1, body=body, generated_at=now, url_count=url_count))
+    session.add(
+        CachedSitemap(
+            id=1, body=body, generated_at=_datetime.utcnow(), url_count=url_count
+        )
+    )
     session.commit()
 
     return Response(body, media_type="application/xml", headers=_SITEMAP_HEADERS)
