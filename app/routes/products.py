@@ -24,7 +24,7 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
     if not product:
         # Before 404'ing, check if this slug was merged into another product
         # (via scripts/coarsen_phones_backfill or similar). 301 preserves
-        # any Google link equity accrued to the old URL. See CONTEXT.md §8h
+        # any Google link equity accrued to the old URL. See OPERATIONS.md §8h
         # / ProductRedirect model for the outage log.
         redirect = session.exec(
             select(ProductRedirect).where(ProductRedirect.old_slug == slug)

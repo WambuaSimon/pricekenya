@@ -18,3 +18,7 @@ htmlcov/
 playwright-report/
 .python-version
 *.egg-info/
+
+# Private operations log — merchant bot-mitigation details.
+# See the section 8 stub in CONTEXT.md for why this is not tracked.
+OPERATIONS.md

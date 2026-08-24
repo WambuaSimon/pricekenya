@@ -5,7 +5,7 @@ Why this exists:
   currently not indexed". Most are product pages Google judges thin
   because they're basically just an offer table with no descriptive copy.
 - Product.description already renders on /p/* as "About this product" and
-  is included in the Product JSON-LD (see CONTEXT.md §8d). Scrapers were
+  is included in the Product JSON-LD (see OPERATIONS.md §8d). Scrapers were
   supposed to fill it per-merchant but coverage is patchy.
 - Generating 80-120 words per product with real spec context from the
   title unblocks Google's indexing bar without waiting on scraper work.

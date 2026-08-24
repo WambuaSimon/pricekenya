@@ -80,174 +80,26 @@ We can't copy prisjakt's data model. Kenyan merchants don't publish clean feeds.
 - APScheduler runner for local dev
 - README with run + free-tier deploy instructions
 
-## 8. First live-scrape learnings (2026-07-01)
+## 8. Operations log — moved out of this repo (2026-08-24)
 
-Ran `python -m scrapers.ingest jumia-phones` against live Jumia for the first time. Results:
+Sections 8 through 8j (live-scrape learnings, merchant expansion, and the
+2026-07/08 outage triages) now live in `OPERATIONS.md`, which `.gitignore`
+excludes.
 
-- **No blocks.** 3 pages fetched clean with the polite httpx client + 2s delay.
-- **Selectors held.** `article.prd`, `.name`, `.prc`, `img.img` all still work.
-- **Images render.** Jumia CDN URLs embed directly with no hotlink protection.
-- **63 unique phones ingested.** Merged into 64 products (5 pre-existing from seed + 59 new).
-- **Matcher parse rate: 62/63 (~98%).** One title (`"...Battery 2.0+12 MONTHS WARRANTY"`) matched the storage-pair regex on `"0+12"` and produced a phantom `realme|c100i|12` product. Fixed with a `(?<!\.)` lookbehind + `[16..4096]GB` storage-range sanity check. Regression test locked in.
-- **Cross-merchant merges: 5.** All from seed; no scraped Jumia phone happens to match a seed model. Validates that we can't demonstrate the core "compare prices" value prop with one merchant — need Kilimall next.
+Why: that log records, merchant by merchant, which bot-mitigation each one
+runs and exactly what defeats it — read next to the merchant names and base
+URLs in `scrapers/config/`, it is a step-by-step guide for any merchant who
+wants to lock us out. It is also what got this repo picked up by
+proxy-vendor lead-gen scraping GitHub for "residential proxy".
 
-**Kilimall scraper landed 2026-07-01:** Category pages return 500, but `/search?q=smartphone` server-renders 36 clean cards/page as a Nuxt app. 60 listings ingested. **13 products now carry both Jumia + Kilimall offers** — the core "compare prices" value prop is now demonstrable on real data. Biggest observed gap: Samsung A07 4/128GB shows 38% price difference (likely bad Kilimall data — motivates the counterfeit/lowball flag from the v1 roadmap). Known gap: Kilimall images are lazy-loaded and not in initial HTML; listings from Kilimall show no thumbnail until we either parse `window.__NUXT__` state or hit product detail pages.
+Two things this move does NOT do, both deliberate:
 
-## 8b. Merchant expansion sprint (2026-07-05 → 2026-07-06)
-
-Grew merchant coverage from 2 → 12 across two sessions. All numbers are local sqlite listing counts after the matcher runs.
-
-| # | Merchant | Slug | Scraper approach | Listings | Session added |
-|---|---|---|---|---|---|
-| 1 | Jumia Kenya | `jumia-ke` | httpx + selectolax, category pages | 1024 | prior |
-| 2 | Kilimall Kenya | `kilimall-ke` | httpx + Nuxt hydration parse, `/search?q=` | 774 | prior |
-| 3 | Naivas | `naivas-ke` | curl_cffi + Livewire `wire:snapshot` regex | 121 | 2026-07-05 |
-| 4 | Phone Place Kenya | `phoneplace-ke` | curl_cffi + WooCommerce `.product-wrapper` | 163 | 2026-07-05 |
-| 5 | Phones Store Kenya | `phonesstore-ke` | httpx + same WooCommerce theme (no CF wall) | 37 | 2026-07-05 |
-| 6 | Quickmart | `quickmart-ke` | curl_cffi + Growcer PHP, `/4301` bootstrap cookie | 165 | 2026-07-06 |
-| 7 | Carrefour Kenya | `carrefour-ke` | curl_cffi + Next.js RSC escaped-JSON parse | 135 | 2026-07-06 |
-| 8 | Xiaomi Kenya | `xiaomi-ke` | curl_cffi + custom WooCommerce, `product_cat-*` routing | 48 | 2026-07-06 |
-
-**Multi-offer products across the site: 280 → 414 (+134 = +48%).** That's the number of Product rows carrying offers from >1 merchant — the core "compare prices" story. Two products now show side-by-side offers from 4 merchants each (e.g. Redmi 15C: Jumia + Kilimall + Quickmart + Xiaomi Kenya).
-
-**Key infra added:** `curl_cffi>=0.7` + a new `CffiPoliteClient` in `scrapers/common/base.py`. Chrome TLS impersonation defeats Cloudflare (Naivas, Phone Place) and Akamai (Carrefour) cleanly; ~2s polite delay retained. Plain `httpx.PoliteClient` still fine for unshielded merchants (Kilimall, Phones Store).
-
-**Site-specific quirks worth remembering:**
-- **QuickMart** uses `?page-N` (hyphen, not `=`) — Growcer/Yo!Grocery pagination. Standard `?page=2` silently re-serves page 1 (cost 30 minutes to discover).
-- **Carrefour** is a Next.js SPA; parse the escaped-JSON RSC payload (`\"productId\":`), not the visual HTML — prices come as integers, no comma parsing.
-- **Xiaomi Kenya** (`xiaomistores.co.ke`) has flat product URLs (`/redmi-15c/`), NOT `/product/<slug>/` like most WooCommerce sites. Category routing via `product_cat-<slug>` classes on the `<li>`, specificity-ordered (model-family first, generic last).
-- **Naivas** encodes product cards in Livewire `wire:snapshot` markers; anchor tags span multiple lines so regex needs `re.DOTALL`.
-
-**Blocked/deferred:**
-- **mi.com/ke** stays an SPA shell (no KSh in HTML shell); **xiaomi-store.co.ke** stays 403-blocked even with Chrome impersonation. `xiaomistores.co.ke` is the cleanest Xiaomi source available.
-- **Carrefour phones/tablets/wearables** live under a *separate* top-level category tree (not `NFKEN4000000`) — v0 only covers the Electronics & Appliances parent. Tree ID capture needed.
-- Older merchant scrapers (Hotpoint, Ramtons, Avechi, iStore, Gadget World, Masoko) have code but 0 rows in local sqlite. May be producing on prod Neon via the GitHub Actions cron — not investigated yet.
-
-## 8c. Frontend polish (2026-07-06)
-
-- **Dark mode**: Tailwind CDN configured with `darkMode: 'class'`. Small no-FOUC boot script reads `localStorage.theme` and system preference before first paint. Sun/moon toggle in header persists the choice. All templates got `dark:` variants (backgrounds, borders, text hierarchy, price-history canvas stroke).
-
-## 8d. Tester feedback pass (2026-07-07)
-
-Round of fixes from 5 testing buddies. Shipped:
-
-- **Search empty-state**: clearing the search box now returns the multi-offer showcase (same query as home page), not a blank grid. `app/routes/pages.py` — with LIKE-arg escaping added while I was there.
-- **"Best price" badge**: cheapest offer on `/p/*` now gets a green tint + `Best price` chip. Offers were already sorted `price_kes ASC` in `products.py`, so it's purely a template change (`{% if loop.first %}`).
-- **Cookie-based watchlist**: HMAC-signed `watchlist` cookie stores the alert IDs a browser has created (HttpOnly, Secure, SameSite=Lax, 1yr). New `GET /watchlist` route + template lists the tracked products. Sidebar and header gain a Watchlist link only when the cookie is present. Unsubscribe endpoint prunes the id from the cookie too. Signing key = `SECRET_KEY` (shared with unsubscribe tokens). Privacy Policy §6 updated to disclose it.
-- **Product description**: added `Product.description TEXT NULL` (migration `add_product_description.py`), rendered on `/p/*` as "About this product", included in Product JSON-LD when present. Scrapers still to be updated per-merchant.
-- **Left sidebar nav** (mobile UX): horizontal scroll-to-hidden-items nav replaced with off-canvas sidebar. Desktop (md+) shows a persistent 224px column on the left; mobile shows a hamburger in the header that toggles a slide-in drawer with backdrop + ESC/click-out to close. `_category_nav.html` deleted, `_sidebar_nav.html` added. Outer wrapper widened to `max-w-7xl` to make room for the column.
-
-Deferred (v2 territory): visitor reviews, merchant self-serve JSON/XML feed, home page grouped-by-category top-3 layout.
-
-## 8f. Solar & power-backup MVP (2026-07-07)
-
-Added `power-energy` top-level category with 3 leaves: `inverters`, `solar-panels`, `solar-batteries`. Kenya-specific opportunity (unreliable grid + off-grid rural + boda charging), high AOV, brand+model canonical.
-
-- **Matcher** (`matching/solar_energy.py`) — one module, three `expected_type` variants (`inverter` / `solar-panel` / `solar-battery`). Canonical key formats:
-  - `inverter:<brand>:<watts>[:<topology>]` — watts required, topology (hybrid / pure-sine / modified / off-grid / grid-tie) optional.
-  - `panel:<brand>:<watts>[:<cell_type>]` — watts required, cell type (mono / poly / bifacial / thin-film) optional.
-  - `battery:<brand>:<capacity_ah>[:<chemistry>][:<voltage>v]` — at least one of {Ah, chemistry} required.
-  - Handles `kW`/`kVA`/`VA`/`W`/`watts` unit variants; rejects solar "kits" from all three leaves (kits are their own product category, not to be confused with pure panel/battery/inverter listings).
-  - Rejects the usual accessory noise (cables, connectors, brackets, MC4 connectors, car/AA/watch batteries, power banks).
-- **Scrapers**:
-  - **Jumia**: `/inverters/` (real category) + `/solar-panels/` (real category) + `/catalog/?q=solar+battery` / `?q=lithium+battery` / `?q=deep+cycle+battery` searches (no dedicated battery category).
-  - **Kilimall**: search-based (`solar inverter`, `pure sine wave inverter`, `hybrid inverter`, `solar panel`, `monocrystalline solar panel`, `solar battery`, `lithium battery`, `deep cycle battery`).
-  - **Hotpoint**: scaffolded (`fetch_inverters` / `fetch_solar_panels` / `fetch_solar_batteries`) but disabled because their /solar-*/ URLs return 200 with empty categories as of 2026-07-07 — site no longer surfaces solar in nav. One-line flip in `LEAF_TO_URLS` to re-enable when they restock.
-- **Ingest wiring**: `run_jumia_inverters` / `run_kilimall_inverters` etc.; combined `all-inverters` / `all-solar-panels` / `all-solar-batteries` targets (Jumia + Kilimall only for now). Added to `_run_all` and to the GH Actions `scrape.yml` matrix.
-- **Frontend**: `power-energy` top-level got a ⚡ icon in `NAV_ICONS` so it shows in the sidebar as soon as any listing lands.
-- **Dry-run parse rates** (40-listing samples): jumia-inverters 37 %, kilimall-inverters 30 %, jumia-panels 27 %, kilimall-panels 27 %, jumia-batteries 35 %, kilimall-batteries 37 %. Rejections are dominated by unknown brands (Kenyan-import OEMs), solar kits (correctly filtered), and products missing key specs. **Solarmax** dominates the Kenyan market and is well-covered.
-
-Next: run scrapers against Neon via GH Actions, watch how many multi-offer products materialise, iterate matcher brand list from unmatched titles.
-
-## 8e. MyBigOrder scraper (2026-07-07)
-
-Added `scrapers/merchants/mybigorder.py` — Kenyan multi-vendor marketplace (mybigorder.com). Server-rendered PHP (Active eCommerce CMS template family). No Cloudflare, uses plain `PoliteClient`. Prices already in KSh.
-
-- One URL per PriceKenya leaf: `phones`, `tablets`, `phone-tablet-accessories`, `laptops`, `tvs`, `cameras`, `audio`, `cooking` — set `category_slug` at fetch time.
-- Two mixed appliance buckets (`large-appliances-txwkq`, `small-appliances-zf9qd`) — route by title keyword (kettles/toasters/blenders/irons for small; refrigerators/freezers/washers/water-dispensers for large).
-- Pagination via `?page=N`. Site's own paginator only exposes page=2, but higher pages return a "featured" bloc of ~36 products that all appear on page 1 too. Scraper dedupes by URL and stops when a page adds zero new URLs (with a 20-page safety cap).
-- Card regex parses container `.col.border-right.border-bottom.has-transition.hov-shadow-out.z-1`, then extracts `<a href="/product/...">`, image url + alt for title, `addToWishList(<id>)` for SKU, and `<span class="fw-700 text-primary">KSh<amount>` for price.
-- Registered as `mybigorder-all` / `all-mybigorder` in `TARGETS`, added to `_run_all`, added `all-mybigorder` row to the GH Actions scrape matrix.
-- Dry run on Simon's local: parser handled the real HTML cleanly; 4 categories yielded 200 listings before the sample cutoff (phones 37, tablets 16, phone-tablet-accessories 35, laptops 112). Laptops on mybigorder includes chargers/adapters — the downstream matcher will drop the ones that don't parse as brand+model.
-
-## 8g. Shopify batch deprecated from CI (2026-07-28)
-
-All 7 Shopify merchants (digitalcity, zentech, digitalstore, samsung-brandcart, laptopclinic, vividgold, badili — ~2,398 listings combined) stopped scraping ~2026-07-20. Diagnosis and decision:
-
-- **Root cause**: Shopify's platform edge rate-limits `/products.json` per IP. GH Actions Azure IPs return HTTP 429 with body `local_rate_limited`. curl_cffi Chrome impersonation doesn't help — it's IP-reputation-based, not TLS-fingerprint-based.
-- **Path Render tried and failed**: routed the batch through Render's Frankfurt IP via a new `/internal/scrape/{target}` endpoint (`app/routes/internal.py`). Render's DC IP is *also* rate-limited (shared pool with other Render tenants who scrape Shopify heavily). Same 429s.
-- **Path A tried and failed**: aggressive 429-aware retry (5 attempts, 30-120s waits, respects Retry-After). Rate limit turned out to be sustained not transient — retry just hangs longer without succeeding. Reverted (it also slowed down non-Shopify CffiPoliteClient users on transient errors).
-- **Landed on Path C**: removed the `render_shopify` job from `scrape.yml`, deleted the manual `scrape-shopify.yml` workflow. Shopify merchants will decay via the normal FRESHNESS_DAYS window and drop out of the sitemap / product pages naturally.
-- **Left in place for future re-enable**: `/internal/scrape/{target}` endpoint (self-diagnostic — captures stdout to the response). Route the scrape through a residential proxy client (ScraperAPI, Bright Data, ~$30/mo entry tier) when ad revenue justifies it. The trigger + endpoint are ready; only the client class needs to change.
-- **Impact assessment**: the 7 merchants are dominated by refurbished phones (Badili) and Samsung reseller (BrandCart). Both categories already have solid coverage from Jumia + Kilimall + Phone Place. Loss is uncomfortable (~13% of merchant count) but not fatal to the value prop.
-
-## 8h. WooCommerce merchant outage triage (2026-08-04)
-
-`/admin/scrapes` flagged 6 non-Shopify merchants stale — all `wc-*` matrix legs failing with `ScraperYieldTooLow — yielded ZERO listings but had N on record`. Traced across the last 3 scheduled scrape runs (2026-08-03 → 2026-08-04). Root causes clustered into 3 categories, all fixed in one parallel batch (PRs #1-#5 from six worker agents):
-
-| Merchant | Root cause | Fix | Prior → post |
-|---|---|---|---|
-| **solarstore-ke** | WordPress frontend throwing "critical error" on every `/product-category/*` (HTTP 500). `/wp-json/wc/store/v1/products` returned clean JSON. | Migrated to shared WC Store API scraper (`scrapers/merchants/solarstore.py` new file). Same escape hatch previously used for finetech / techstore / audiocom / patabay / newmatic. Renamed matrix leg `wc-solarstore-ke` → `solarstore-ke`. | 0 → 46 listings |
-| **smartphoneskenya-ke** | GH Actions Azure IPs got HTTP 200 with empty catalog. Same site returned 133 products to residential IPs on plain httpx. | One-line: `client_type: "cffi"`. Chrome TLS impersonation defeats the CI-IP filter. | 0 → 133 (locally verified; CI-only failure) |
-| **zuka-ke** | LiteSpeed "Bot Verification" reCAPTCHA challenge page (HTTP 403) on `/product-category/*` for scripted clients. | One-line: `client_type: "cffi"`. Same as smartphoneskenya. | 0 → yielding |
-| **megatech-ke** | Not a hard break — intermittent CI failures + shared fetcher silently swallowed exceptions (see below). Also: `/smartphones` had 16 pages but `wc_batch.py` caps at 3, so most SKUs were invisible. | Expanded `leaf_to_urls` with per-brand feeds (samsung, tecno, oppo, iphone…) + added missing `laptops` leaf + dropped merchant-side empty categories. Retained `client_type: "cffi"`. | 235 → 407 unique listings |
-| **overtech-ke** | Cloudflare Turnstile challenge was dropped by the merchant. Playwright was overkill (running ~25 min/leg near the 30-min CI budget). | Downgraded `client_type: "playwright"` → `"cffi"`. Retains Chrome TLS fingerprint as a defensive shield-hop; unlocks `max_pages=3` for fuller coverage. Removed from Chromium-install gate in workflow. | 220 → 393 listings, 25 min → ~1 min per leg |
-| **techonline-ke** | Strict Cloudflare Managed Challenge ("Just a moment...") on every path except `/robots.txt`. Tried 11 curl_cffi impersonation profiles + Playwright + real installed Chrome + stealth — all 403. | **Deprecated.** Removed from `wc_merchants.py` config and `.github/workflows/scrape.yml` matrix. Catalog is heavily covered by Hotpoint / Fivestar / Dixons / Ramtons anyway. Residential proxy would be needed to revive; not worth the cost. | Removed |
-
-**Systemic fix landed alongside the merchant fixes** (`scrapers/common/woocommerce.py`): the shared fetcher's `except Exception: return` at line 177-178 was silently eating every HTTP failure, so a single 403/429/500 window produced a zero-yield → `ScraperYieldTooLow` with no clue *why*. Diagnosing this outage required re-running each merchant locally with curl to see what the site actually returned. Now the fetcher prints `[wc] <merchant>/<category> page1 GET failed: HTTPError: HTTP 403` and `[wc] ... page1 zero cards (status 200, body head: ...)` so the next outage surfaces the actual reason in the CI log. Same pattern as `scrapers/common/shopify.py`'s page-1 diagnostic (shipped in commit `0d898e6` during the 2026-07-28 Shopify triage).
-
-**Coordinator commit also unblocked CI** by registering `now()` as a Jinja global in `app/templating.py` (`product.html` references `{{ now().year }}` in the title block — without the registration, every rendered product-page test raises `UndefinedError`). Previously staged as WIP that never got committed.
-
-**Not fixed by this batch** — pre-existing "1 NEVER SCRAPED" merchant flagged in `/admin/scrapes`. Different failure mode from the 6 above (never got a first scrape at all, not a regression from a working state). Deferred.
-
-**Outcome**: 6-of-6 broken merchants resolved (5 fixed, 1 deprecated). WooCommerce fetcher no longer silently eats errors. Next stale-merchant outage should be diagnosable from a CI log line rather than a re-run + local-curl loop.
-
-## 8i. Second WC outage triage (2026-08-11)
-
-One week after §8h, `/admin/scrapes` flagged 4 more merchants stale (+ 1 infra blip):
-
-| Merchant | Symptom in CI | Local (KE IP) reality | Fix | PR |
-|---|---|---|---|---|
-| wc-tclke-ke (87 prior) | `RetryError[HTTPStatusError]` on every leg | `curl_cffi` returns 200 with 198KB DOM per page, selectors intact | `client_type: "cffi"` | #16 |
-| wc-zuka-ke (42 prior) | `RetryError[Timeout]` — packets dropped at network layer | LiteSpeed firewall drops GHA IPs before any HTTP handshake; even Playwright/Render pool shares the same burned IPs | **Deprecated**. Categories covered by Hotpoint / Fivestar / Housewife's Paradise / Kilimall / Jumia. | #14 |
-| wc-housewife-ke | 200 + JS-refresh challenge shell served to GHA IPs by WP Rocket / bot mitigation | Both plain httpx AND curl_cffi return the real 750KB WooCommerce HTML | `client_type: "cffi"` (same tactic as tclke) | #15 |
-| patabay-ke (435 prior) | Zero-yield in ~7s with NO diagnostic prints; Cloudflare IP-reputation blocking | curl_cffi from KE IP yields 788 listings across 13-page catalog | Bigger fix — see below | #17 |
-| `all-laptops` | `psycopg.OperationalError: Network is unreachable` on Neon IPv6 addresses | N/A (infrastructure) | No action — transient | — |
-
-**Pattern this week:** every non-deprecated failure was CI IP-reputation-based, and every one solved with `cffi` (Chrome TLS impersonation) or `playwright-stealth`. Kenyan merchants are progressively rolling out bot-posture rules; regex/selectors are fine.
-
-**patabay-ke fix (PR #17) was more than one line:**
-- Added a `client_type` parameter to the shared `fetch_wc_store_catalog` (`scrapers/common/wc_store_api.py`) — mirrors the pattern in `scrapers/common/woocommerce.py`.
-- Added page-1 diagnostic prints to every silent-return branch (GET exception, HTTP 4xx/5xx, JSON parse fail, empty products). Previously the WC Store API scraper ate all failure signatures silently — same class of blindness §8h/§8g addressed for woocommerce.py + shopify.py.
-- New `_extract_json_payload` helper strips Chromium's `<pre>JSON</pre>` wrapper so `json.loads` works on both raw-httpx bodies and Playwright-navigated ones.
-- Switched patabay to `client_type="playwright-stealth"`, bumped `max_pages` 60 → 15, added Chromium install gate.
-
-**Worktree gotcha for future /batch runs:** worker prompts that include `cd ~/work/pricekenya` move OUT of the assigned isolated worktree back into the main working copy — one worker's initial edit landed in the main worktree on the wrong branch and had to be re-applied. Fix in future batches: use `cd $CLAUDE_WORKTREE_PATH` or omit `cd` entirely.
-
-**Cumulative merchant loss YTD:** 7 Shopify (§8g) + 1 techonline (§8h) + 1 zuka (§8i). All three loss causes fundamentally need paid infrastructure (residential proxy pool) to revive. Every other outage was fixed with a config flip.
-
-## 8j. Third stale-merchant triage (2026-08-21)
-
-`scripts.scrape_health` flagged **11 stale merchants**, but only **2 were new breakage** — the other 9 are the already-deprecated §8g/§8h/§8i merchants whose rows sit in the DB decaying, which is the designed behaviour and not a signal. Worth recording because the raw stale count now overstates the problem by 5x; read it against the deprecation list, not on its own.
-
-| Merchant | Stale for | Diagnosis | Action |
-|---|---|---|---|
-| **housewife-ke** | 18h (leg red) | Bot posture escalated **past cffi**. Every category logged `page1 zero cards (status 200, body head: ...setTimeout(...window.location.reload...))` in run `32485421591` → `ScraperYieldTooLow`. Second escalation for this merchant — §8i moved it httpx → cffi only 10 days earlier. | `client_type: "playwright-stealth"` + Chromium install gate. |
-| **finetech-ke** | 400h | **Not a bot block — the merchant is gone.** `finetech.co.ke` is NXDOMAIN at both 8.8.8.8 and 1.1.1.1; the domain lapsed. (`finetech.ke` resolves but is an unrelated parked Namecheap host; Google still serves indexed snapshots of the old site, which is misleading.) CI logged `[wc-store] finetech-ke page1 GET failed: RetryError[...DNSError]` on every run since ~2026-08-05. | **Deprecated.** Removed from matrix + `wc_merchants.py`, `scrapers/merchants/finetech.py` deleted, `run_finetech`/TARGETS entry removed. 12 listings; catalog fully covered by Jumia / Kilimall / Phone Place / Avechi. |
-
-**The finetech lesson — a 400-hour outage with green CI.** `MIN_PRIOR_LISTINGS_FOR_CHECK` was 20. Finetech had 12 listings on record, so `_assert_yield_healthy` returned early, the leg exited 0, and no Telegram alert ever fired. The dead domain was only found by reading `scrape_health` output by hand. **Lowered the floor 20 → 5.** This is safe: the false positives that floor exists to suppress come from per-category legs (`all-phones`, `all-tvs`…) whose `prior_count` is the merchant's *whole-catalog* total — Jumia 2301, Kilimall 1679, Hotpoint 217, all far above either threshold. The only merchants whose behaviour changes are the 5-19-listing band, and every one of those is a single-leg full-catalog scrape where zero genuinely is a failure. `tests/test_yield_check.py` now derives its bound from the constant instead of hardcoding it, which is why the old value went unnoticed.
-
-**Closed a latent race in the Playwright client while we were in here.** `PlaywrightPoliteClient.get` sleeps 4s, then waits for `networkidle` (6s cap), then reads `page.content()`. The WP-Rocket-style shell reloads itself at **5000ms** and issues no network requests, so `networkidle` resolves almost immediately — meaning the read can land at ~t=4.5s and capture the *shell* rather than the reloaded real page.
-
-Note this is a latent race, not an observed failure: megatech runs green on playwright-stealth, which suggests the mitigation usually doesn't serve the shell to a stealth Chromium in the first place (it passes the fingerprint check and gets the real page on the initial navigation). But the window is real and would bite silently — as a zero-yield with a Chromium bill attached — the first time a merchant does serve it. Added `_is_js_refresh_shell()` (`scrapers/common/base.py`): when the returned DOM matches the stub signature (contains `window.location.reload`, under 20KB — a real WC category page is 100s of KB), wait out the reload and re-read; if the shell survives that, raise, so tenacity's 3 attempts run on the same browser context and a persistent block dies loudly instead of silently zero-yielding. Cost is only paid when the shell is actually served, so megatech / patabay / hisense see no regression.
-
-**megatech-ke corroborates the housewife diagnosis — read it before doubting the Playwright cost.** megatech hit this same JS-refresh shell on 2026-08-11 and moved cffi → playwright-stealth in PR #19. It has been green on playwright-stealth every cycle since (run `32485421591`: Chromium install step ran, scrape step clean, zero diagnostics, 317 listings fresh at 6.9h). So the escalation is real, it does not spontaneously resolve, and Playwright is the fix that holds. housewife-ke is the second merchant on the same platform stack to make the same jump 10 days later.
-
-**Methodology warning for whoever triages next.** During this pass the megatech change was briefly, wrongly reverted on the theory that the escalation had been transient and cffi still worked. The error: `git diff main...HEAD` was run against a **stale local `main`** that predated PR #19's squash-merge, which made an already-merged change look like unmerged local work, and the clean CI logs that "proved cffi was fine" were in fact playwright-stealth runs. `git fetch` before reading any branch as unmerged, and confirm which client a green run actually used — the job's step list shows whether `Install chromium` ran.
-
-**Known trade-off on housewife:** `wc_batch.py` sets `max_pages = 1` for Playwright clients (vs 3 for cffi), so page-2/3 coverage is lost. 14 category URLs × ~20 cards/page still covers most of the 167 listings on record, and partial coverage beats the zero it yields today. Revisit if the count drops sharply.
-
-**Not acted on:** `sollatek-ke` shows `never scraped` in `scrape_health`. That's not an outage — it was deliberately never wired up (see the comment in `shopify_merchants.py`: `shop.sollatek.com` sells voltage guards/AVS units with no category overlap). It's a stray `Merchant` row creating a permanent false positive on the health report; delete the row or teach the report to skip merchants with no configured target.
+  - It does not remove the material from git history. Every section is
+    still readable in the public commit log unless that history is
+    rewritten.
+  - It does not cover the per-merchant comments in
+    `scrapers/config/wc_merchants.py`, which explain the same escalations
+    and fixes inline and remain public.
 
 ## 9. Roadmap
 
