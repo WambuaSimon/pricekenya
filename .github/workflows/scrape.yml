@@ -155,7 +155,7 @@ jobs:
           # Frankfurt IP is also rate-limited (shared DC IP pool with heavy
           # scrapers). Neither Path A (aggressive retry) nor Path Render
           # (proxy through Render) solved it. Deferred until we justify a
-          # residential proxy (Path B). See CONTEXT.md §8g. The
+          # residential proxy (Path B). See OPERATIONS.md §8g. The
           # /internal/scrape/{target} endpoint remains available in app/
           # routes/internal.py for a future proxy-backed retry.
     steps:

@@ -1,6 +1,6 @@
 """One-shot backfill: consolidate phone Products split by storage/RAM tiers.
 
-Context — see CONTEXT.md §8h and the phones-category audit on 2026-08-05.
+Context — see OPERATIONS.md §8h and the phones-category audit on 2026-08-05.
 The regex parser + compose_keys previously produced canonical_keys like
 `samsung|s25|128|8`, splitting one phone across 2-9 separate Product rows
 by storage/RAM tier. Every merchant's title format is slightly different,

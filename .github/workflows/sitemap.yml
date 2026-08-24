@@ -58,7 +58,7 @@ jobs:
   notify:
     # Same Telegram path as scrape.yml. A silently-failing sitemap rebuild
     # is invisible until Search Console notices weeks later, which is
-    # exactly the 400h-blind-spot pattern from CONTEXT.md §8j.
+    # exactly the 400h-blind-spot pattern from OPERATIONS.md §8j.
     needs: rebuild
     if: always() && needs.rebuild.result == 'failure'
     runs-on: ubuntu-latest
