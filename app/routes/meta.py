@@ -106,7 +106,11 @@ _SITEMAP_HEADERS = {"Cache-Control": "public, max-age=21600, s-maxage=21600"}
 
 
 def _non_empty_category_slugs(session: Session) -> list[str]:
-    """Category slugs whose own subtree contains at least one Product.
+    """Category slugs whose subtree holds at least one BUYABLE product.
+
+    Buyable, not merely present: a category whose every product is sold out
+    renders zero rows and therefore `noindex`, so advertising it in the
+    sitemap would ask Google to crawl a page that refuses to be indexed.
 
     Kept in sitemap order (`Category.sort_order`). One pass up the parent
     chain rather than a descendant walk per category — 46 categories today,
@@ -114,15 +118,22 @@ def _non_empty_category_slugs(session: Session) -> list[str]:
     """
     from sqlalchemy import func
 
-    from db.models import Category
+    from db.models import Category, Listing
 
     cats = session.exec(select(Category).order_by(Category.sort_order)).all()
     parent_of = {c.id: c.parent_id for c in cats}
     slug_of = {c.id: c.slug for c in cats}
     id_of_slug = {c.slug: c.id for c in cats}
 
+    # Count only products with a LIVE offer, matching what the category page
+    # actually renders (app/routes/categories.py). Counting every product
+    # regardless of stock put `/c/utensils` in the sitemap while the page
+    # rendered zero rows and therefore `noindex` — the same advertise-then-
+    # refuse contradiction #22 removed, reintroduced from the other side.
     direct = session.exec(
-        select(Product.category_slug, func.count(Product.id))
+        select(Product.category_slug, func.count(func.distinct(Product.id)))
+        .join(Listing, Listing.product_id == Product.id)
+        .where(Listing.in_stock.is_(True))
         .group_by(Product.category_slug)
     ).all()
 

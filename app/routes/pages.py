@@ -189,8 +189,17 @@ def home(request: Request, session: Session = Depends(get_session)):
 
     # Hero stats — cheap counts + one MAX().
     product_count = session.exec(select(func.count(Product.id))).one()
+    # Merchants we can actually send a shopper to today, not every merchant
+    # that ever had a row. Counting all of them returned 54 while 11 were
+    # deprecated merchants whose last scrape was 300-800h ago — and the hero
+    # renders this next to "checked {{ last_updated_ago }}", so the unfiltered
+    # figure made a false claim in the most prominent element on the site.
+    # in_stock is the right filter rather than a freshness window: it needs no
+    # new time constant, matches every other surface, and lands on the same
+    # number (43) as "checked in the last 24h".
     merchant_count = session.exec(
         select(func.count(func.distinct(Listing.merchant_id)))
+        .where(Listing.in_stock.is_(True))
     ).one()
     last_listing_check = session.exec(select(func.max(Listing.last_checked_at))).one()
     return templates.TemplateResponse(
