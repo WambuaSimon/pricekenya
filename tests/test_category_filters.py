@@ -77,6 +77,19 @@ def seeded(session: Session) -> Session:
             category_slug="phones",
             specs={"storage_gb": 128, "ram_gb": 6},
         ),
+        # Sold out everywhere. Same brand as the Redmi above and a storage
+        # tier none of the facet tests select, so its presence can't shift
+        # the brand options or any storage assertion — it exists purely to
+        # prove out-of-stock products are dropped.
+        Product(
+            slug="xiaomi-note13-pro-512",
+            canonical_key="xiaomi|note-13-pro|512|12",
+            brand="xiaomi",
+            model="redmi note 13 pro",
+            title="Redmi Note 13 Pro 512GB",
+            category_slug="phones",
+            specs={"storage_gb": 512, "ram_gb": 12},
+        ),
     ]
     for p in products:
         session.add(p)
@@ -95,7 +108,14 @@ def seeded(session: Session) -> Session:
         Listing(product_id=products[2].id, merchant_id=kilimall.id,
                 url="https://kilimall.co.ke/1",
                 title_on_merchant="Redmi Note 13 128GB",
-                price_kes=Decimal("28000"), in_stock=False, last_checked_at=now),
+                price_kes=Decimal("28000"), in_stock=True, last_checked_at=now),
+        # Sold out everywhere. Category pages exclude it entirely (see
+        # tests/test_category_live_offers_only.py); it lives here so the
+        # facet tests below prove they filter on the facet and not on stock.
+        Listing(product_id=products[3].id, merchant_id=kilimall.id,
+                url="https://kilimall.co.ke/2",
+                title_on_merchant="Redmi Note 13 Pro 512GB",
+                price_kes=Decimal("31000"), in_stock=False, last_checked_at=now),
     ]
     for lst in listings:
         session.add(lst)
@@ -141,13 +161,26 @@ def test_price_max_range_facet_filters_on_aggregate(
     assert "Samsung Galaxy A55 256GB" not in r.text  # 52k → out
 
 
-def test_in_stock_bool_facet_drops_out_of_stock(
+def test_out_of_stock_products_are_always_dropped(
     client: TestClient, seeded: Session
 ):
+    """No longer opt-in. This was `?in_stock=1` until 2026-08-25; the facet
+    is gone and the behaviour is unconditional, so the bare URL must drop
+    the sold-out product too."""
+    r = client.get("/c/phones")
+    assert r.status_code == 200
+    assert "Samsung Galaxy A55 128GB" in r.text
+    assert "Redmi Note 13 Pro 512GB" not in r.text
+
+
+def test_stale_in_stock_query_param_is_harmless(
+    client: TestClient, seeded: Session
+):
+    """Bookmarked ?in_stock=1 links must still render, just without effect."""
     r = client.get("/c/phones?in_stock=1")
     assert r.status_code == 200
     assert "Samsung Galaxy A55 128GB" in r.text
-    assert "Redmi Note 13 128GB" not in r.text  # only listing was out of stock
+    assert "Redmi Note 13 Pro 512GB" not in r.text
 
 
 def test_multiple_enum_values_are_or_matched(
@@ -173,4 +206,6 @@ def test_facet_sidebar_renders_available_brand_options(
     assert 'value="xiaomi"' in r.text
     # Universal facets always render.
     assert "Max price (KSh)" in r.text
-    assert "In stock only" in r.text
+    # "In stock only" is deliberately absent: category pages filter to
+    # in-stock unconditionally, so the facet could only ever be a no-op.
+    assert "In stock only" not in r.text

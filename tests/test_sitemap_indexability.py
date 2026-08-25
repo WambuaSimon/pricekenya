@@ -139,10 +139,24 @@ def test_empty_categories_are_not_advertised(session):
                          parent_id=None, sort_order=3))
     session.add(Merchant(id=1, slug="m1", name="M1",
                          base_url="https://m1.example"))
-    session.add(Product(
+    phone = Product(
         slug="a-phone", canonical_key="b|m", brand="b", model="m",
         title="A Phone", category_slug="phones",
         image_url="https://example.com/i.jpg",
+    )
+    session.add(phone)
+    session.commit()
+    session.refresh(phone)
+    # The product needs a LIVE listing to make its category non-empty. Since
+    # 2026-08-25 "non-empty" means "has something buyable", matching what the
+    # category page renders — a category whose stock is all sold out shows
+    # zero rows and goes noindex, so advertising it would recreate the
+    # advertise-then-refuse contradiction from #22.
+    session.add(Listing(
+        product_id=phone.id, merchant_id=1, url="https://m1.example/p",
+        title_on_merchant="A Phone", price_kes=Decimal("10000"),
+        in_stock=True,
+        last_checked_at=datetime.now(UTC).replace(tzinfo=None),
     ))
     session.commit()
 

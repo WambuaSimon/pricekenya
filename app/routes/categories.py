@@ -176,9 +176,25 @@ def category_page(
     active = _parse_filters(request, facets)
     available = _available_values(session, slugs, facets)
 
-    # Base query: same shape as before — Product joined to Listing so we can
-    # aggregate min_price + offer_count. Filters get layered in as WHERE
-    # (enum/bool) or HAVING (range on aggregate) clauses.
+    # Base query: Product joined to Listing so we can aggregate min_price +
+    # offer_count. Filters get layered in as WHERE (enum) or HAVING (range
+    # on aggregate) clauses.
+    #
+    # The in_stock restriction is not optional and not a user facet. Until
+    # 2026-08-25 this aggregated over EVERY listing, so a category card
+    # advertised the cheapest price on record even when that price came from
+    # a merchant we stopped scraping weeks ago. Measured on prod:
+    # 1,793 products showed a price from a deprecated merchant, and 1,477 of
+    # those had no live offer behind them at all. The shopper saw
+    # "KSh 18,500 · 3 offers", clicked, and got a higher price or "No offers
+    # right now" — because product_detail (products.py) filters on in_stock
+    # and this did not.
+    #
+    # Same bug class as the sitemap/noindex mismatch fixed in #22: two
+    # surfaces answering "what offers exist" differently, each plausible on
+    # its own. Every user-facing surface now agrees: this grid, the home grid
+    # (pages.py), the product page (products.py) and the sitemap (meta.py)
+    # all count only in-stock listings.
     q = (
         select(
             Product,
@@ -187,6 +203,7 @@ def category_page(
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
+        .where(Listing.in_stock.is_(True))
     )
 
     for f in facets:
@@ -195,12 +212,11 @@ def category_page(
             continue
         if f.kind == "enum":
             q = _apply_enum(q, f, val)  # type: ignore[arg-type]
-        elif f.kind == "bool" and f.source == "in_stock":
-            # in_stock filter runs against Listing rows — a Product survives
-            # if it has AT LEAST ONE in-stock listing (that's what shoppers
-            # care about; the merchant row on the product page can show the
-            # rest as out-of-stock).
-            q = q.where(Listing.in_stock.is_(True))
+        # NOTE: there is deliberately no `in_stock` branch here any more. The
+        # base query above always restricts to in-stock listings, so the old
+        # facet could only ever be a no-op. A control that visibly does
+        # nothing is worse than no control, so the facet itself is gone from
+        # app/facets.py too. A bookmarked `?in_stock=1` URL is simply ignored.
 
     q = q.group_by(Product.id)
 
@@ -242,6 +258,12 @@ def category_page(
     # totals + a "compared" count (products with 2+ merchants) which is the
     # single stat that directly showcases the site's value prop: how much of
     # this category you can actually cross-shop.
+    #
+    # These carry the same in_stock restriction as the grid above, and they
+    # have to: the grid now shows only products with a live offer, so a
+    # "Products" figure counting the rest would contradict the thing sitting
+    # directly beneath it. Same for "Shops" — a merchant with nothing in
+    # stock is not a shop you can buy from today.
     counts = session.exec(
         select(
             func.count(func.distinct(Product.id)),
@@ -249,14 +271,19 @@ def category_page(
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
+        .where(Listing.in_stock.is_(True))
     ).one()
     product_count, merchant_count = counts
 
-    # "Compared" = products with listings from 2+ distinct merchants.
+    # "Compared" = products with LIVE listings from 2+ distinct merchants.
+    # Deliberately the same rule as app/indexing.py's MIN_DISTINCT_MERCHANTS,
+    # so this figure equals the set of products the sitemap advertises and
+    # the product page lets Google index. Three surfaces, one definition.
     compared_subq = (
         select(Product.id)
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
+        .where(Listing.in_stock.is_(True))
         .group_by(Product.id)
         .having(func.count(func.distinct(Listing.merchant_id)) >= 2)
         .subquery()

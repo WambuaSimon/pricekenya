@@ -38,7 +38,11 @@ class Facet:
 UNIVERSAL: tuple[Facet, ...] = (
     Facet("brand", "Brand", "enum", "brand"),
     Facet("price_max", "Max price (KSh)", "range", "min_price"),
-    Facet("in_stock", "In stock only", "bool", "in_stock"),
+    # "In stock only" removed 2026-08-25. Category pages now restrict to
+    # in-stock listings unconditionally (see the base query in
+    # app/routes/categories.py for why), which left this facet unable to
+    # change anything. A checkbox that does nothing when ticked is worse
+    # than an absent one.
 )
 
 
