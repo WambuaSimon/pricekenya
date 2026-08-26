@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/_icons.html" import icon %}
 {% block title %}{{ category.name }} in Kenya — compare prices — PriceKenya{% endblock %}
 {% block description %}Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants{% if min_price %}. Prices from {{ min_price | kes }}{% endif %}.{% endblock %}
 {# Overrides base.html, which strips the query string. Paginated views need
@@ -8,17 +9,23 @@
    app/routes/categories.py for how this is built. #}
 {% block canonical %}{{ canonical_url }}{% endblock %}
 {% block head_extra %}
-{# Noindex filtered and empty variants — see app/routes/categories.py for
-   the exact conditions. Base /c/<slug> stays indexed, and so does ?page=N
-   now: it carries a self-referential canonical instead of a noindex. #}
+{# Noindex filtered, sorted and empty variants — see app/routes/categories.py
+   for the exact conditions. Base /c/<slug> stays indexed, and so does ?page=N
+   now: it carries a self-referential canonical instead of a noindex. A
+   non-default ?sort= is treated like a filter and gets noindex,follow, so
+   link equity still flows through but the URL doesn't compete with the
+   canonical. #}
 {% if noindex %}<meta name="robots" content="noindex,follow">{% endif %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "Home", "item": "{{ request.base_url._url.rstrip('/') if request else '' }}/"},
-    {"@type": "ListItem", "position": 2, "name": {{ category.name | tojson }}, "item": "{{ request.base_url._url.rstrip('/') if request else '' }}/c/{{ category.slug }}"}
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "{{ request.base_url._url.rstrip('/') if request else '' }}/"}
+    {%- for a in ancestors %},
+    {"@type": "ListItem", "position": {{ loop.index + 1 }}, "name": {{ a.name | tojson }}, "item": "{{ request.base_url._url.rstrip('/') if request else '' }}/c/{{ a.slug }}"}
+    {%- endfor %},
+    {"@type": "ListItem", "position": {{ ancestors | length + 2 }}, "name": {{ category.name | tojson }}, "item": "{{ request.base_url._url.rstrip('/') if request else '' }}/c/{{ category.slug }}"}
   ]
 }
 </script>
@@ -29,10 +36,10 @@
   "@type": "ItemList",
   "numberOfItems": {{ product_count }},
   "itemListElement": [
-    {% for product, _min, _n in rows %}{
+    {% for row in rows %}{
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": {{ (request.base_url._url.rstrip('/') + '/p/' + product.slug) | tojson }}
+      "url": {{ (request.base_url._url.rstrip('/') + '/p/' + row[0].slug) | tojson }}
     }{% if not loop.last %},{% endif %}{% endfor %}
   ]
 }
@@ -40,126 +47,137 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-  {# Same emerald gradient hero as the homepage — visual coherence across
-     landing pages. Category-specific stats (products / merchants / price
-     range) make the hero informative, not just decorative. #}
-  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 sm:p-8 mb-6 shadow-lg shadow-emerald-900/10 dark:shadow-emerald-950/40">
-    <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/25 blur-3xl"></div>
-    <div class="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-teal-300/30 blur-3xl"></div>
 
-    <div class="relative">
-      <h1 class="text-2xl sm:text-3xl font-bold text-white leading-tight tracking-tight">
-        {{ category.name }} in Kenya
-      </h1>
-      <p class="mt-2 max-w-xl text-emerald-50/90 text-sm sm:text-base">
+  {# ---- Breadcrumb ------------------------------------------------------ #}
+  <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-[7px] text-[13px] text-faint pb-4 border-b border-line-soft -mt-2">
+    <a href="/" class="transition hover:text-accent">Home</a>
+    {% for a in ancestors %}
+      <span class="flex text-faint">{{ icon('arrow', 15) }}</span>
+      <a href="/c/{{ a.slug }}" class="transition hover:text-accent">{{ a.name }}</a>
+    {% endfor %}
+    <span class="flex text-faint">{{ icon('arrow', 15) }}</span>
+    <span class="text-ink-2">{{ category.name }}</span>
+  </nav>
+
+  {# ---- Title block + stats --------------------------------------------- #}
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 md:gap-10 py-8">
+    <div>
+      <h1 class="text-[34px] font-semibold tracking-[-0.03em] leading-tight text-ink">{{ category.name }}</h1>
+      <p class="mt-2.5 text-[15.5px] leading-[1.55] text-faint max-w-[58ch] [text-wrap:pretty]">
         {% if product_count %}
-          Compare {{ product_count }} {{ category.name | lower }} across {{ merchant_count }} Kenyan merchants — updated regularly.
+          {{ "{:,}".format(product_count) }} products from {{ merchant_count }} shops.
+          {% if compared_count %}
+            {{ "{:,}".format(compared_count) }} of them are listed by two or more shops,
+            which means you can genuinely cross-shop them.
+          {% endif %}
         {% else %}
-          We're building out this category — check back soon.
+          We're building out this category. Check back soon.
         {% endif %}
       </p>
-
-      {% if product_count %}
-        <div class="mt-5 grid grid-cols-3 gap-2 sm:gap-3 sm:max-w-xl">
-          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(product_count) }}</div>
-            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Products</div>
-          </div>
-          <div class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ merchant_count }}</div>
-            <div class="mt-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">Merchants</div>
-          </div>
-          {# "Compared" is the site's actual value prop — showing the count
-             of products with 2+ merchants tells shoppers how much of this
-             category they can genuinely cross-shop. Info button expands an
-             in-chip explanation on click; the section is overflow-hidden so
-             we grow the chip inline rather than absolutely-positioning a
-             popover that would clip. #}
-          <div data-info-chip class="rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2.5 sm:px-4 sm:py-3">
-            <div class="text-lg sm:text-2xl font-bold text-white leading-none">{{ "{:,}".format(compared_count) }}</div>
-            <div class="mt-1 flex items-center gap-1 text-[10px] sm:text-xs uppercase tracking-wider text-emerald-50/80">
-              <span>Compared</span>
-              <button
-                type="button"
-                data-info-toggle
-                aria-label="What does compared mean?"
-                class="inline-flex w-3.5 h-3.5 sm:w-4 sm:h-4 items-center justify-center rounded-full border border-emerald-50/60 text-emerald-50 text-[9px] font-bold normal-case leading-none hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 transition">
-                i
-              </button>
-            </div>
-            <div data-info-body hidden class="mt-2 text-[10px] sm:text-xs normal-case tracking-normal font-normal text-emerald-50/90 leading-snug">
-              Products with prices from 2 or more merchants — the ones you can actually cross-shop for the best deal.
-            </div>
-          </div>
-        </div>
-      {% endif %}
     </div>
-  </section>
+    {% if product_count %}
+      {# The old "Compared" info-chip popover is gone: the third stat is
+         always visible now and the lede above explains it in words, so the
+         delegated [data-info-toggle] handler has nothing left to toggle. #}
+      <div class="flex gap-7 shrink-0 md:pt-1.5">
+        <div>
+          <div class="font-mono text-[22px] font-semibold text-ink">{{ "{:,}".format(product_count) }}</div>
+          <div class="mt-[3px] text-xs font-semibold tracking-[0.06em] uppercase text-faint">Products</div>
+        </div>
+        <div>
+          <div class="font-mono text-[22px] font-semibold text-ink">{{ merchant_count }}</div>
+          <div class="mt-[3px] text-xs font-semibold tracking-[0.06em] uppercase text-faint">Shops</div>
+        </div>
+        <div>
+          <div class="font-mono text-[22px] font-semibold text-accent">{{ "{:,}".format(compared_count) }}</div>
+          <div class="mt-[3px] text-xs font-semibold tracking-[0.06em] uppercase text-faint">Comparable</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
 
+  {# ---- Child category pills -------------------------------------------- #}
   {% if children %}
-    <div class="flex flex-wrap gap-2 mb-6">
+    <div class="flex flex-wrap gap-2 pb-6">
       {% for child in children %}
         {% set is_current = (child.slug == category.slug) %}
         <a href="/c/{{ child.slug }}"
-           class="text-sm rounded-full border px-3 py-1
-                  {% if is_current %}bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:border-emerald-500 dark:hover:bg-emerald-400
-                  {% else %}bg-white hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700{% endif %}">
+           class="px-3.5 py-[7px] border rounded-full text-[13.5px] font-medium transition
+                  {% if is_current %}border-accent bg-accent-tint text-accent
+                  {% else %}border-line bg-surface text-ink-2 hover:border-accent hover:bg-accent-tint hover:text-accent{% endif %}">
           {{ child.name }}
         </a>
       {% endfor %}
     </div>
   {% endif %}
 
-  {# 2-col layout on lg+: filters sidebar left, grid right. Only render the
-     sidebar if we actually have facets AND products to filter — for empty
-     categories or ones without facets we fall through to the single-col
-     grid to avoid an empty stub column. #}
   {% set show_filters = facets and rows %}
   {% if show_filters %}
-    {# Mobile: "Filter" button in the flow; opens a bottom drawer. #}
-    <div class="lg:hidden mb-4 flex items-center justify-between">
+    {# Mobile: full-width Filters button; opens the existing bottom drawer. #}
+    <div class="lg:hidden mb-4 flex items-center gap-3">
       <button type="button" data-filter-open
-              class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
-        </svg>
-        Filters{% if active_filters %} <span class="text-emerald-700 dark:text-emerald-400">({{ active_filters|length }})</span>{% endif %}
+              class="flex-1 inline-flex items-center justify-center gap-2 min-h-[44px] px-4 border border-line rounded-ctrl bg-surface text-sm font-medium text-ink transition hover:border-accent hover:text-accent">
+        <span class="flex text-accent">{{ icon('filter', 16) }}</span>
+        Filters{% if active_filters %} ({{ active_filters | length }}){% endif %}
       </button>
       {% if active_filters %}
         <a href="/c/{{ category.slug }}"
-           class="text-xs text-emerald-700 hover:underline dark:text-emerald-400">
-          Clear all
-        </a>
+           class="text-[12.5px] font-medium text-accent transition hover:text-accent-hover">Clear all</a>
       {% endif %}
     </div>
 
-    <div class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-6">
-      {# Desktop sidebar. #}
-      <aside class="hidden lg:block">
-        <div class="sticky top-4 rounded-xl border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
+    <div class="lg:grid lg:grid-cols-[252px_minmax(0,1fr)] lg:gap-7 pb-11">
+      <aside class="hidden lg:block self-start sticky top-4">
+        <div class="p-5 border border-line rounded-card bg-surface-2">
           {% include "partials/_filters.html" %}
         </div>
       </aside>
 
       <div>
-        {% include "partials/_product_grid.html" %}
+        {# Result count + sort. The sort is a GET form that carries the
+           active filters through as hidden inputs, so switching sort does
+           not silently clear the sidebar. #}
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <span class="text-sm text-faint">
+            Showing
+            <strong class="font-mono font-semibold text-ink">{{ (page - 1) * page_size + 1 }} to {{ [(page * page_size), total_matching] | min }}</strong>
+            of <span class="font-mono">{{ "{:,}".format(total_matching) }}</span>
+          </span>
+          <form method="get" class="flex items-center gap-2">
+            {% for k, v in request.query_params.multi_items() %}
+              {% if k not in ('sort', 'page') %}
+                <input type="hidden" name="{{ k }}" value="{{ v }}">
+              {% endif %}
+            {% endfor %}
+            <label for="sort" class="text-[13.5px] text-faint">Sort</label>
+            <select id="sort" name="sort" onchange="this.form.submit()"
+                    class="h-9 px-3 border border-line rounded-ctrl bg-surface text-[13.5px] font-medium text-ink cursor-pointer transition hover:border-accent">
+              {% for key, label in sorts.items() %}
+                <option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <noscript><button type="submit" class="h-9 px-3 border border-line rounded-ctrl bg-surface text-[13.5px]">Go</button></noscript>
+          </form>
+        </div>
+
+        {% with grid_class = 'grid-cols-2 lg:grid-cols-3' %}
+          {% include "partials/_product_grid.html" %}
+        {% endwith %}
         {% include "partials/_pagination.html" %}
       </div>
     </div>
 
     {# Mobile drawer. Off-screen by default; toggled by data-filter-open. #}
-    <div data-filter-drawer hidden
-         class="fixed inset-0 z-40 lg:hidden">
-      <div data-filter-close class="absolute inset-0 bg-slate-900/50"></div>
-      <div class="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl dark:bg-slate-900">
-        <div class="mb-3 flex items-center justify-between">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Filters</h2>
+    <div data-filter-drawer hidden class="fixed inset-0 z-40 lg:hidden">
+      <div data-filter-close class="absolute inset-0 bg-black/50"></div>
+      <div class="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-page bg-surface p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
+            <span class="flex text-accent">{{ icon('filter', 16) }}</span>Filters
+          </h2>
           <button type="button" data-filter-close aria-label="Close filters"
-                  class="rounded-md p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
+                  class="inline-flex items-center justify-center w-11 h-11 -mr-2 rounded-ctrl text-faint transition hover:bg-field hover:text-accent">
+            {{ icon('close', 18) }}
           </button>
         </div>
         {% include "partials/_filters.html" %}
@@ -178,33 +196,15 @@
       })();
     </script>
   {% elif rows %}
-    {% include "partials/_product_grid.html" %}
-    {% include "partials/_pagination.html" %}
+    <div class="pb-11">
+      {% with grid_class = 'grid-cols-2 lg:grid-cols-3' %}
+        {% include "partials/_product_grid.html" %}
+      {% endwith %}
+      {% include "partials/_pagination.html" %}
+    </div>
   {% else %}
-    <div class="rounded-lg border bg-white p-8 text-center text-slate-500 text-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">
-      No products in this category yet — check back soon.
+    <div class="p-8 mb-11 border border-line rounded-card bg-surface text-center text-sm text-faint">
+      No products in this category yet. Check back soon.
     </div>
   {% endif %}
-
-  {# Single delegated click handler for any [data-info-chip] on the page.
-     Click the (i) → toggle its sibling explanation. Click anywhere else →
-     close any open explanation. Keeps the interaction accessible without
-     dragging in Alpine. #}
-  <script>
-    (function () {
-      document.addEventListener('click', function (e) {
-        var toggle = e.target.closest('[data-info-toggle]');
-        if (toggle) {
-          var chip = toggle.closest('[data-info-chip]');
-          var body = chip && chip.querySelector('[data-info-body]');
-          if (body) body.toggleAttribute('hidden');
-          e.stopPropagation();
-          return;
-        }
-        document.querySelectorAll('[data-info-body]:not([hidden])').forEach(function (b) {
-          if (!b.contains(e.target)) b.setAttribute('hidden', '');
-        });
-      });
-    })();
-  </script>
 {% endblock %}

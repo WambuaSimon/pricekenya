@@ -1,0 +1,54 @@
+{# Stroke-icon set. Replaces the emoji iconography site-wide.
+
+   Every icon is a 24x24 stroke drawing (fill:none, stroke:currentColor,
+   width 1.7, round caps + joins) so it inherits text colour and stays
+   legible at 13px. Call it as:
+
+       {% raw %}{% from "partials/_icons.html" import icon %}
+       {{ icon('search', 17) }}
+       {{ icon('phones', 21, 'text-accent') }}{% endraw %}
+
+   Path data for everything except `sun`, `menu` and `close` is lifted from
+   the design reference's logic block. Those three are drawn to match
+   because the reference has no dark-mode toggle sun and no mobile drawer.
+
+   Sizes used across the app: 21px category tiles, 16-18px inline,
+   15px breadcrumbs and chevrons, 13-14px badges. #}
+
+{% set _ICON_PATHS = {
+  'search':     '<circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/>',
+  'bell':       '<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/>',
+  'star':       '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9-5.3-3-5.3 3 1.1-5.9L3.5 9.7l5.9-.8z"/>',
+  'arrow':      '<path d="M5 12h13"/><path d="M13 6.5 18.5 12 13 17.5"/>',
+  'chevron':    '<path d="M6 9.5 12 15.5 18 9.5"/>',
+  'down':       '<path d="M12 5v13"/><path d="M6.5 12.5 12 18 17.5 12.5"/>',
+  'filter':     '<path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/>',
+  'check':      '<path d="M5 12.5 9.5 17 19 7"/>',
+  'tag':        '<path d="M13.5 3.5H20V10l-9.5 9.5a2 2 0 0 1-2.8 0l-4.2-4.2a2 2 0 0 1 0-2.8z"/><circle cx="16.5" cy="7" r="1.2"/>',
+  'external':   '<path d="M8 16 16 8"/><path d="M10 8h6v6"/>',
+  'moon':       '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5"/>',
+  'copy':       '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+  'chat':       '<path d="M20 12.5c0 3.9-3.6 7-8 7-1.1 0-2.2-.2-3.1-.6L4 20l1.2-3.4A6.6 6.6 0 0 1 4 12.5c0-3.9 3.6-7 8-7s8 3.1 8 7"/>',
+  'sun':        '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2"/><path d="M12 19.5v2"/><path d="M2.5 12h2"/><path d="M19.5 12h2"/><path d="m5.6 5.6 1.4 1.4"/><path d="m17 17 1.4 1.4"/><path d="m18.4 5.6-1.4 1.4"/><path d="m7 17-1.4 1.4"/>',
+  'menu':       '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+  'close':      '<path d="M6 6 18 18"/><path d="M18 6 6 18"/>',
+  'phones':     '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+  'computing':  '<rect x="3.5" y="5" width="17" height="11" rx="1.5"/><path d="M2 19h20"/>',
+  'tv':         '<rect x="3" y="4.5" width="18" height="12" rx="1.5"/><path d="M8.5 20h7"/>',
+  'audio':      '<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="14" r="3.2"/><circle cx="12" cy="7" r="1"/>',
+  'camera':     '<path d="M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3.2"/>',
+  'appliances': '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="13" r="4.2"/><path d="M8 6.5h3"/>',
+  'gaming':     '<path d="M7.5 8.5h9a4.5 4.5 0 0 1 0 9h-9a4.5 4.5 0 0 1 0-9"/><path d="M8 13h2.5"/><path d="M9.25 11.75v2.5"/><circle cx="15.5" cy="13" r="1"/>',
+  'power':      '<path d="M13.5 2.5 5.5 13.5h5l-1 8 8-11h-5z"/>',
+  'home':       '<path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>'
+} %}
+
+{% macro icon(name, size=17, cls='') -%}
+{%- set paths = _ICON_PATHS.get(name) -%}
+{%- if paths -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+     stroke-linejoin="round" aria-hidden="true"
+     {% if cls %}class="{{ cls }}"{% endif %}>{{ paths | safe }}</svg>
+{%- endif -%}
+{%- endmacro %}

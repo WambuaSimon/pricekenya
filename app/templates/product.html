@@ -101,292 +101,403 @@
   }
   </script>
 {% endblock %}
+{% from "partials/_icons.html" import icon %}
 {% block content %}
-  <div class="grid md:grid-cols-3 gap-6">
-    <div class="md:col-span-1">
-      <div class="bg-white border rounded-lg p-4 dark:bg-slate-900 dark:border-slate-800">
-        {# See _product_grid.html for the fallback rationale (2026-08-09
-           image-audit). Emoji renders behind, img overlays on top; if the
-           merchant CDN 4xx's the URL, the emoji stays visible. #}
-        <div class="aspect-square bg-slate-100 rounded mb-3 relative overflow-hidden dark:bg-slate-800">
-          <span class="absolute inset-0 flex items-center justify-center text-6xl opacity-70">
-            {{ product_placeholder_icon(product) }}
+  {% set shop_count = offers | length %}
+
+  {# ---- Breadcrumb ------------------------------------------------------ #}
+  <nav aria-label="Breadcrumb" class="flex flex-wrap items-center gap-[7px] text-[13px] text-faint pb-4 border-b border-line-soft -mt-2">
+    <a href="/" class="transition hover:text-accent">Home</a>
+    <span class="flex text-faint">{{ icon('arrow', 15) }}</span>
+    <a href="/c/{{ product.category_slug }}" class="transition hover:text-accent">{{ product.category_slug | replace('-', ' ') | title }}</a>
+    <span class="flex text-faint">{{ icon('arrow', 15) }}</span>
+    <span class="text-ink-2 truncate max-w-[40ch]">{{ product.title }}</span>
+  </nav>
+
+  {# ---- Image + price panel --------------------------------------------- #}
+  <section class="grid gap-8 lg:gap-9 lg:grid-cols-[392px_minmax(0,1fr)] py-8">
+    <div class="flex flex-col gap-2.5">
+      <div class="relative aspect-square border border-line rounded-card bg-tile overflow-hidden">
+        <span class="absolute inset-0 flex items-center justify-center px-4 text-center text-[17px] font-semibold text-faint">
+          {{ product_fallback_label(product) }}
+        </span>
+        {% if product.image_url %}
+          <img src="{{ product.image_url }}" alt="{{ product.title }}"
+               referrerpolicy="no-referrer" onerror="this.style.display='none'"
+               class="relative block w-full h-full object-contain p-7">
+        {% endif %}
+      </div>
+      {% if product.image_url and shop_count %}
+        {# The reference names the merchant the image came from. We do not
+           record image provenance — Product.image_url is written by
+           whichever scraper saw the product first and the link back to that
+           merchant is not stored — so the credit stays truthful but
+           unattributed. #}
+        <div class="flex items-center gap-2.5 px-3.5 py-3 border border-line rounded-ctl-lg bg-surface-2">
+          <span class="flex shrink-0 text-accent">{{ icon('tag', 18) }}</span>
+          <span class="text-[13px] leading-[1.45] text-faint">
+            Image supplied by one of the {{ shop_count }} shop{{ '' if shop_count == 1 else 's' }} listing this product.
           </span>
-          {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.title }}"
-              class="relative object-contain w-full h-full"
-              referrerpolicy="no-referrer"
-              onerror="this.style.display='none'">
-          {% endif %}
         </div>
-        <h1 class="text-lg font-semibold">{{ product.title }}</h1>
-        <div class="text-sm text-slate-500 mt-1 dark:text-slate-400">{{ product.brand | title }}{% if product.model and product.model != "unknown" %} · {{ product.model | title }}{% endif %}</div>
+      {% endif %}
+    </div>
+
+    <div>
+      <div class="flex flex-wrap items-center gap-2.5 text-[13px] text-faint">
+        <a href="/c/{{ product.category_slug }}" class="font-semibold text-ink-2 transition hover:text-accent">{{ product.brand | title }}</a>
+        {% if product.model and product.model != "unknown" %}
+          <span>·</span><span>{{ product.model | title }}</span>
+        {% endif %}
         {% if review_count %}
-          <a href="#reviews" class="mt-2 inline-flex items-center gap-1 text-sm text-slate-700 dark:text-slate-200 hover:underline">
-            <span class="text-amber-500" aria-hidden="true">
-              {% set full = avg_rating | int %}
-              {% for _ in range(full) %}★{% endfor %}{% for _ in range(5 - full) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
-            </span>
-            <span class="font-medium">{{ avg_rating }}</span>
-            <span class="text-slate-500 dark:text-slate-400">· {{ review_count }} review{% if review_count != 1 %}s{% endif %}</span>
+          <span>·</span>
+          <a href="#reviews" class="inline-flex items-center gap-1.5 transition hover:text-accent">
+            <span class="flex text-[#C9962B]">{{ icon('star', 14) }}</span>
+            <span class="font-mono font-medium text-ink-2">{{ avg_rating }}</span>
+            <span>({{ review_count }})</span>
           </a>
         {% endif %}
-        {% if min_price %}
-          <div class="mt-3 text-2xl font-bold">{{ min_price | kes }}</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400">
-            {% if all_tied %}same price at{% else %}best price across{% endif %}
-            {{ offers | length }} merchant{% if offers | length != 1 %}s{% endif %}
+      </div>
+      <h1 class="mt-2.5 text-[28px] md:text-[36px] font-semibold tracking-[-0.03em] leading-tight text-ink [text-wrap:balance]">{{ product.title }}</h1>
+
+      {% if offers %}
+        <div class="flex flex-col sm:flex-row items-stretch mt-6 border border-line rounded-card overflow-hidden">
+          <div class="flex-1 px-5 py-[18px] bg-accent-tint">
+            <div class="text-xs font-bold tracking-[0.06em] uppercase text-accent">
+              {% if all_tied %}Same at every shop{% else %}Cheapest today{% endif %}
+            </div>
+            <div class="flex flex-wrap items-baseline gap-2.5 mt-2">
+              <span class="font-mono text-[32px] font-semibold leading-none text-accent">{{ min_price | kes }}</span>
+              <span class="text-sm text-accent-ink-tint">at {{ offers[0].merchant.name }}</span>
+            </div>
           </div>
-          {% if last_updated %}
-            <div class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              Updated {{ last_updated.strftime('%d %b %Y') }}
+          {% if not all_tied and max_price and max_price > min_price %}
+            <div class="sm:w-[190px] shrink-0 px-5 py-[18px] border-t sm:border-t-0 sm:border-l border-line">
+              <div class="text-xs font-bold tracking-[0.06em] uppercase text-faint">Dearest</div>
+              <div class="mt-2">
+                <span class="font-mono text-[22px] font-medium leading-[1.3] text-faint">{{ max_price | kes }}</span>
+              </div>
             </div>
           {% endif %}
+        </div>
+
+        {% set spread = trusted_saving(min_price, max_price) %}
+        {% if spread %}
+          <div class="flex items-center gap-3.5 mt-4 px-[18px] py-3.5 rounded-ctl-lg bg-field">
+            <span class="flex items-center justify-center w-[34px] h-[34px] shrink-0 rounded-ctrl bg-surface text-accent">{{ icon('tag', 18) }}</span>
+            <span class="text-[15px] leading-[1.45] text-ink-2">
+              Same product, <strong class="font-semibold text-ink">{{ spread | kes }}</strong> apart.
+              Buying at the cheapest shop saves {{ (spread / max_price * 100) | round | int }} percent against the dearest.
+            </span>
+          </div>
         {% endif %}
 
-        {# Share strip. WhatsApp button only renders when the number env is
-           set; copy-link always renders (no config needed). #}
-        {% set _share_url = request.url._url if request else '' %}
-        {% set _share_msg = product.title ~ ' — from ' ~ (min_price | kes if min_price else 'KSh —') ~ ' — ' ~ _share_url %}
-        {% set _wa = whatsapp_href(_share_msg) %}
-        <div class="mt-4 flex items-center gap-2">
-          {% if _wa %}
-            <a href="{{ _wa }}" target="_blank" rel="noopener"
-               class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-               aria-label="Share on WhatsApp">
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.45 3.45 1.31 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31c-.82-1.31-1.26-2.83-1.26-4.38 0-4.54 3.7-8.24 8.25-8.24s8.24 3.7 8.24 8.24-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.7-.8-.23-.08-.39-.12-.56.12-.17.25-.64.8-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.49-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.23.9 2.42 1.02 2.59.12.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.44.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.14-1.18-.06-.1-.22-.16-.47-.28z"/>
-              </svg>
-              Share
-            </a>
-          {% endif %}
-          <button type="button" data-copy-link
-                  data-copy-value="{{ _share_url }}"
-                  class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  aria-label="Copy link to this page">
-            <svg data-copy-icon class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-            </svg>
-            <span data-copy-label>Copy link</span>
-          </button>
+        <div class="flex flex-wrap gap-2.5 mt-5">
+          <a href="{{ offers[0].out_url }}" rel="nofollow sponsored" target="_blank"
+             class="flex-1 min-w-[200px] inline-flex items-center justify-center h-12 px-5 rounded-ctl bg-accent text-accent-ink text-[15px] font-semibold transition hover:bg-accent-hover">
+            Go to cheapest shop
+          </a>
+          {# Both of these point at the alert form below: the watchlist is
+             populated by creating an alert (the cookie stores alert ids),
+             so there is no separate add-to-watchlist endpoint to call. #}
+          <a href="#watch"
+             class="inline-flex items-center justify-center gap-2 h-12 px-[18px] border border-line rounded-ctl bg-surface text-[14.5px] font-medium text-ink transition hover:border-accent hover:text-accent">
+            <span class="flex">{{ icon('bell', 17) }}</span>Watch price
+          </a>
+          <a href="#watch" aria-label="Watch this price"
+             class="inline-flex items-center justify-center w-12 h-12 shrink-0 border border-line rounded-ctl bg-surface text-ink-2 transition hover:border-accent hover:text-accent">
+            {{ icon('star', 17) }}
+          </a>
         </div>
-        <script>
-          (function () {
-            // One-time click handler. Uses navigator.clipboard where available
-            // (all modern mobile browsers) and falls back to a hidden textarea
-            // for legacy WebViews (older Android in-app browsers still hit
-            // pricekenya.co.ke via Facebook/WhatsApp embedded views).
-            document.querySelectorAll('[data-copy-link]').forEach(function (btn) {
-              btn.addEventListener('click', function () {
-                var url = btn.getAttribute('data-copy-value') || location.href;
-                var label = btn.querySelector('[data-copy-label]');
-                var done = function () {
-                  if (label) {
-                    var prev = label.textContent;
-                    label.textContent = 'Copied!';
-                    setTimeout(function () { label.textContent = prev; }, 1500);
-                  }
-                };
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                  navigator.clipboard.writeText(url).then(done).catch(function () {});
-                  return;
+      {% else %}
+        <div class="flex items-center gap-3 mt-6 px-[18px] py-4 rounded-ctl-lg bg-field">
+          <span class="flex shrink-0 text-accent">{{ icon('tag', 18) }}</span>
+          <span class="text-[15px] text-ink-2">No shop is listing this product right now.</span>
+        </div>
+      {% endif %}
+
+      {# Share strip. WhatsApp button only renders when the number env is
+         set; copy-link always renders (no config needed). #}
+      {% set _share_url = request.url._url if request else '' %}
+      {% set _share_msg = product.title ~ ' - from ' ~ (min_price | kes if min_price else 'n/a') ~ ' - ' ~ _share_url %}
+      {% set _wa = whatsapp_href(_share_msg) %}
+      <div class="flex flex-wrap items-center gap-2.5 mt-3.5">
+        <span class="text-[13px] text-faint">Send this to someone</span>
+        {% if _wa %}
+          <a href="{{ _wa }}" target="_blank" rel="noopener" aria-label="Share on WhatsApp"
+             class="inline-flex items-center gap-[7px] h-[34px] px-3.5 border border-line rounded-ctrl bg-surface text-[13px] font-medium text-ink-2 transition hover:border-accent hover:text-accent">
+            <span class="flex">{{ icon('chat', 15) }}</span>Share on WhatsApp
+          </a>
+        {% endif %}
+        <button type="button" data-copy-link data-copy-value="{{ _share_url }}"
+                aria-label="Copy link to this page"
+                class="inline-flex items-center gap-[7px] h-[34px] px-3.5 border border-line rounded-ctrl bg-surface text-[13px] font-medium text-ink-2 transition hover:border-accent hover:text-accent">
+          <span class="flex">{{ icon('copy', 15) }}</span>
+          <span data-copy-label>Copy link</span>
+        </button>
+      </div>
+      <script>
+        (function () {
+          // One-time click handler. Uses navigator.clipboard where available
+          // (all modern mobile browsers) and falls back to a hidden textarea
+          // for legacy WebViews (older Android in-app browsers still hit
+          // pricekenya.co.ke via Facebook/WhatsApp embedded views).
+          document.querySelectorAll('[data-copy-link]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var url = btn.getAttribute('data-copy-value') || location.href;
+              var label = btn.querySelector('[data-copy-label]');
+              var done = function () {
+                if (label) {
+                  var prev = label.textContent;
+                  label.textContent = 'Copied';
+                  setTimeout(function () { label.textContent = prev; }, 1500);
                 }
-                var ta = document.createElement('textarea');
-                ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
-                document.body.appendChild(ta); ta.select();
-                try { document.execCommand('copy'); done(); } catch (e) {}
-                document.body.removeChild(ta);
-              });
+              };
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(done).catch(function () {});
+                return;
+              }
+              var ta = document.createElement('textarea');
+              ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+              document.body.appendChild(ta); ta.select();
+              try { document.execCommand('copy'); done(); } catch (e) {}
+              document.body.removeChild(ta);
             });
-          })();
-        </script>
-      </div>
+          });
+        })();
+      </script>
 
-      <div class="bg-white border rounded-lg p-4 mt-4 dark:bg-slate-900 dark:border-slate-800">
-        <div class="text-sm font-medium mb-2">Notify me when the price drops</div>
-        <form
-          hx-post="/alerts"
-          hx-target="this"
-          hx-swap="outerHTML"
-          class="space-y-2">
-          <input type="hidden" name="product_id" value="{{ product.id }}">
-          <input type="email" name="email" required placeholder="you@example.com"
-            class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400">
-          <input type="text" name="target_price_kes" placeholder="Target price (optional)"
-            class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400">
-          <label class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 pt-1 cursor-pointer">
-            <input type="checkbox" name="marketing_opt_in" value="1"
-              class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800">
-            <span>Also email me occasional PriceKenya updates (optional).</span>
-          </label>
-          <button class="w-full rounded bg-slate-900 text-white text-sm py-1.5 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white">Watch price</button>
-          <p class="text-[11px] text-slate-500 dark:text-slate-500 leading-snug pt-1">
-            By clicking Watch price, you agree to our
-            <a href="/privacy" class="underline hover:text-slate-700 dark:hover:text-slate-300">Privacy Policy</a>
-            and
-            <a href="/terms" class="underline hover:text-slate-700 dark:hover:text-slate-300">Terms</a>.
-            You can unsubscribe from any alert email in one click.
-          </p>
-        </form>
-      </div>
-    </div>
-
-    <div class="md:col-span-2">
-      <div class="bg-white border rounded-lg dark:bg-slate-900 dark:border-slate-800">
-        <div class="px-4 py-3 border-b text-sm font-medium dark:border-slate-800">Where to buy</div>
-        <ul class="divide-y dark:divide-slate-800">
-          {# Emerald "Best price" affordance (row highlight, badge, price color)
-             is only meaningful when there's actually a distinguishable best.
-             When every merchant lists the same value it's misleading; when
-             the top N tie at min, all of them get the treatment. #}
-          {% for offer in offers %}
-            {% set is_best = not all_tied and loop.index0 < best_price_count %}
-            <li class="flex items-center justify-between gap-4 px-4 py-3 {% if is_best %}bg-emerald-50/60 dark:bg-emerald-950/30{% endif %}">
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-sm font-medium">{{ offer.merchant.name }}</span>
-                  {% if is_best %}
-                    <span class="inline-block text-[10px] uppercase tracking-wide font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded dark:bg-emerald-900 dark:text-emerald-200">Best price</span>
-                  {% endif %}
-                </div>
-                <div class="text-xs text-slate-500 line-clamp-1 dark:text-slate-400">{{ offer.listing.title_on_merchant }}</div>
-                <div class="text-xs text-slate-400 dark:text-slate-500">last checked {{ offer.listing.last_checked_at.strftime('%Y-%m-%d %H:%M') }} UTC</div>
-              </div>
-              <div class="text-right shrink-0">
-                <div class="font-semibold whitespace-nowrap {% if is_best %}text-emerald-700 dark:text-emerald-300{% endif %}">{{ offer.listing.price_kes | kes }}</div>
-                <a href="{{ offer.out_url }}" rel="nofollow sponsored" target="_blank"
-                   class="inline-block mt-1 rounded bg-emerald-600 text-white text-xs px-3 py-1 whitespace-nowrap hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">Go to shop</a>
-              </div>
-            </li>
-          {% else %}
-            <li class="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">No offers right now.</li>
-          {% endfor %}
-        </ul>
-      </div>
-
-      {% if product.description %}
-        <div class="bg-white border rounded-lg mt-4 p-4 dark:bg-slate-900 dark:border-slate-800">
-          <div class="text-sm font-medium mb-2">About this product</div>
-          <div class="prose prose-sm max-w-none text-slate-700 whitespace-pre-line dark:text-slate-300">{{ product.description }}</div>
-        </div>
-      {% endif %}
-
-      {# Price-history sparkline is hidden until we fix the shape — currently
-         it aggregates all merchants into one connected line and looks like a
-         barcode because different merchants have wildly different price
-         levels. To re-enable, flip the condition below back to `if history`
-         and rework the aggregation to a best-price-per-day series. #}
-      {% if false and history %}
-        <div class="bg-white border rounded-lg mt-4 p-4 dark:bg-slate-900 dark:border-slate-800">
-          <div class="text-sm font-medium mb-2">Price history</div>
-          <canvas id="hist" height="120"></canvas>
-          <script>
-            (function () {
-              const data = {{ history | tojson }};
-              const canvas = document.getElementById('hist');
-              if (!canvas || !data.length) return;
-              const isDark = document.documentElement.classList.contains('dark');
-              const ctx = canvas.getContext('2d');
-              const W = canvas.width = canvas.clientWidth;
-              const H = canvas.height = 120;
-              const prices = data.map(d => d.p);
-              const minP = Math.min(...prices), maxP = Math.max(...prices);
-              const range = (maxP - minP) || 1;
-              ctx.strokeStyle = isDark ? '#34d399' : '#0f766e';
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              data.forEach((d, i) => {
-                const x = (i / Math.max(1, data.length - 1)) * (W - 4) + 2;
-                const y = H - 4 - ((d.p - minP) / range) * (H - 12);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-              });
-              ctx.stroke();
-            })();
-          </script>
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <section id="reviews" class="mt-10">
-    <div class="flex items-baseline justify-between gap-4 mb-4">
-      <h2 class="text-lg font-semibold">
-        Reviews{% if review_count %} <span class="text-slate-500 dark:text-slate-400 font-normal">({{ review_count }})</span>{% endif %}
-      </h2>
-      {% if review_count %}
-        <div class="text-sm text-slate-700 dark:text-slate-200">
-          <span class="text-amber-500" aria-hidden="true">
-            {% set full = avg_rating | int %}
-            {% for _ in range(full) %}★{% endfor %}{% for _ in range(5 - full) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
-          </span>
-          <span class="font-medium ml-1">{{ avg_rating }}</span>
-        </div>
-      {% endif %}
-    </div>
-
-    {% if reviews %}
-      <ul class="space-y-4 mb-6">
-        {% for r in reviews %}
-          <li class="rounded-lg border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-amber-500 text-sm" aria-hidden="true">
-                {% for _ in range(r.rating) %}★{% endfor %}{% for _ in range(5 - r.rating) %}<span class="text-slate-300 dark:text-slate-600">★</span>{% endfor %}
-              </span>
-              <span class="text-sm font-medium">{{ r.display_name }}</span>
-              <span class="text-xs text-slate-500 dark:text-slate-400">· {{ r.verified_at.strftime('%Y-%m-%d') if r.verified_at else r.created_at.strftime('%Y-%m-%d') }}</span>
-              <span class="inline-block text-[10px] uppercase tracking-wide bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded dark:bg-slate-800 dark:text-slate-300">Email confirmed</span>
-              {% if r.edited_at and r.verified_at and r.edited_at > r.verified_at %}
-                <span class="inline-block text-[10px] uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded dark:bg-amber-900 dark:text-amber-200" title="This review was edited after being published">Edited {{ r.edited_at.strftime('%Y-%m-%d') }}</span>
-              {% endif %}
-              <button
-                hx-post="/reviews/{{ r.id }}/report"
-                hx-target="closest .report-slot"
-                hx-swap="innerHTML"
-                class="ml-auto text-xs text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
-                title="Report this review">
-                Report
-              </button>
-              <span class="report-slot"></span>
+      {% if spec_items %}
+        <div class="flex flex-wrap gap-6 mt-6 pt-5 border-t border-line-soft">
+          {% for s in spec_items %}
+            <div class="flex flex-col gap-[3px]">
+              <span class="text-xs font-semibold tracking-[0.05em] uppercase text-faint">{{ s.label }}</span>
+              <span class="text-[14.5px] text-ink">{{ s.value }}</span>
             </div>
-            {% if r.title %}<div class="mt-2 font-medium">{{ r.title }}</div>{% endif %}
-            <p class="mt-1 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line">{{ r.body }}</p>
-            {% if r.pros or r.cons %}
-              <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {% if r.pros %}<div><span class="font-medium text-emerald-700 dark:text-emerald-400">Pros:</span> {{ r.pros }}</div>{% endif %}
-                {% if r.cons %}<div><span class="font-medium text-rose-700 dark:text-rose-400">Cons:</span> {{ r.cons }}</div>{% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ---- Where to buy ----------------------------------------------------- #}
+  <section class="pb-11">
+    <div class="flex items-end justify-between gap-4 mb-3.5">
+      <h2 class="text-[22px] font-semibold tracking-[-0.025em] text-ink">Where to buy</h2>
+      {% if offers %}
+        <span class="text-[13.5px] text-faint">
+          {{ shop_count }} shop{{ '' if shop_count == 1 else 's' }}, cheapest first
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="border border-line rounded-card overflow-hidden">
+      {% if offers %}
+        {# Desktop header. Below md each row restacks into two lines and the
+           header goes away with it. #}
+        <div class="hidden md:grid grid-cols-[1fr_140px_120px_150px] items-center px-[18px] py-[11px] bg-surface-2 border-b border-line text-xs font-bold tracking-[0.05em] uppercase text-faint">
+          <span>Shop</span>
+          <span class="text-right">Price</span>
+          <span class="text-right">Extra cost</span>
+          <span></span>
+        </div>
+        {# The accent "Cheapest" affordance is only meaningful when there is
+           a distinguishable best. When every shop lists the same value it
+           is misleading; when the top N tie at min, all of them get it. #}
+        {% for offer in offers %}
+          {% set is_best = not all_tied and loop.index0 < best_price_count %}
+          {% set extra = offer.listing.price_kes - min_price %}
+          <div class="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_150px] items-start md:items-center gap-2 md:gap-0 px-[18px] py-3.5 border-b border-line-row last:border-b-0 transition-[background-color] duration-row hover:bg-surface-2">
+            <div class="flex flex-col gap-1 md:pr-6 min-w-0">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <span class="text-[15.5px] font-semibold text-ink">{{ offer.merchant.name }}</span>
+                {% if is_best %}
+                  <span class="px-[7px] py-0.5 rounded-badge bg-accent-tint text-[10.5px] font-bold tracking-[0.06em] uppercase text-accent">Cheapest</span>
+                {% endif %}
               </div>
-            {% endif %}
-          </li>
+              <div class="flex items-center gap-2.5 min-w-0 text-[13px] text-faint">
+                <span class="truncate">{{ offer.listing.title_on_merchant }}</span>
+                {% if offer.listing.last_checked_at %}
+                  <span class="shrink-0 font-mono text-[11.5px] text-faint">
+                    checked {{ offer.listing.last_checked_at.strftime('%d %b') }}
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="flex items-center justify-between md:block md:text-right">
+              <span class="font-mono text-[17px] font-semibold text-ink">{{ offer.listing.price_kes | kes }}</span>
+            </div>
+            {# "Extra cost" is the least load-bearing column, so it is the
+               one dropped on narrow screens rather than scrolling the table. #}
+            <div class="hidden md:block text-right font-mono text-[13.5px] text-faint">
+              {% if extra and extra > 0 %}+{{ "{:,}".format(extra | int) }}{% endif %}
+            </div>
+            <div class="flex md:justify-end">
+              <a href="{{ offer.out_url }}" rel="nofollow sponsored" target="_blank"
+                 class="inline-flex items-center gap-[7px] h-[38px] px-[15px] border border-line rounded-ctrl bg-surface text-[13.5px] font-semibold text-ink transition hover:border-accent hover:bg-accent hover:text-accent-ink">
+                Go to shop <span class="flex">{{ icon('external', 14) }}</span>
+              </a>
+            </div>
+          </div>
         {% endfor %}
-      </ul>
+      {% else %}
+        <div class="px-[18px] py-8 text-center text-sm text-faint">No offers right now.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ---- Price chart + alert form ----------------------------------------- #}
+  <section class="pb-11 grid gap-7 lg:grid-cols-[minmax(0,1fr)_372px] items-start">
+    {% if price_series %}
+      <div class="p-6 border border-line rounded-card">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          {# Titled by the window the data actually covers, not a fixed 90
+             days: history starts when scraping started. #}
+          <h2 class="text-xl font-semibold tracking-[-0.02em] text-ink">
+            Price over {{ price_series | length }} week{{ '' if price_series | length == 1 else 's' }}
+          </h2>
+          <span class="text-[13px] text-faint">Cheapest listed price, weekly</span>
+        </div>
+        <div class="flex items-end gap-1.5 h-[132px] mt-[22px]">
+          {% for h in price_series %}
+            <span class="flex-1 flex flex-col justify-end h-full" title="{{ h.label }}: {{ h.price | kes }}">
+              <span class="rounded-t-[3px] {% if h.is_latest %}bg-accent{% else %}bg-bar-idle{% endif %}"
+                    style="height: {{ h.height }}%"></span>
+            </span>
+          {% endfor %}
+        </div>
+        <div class="flex justify-between mt-2.5 pt-2.5 border-t border-line-soft text-xs text-faint font-mono">
+          <span>{{ price_series[0].label }}</span>
+          {% if price_series | length > 3 %}
+            <span>{{ price_series[(price_series | length) // 2].label }}</span>
+          {% endif %}
+          <span>{{ price_series[-1].label }}</span>
+        </div>
+      </div>
     {% else %}
-      <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">
-        No reviews yet. Be the first to share your experience with this product.
-      </p>
+      <div class="p-6 border border-line rounded-card">
+        <h2 class="text-xl font-semibold tracking-[-0.02em] text-ink">Price history</h2>
+        <p class="mt-2 text-sm text-faint [text-wrap:pretty]">
+          Not enough history yet. We need a couple of weeks of checks before a
+          trend means anything.
+        </p>
+      </div>
     {% endif %}
 
-    <details class="rounded-lg border bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
-      <summary class="cursor-pointer text-sm font-medium select-none">Write a review</summary>
-      <form
-        hx-post="/reviews"
-        hx-target="this"
-        hx-swap="outerHTML"
-        class="mt-3 space-y-3">
+    <div id="watch" class="p-6 border border-line rounded-card bg-surface-2 scroll-mt-6">
+      <h2 class="text-xl font-semibold tracking-[-0.02em] text-ink">Tell me when it drops</h2>
+      <p class="mt-2.5 mb-[18px] text-sm leading-[1.55] text-faint [text-wrap:pretty]">
+        One email when any shop lists it below your target price. Unsubscribe in
+        a single click.
+      </p>
+      <form hx-post="/alerts" hx-target="this" hx-swap="outerHTML">
         <input type="hidden" name="product_id" value="{{ product.id }}">
+        <input type="email" name="email" required placeholder="you@example.com"
+               aria-label="Your email address"
+               class="w-full h-11 px-3.5 border border-line rounded-ctl bg-surface text-[14.5px] text-ink placeholder:text-faint outline-none transition focus:border-accent">
+        <div class="flex items-center gap-2.5 mt-2.5 h-11 px-3.5 border border-line rounded-ctl bg-surface transition focus-within:border-accent">
+          <span class="font-mono text-[13.5px] text-faint shrink-0">KSh</span>
+          <input type="text" name="target_price_kes" placeholder="18,000"
+                 aria-label="Target price in Kenyan shillings"
+                 class="flex-1 min-w-0 border-0 bg-transparent outline-none font-mono text-[14.5px] text-ink placeholder:text-faint">
+        </div>
+        <label class="flex items-start gap-2.5 mt-3 text-xs text-faint cursor-pointer">
+          <input type="checkbox" name="marketing_opt_in" value="1" class="pk-check mt-0.5">
+          <span>Also email me occasional PriceKenya updates (optional).</span>
+        </label>
+        <button type="submit"
+                class="w-full h-[46px] mt-3 rounded-ctl bg-accent text-accent-ink text-[15px] font-semibold transition hover:bg-accent-hover">
+          Watch this price
+        </button>
+        <p class="mt-3 text-xs leading-[1.5] text-faint">
+          By watching you agree to the
+          <a href="/privacy" class="underline transition hover:text-accent">privacy policy</a> and
+          <a href="/terms" class="underline transition hover:text-accent">terms</a>.
+        </p>
+      </form>
+    </div>
+  </section>
 
-        <div>
-          <label class="block text-xs font-medium mb-1">Your rating</label>
+  {# ---- Reviews ---------------------------------------------------------- #}
+  <section id="reviews" class="pb-11 scroll-mt-6">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-3.5">
+      <h2 class="text-[22px] font-semibold tracking-[-0.025em] text-ink">
+        Reviews{% if review_count %} <span class="font-mono font-normal text-faint">({{ review_count }})</span>{% endif %}
+      </h2>
+      <span class="text-[13.5px] text-faint">Every review is confirmed by email before it appears</span>
+    </div>
+
+    <div class="grid gap-7 lg:grid-cols-[minmax(0,1fr)_372px] items-start">
+      <div>
+        {% if reviews %}
+          <ul class="flex flex-col gap-3.5">
+            {% for r in reviews %}
+              <li class="p-5 border border-line rounded-card bg-surface">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span class="flex gap-0.5" aria-label="{{ r.rating }} out of 5 stars">
+                    {% for i in range(1, 6) %}
+                      <span class="flex {% if i <= r.rating %}text-[#C9962B]{% else %}text-bar-idle{% endif %}">{{ icon('star', 15) }}</span>
+                    {% endfor %}
+                  </span>
+                  <span class="text-sm font-semibold text-ink">{{ r.display_name }}</span>
+                  <span class="font-mono text-xs text-faint">
+                    {{ r.verified_at.strftime('%d %b %Y') if r.verified_at else r.created_at.strftime('%d %b %Y') }}
+                  </span>
+                  <span class="px-[7px] py-0.5 rounded-badge bg-accent-tint text-[10.5px] font-bold tracking-[0.06em] uppercase text-accent">Email confirmed</span>
+                  {% if r.edited_at and r.verified_at and r.edited_at > r.verified_at %}
+                    <span class="px-[7px] py-0.5 rounded-badge bg-field text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-2"
+                          title="This review was edited after being published">Edited {{ r.edited_at.strftime('%d %b %Y') }}</span>
+                  {% endif %}
+                  <button
+                    hx-post="/reviews/{{ r.id }}/report"
+                    hx-target="closest .report-slot"
+                    hx-swap="innerHTML"
+                    class="ml-auto text-xs text-faint transition hover:text-accent"
+                    title="Report this review">
+                    Report
+                  </button>
+                  <span class="report-slot"></span>
+                </div>
+                {% if r.title %}<div class="mt-2.5 font-semibold text-ink">{{ r.title }}</div>{% endif %}
+                <p class="mt-1.5 text-sm leading-[1.55] text-ink-2 whitespace-pre-line [text-wrap:pretty]">{{ r.body }}</p>
+                {% if r.pros or r.cons %}
+                  <div class="mt-3 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 text-[13px]">
+                    {% if r.pros %}<div class="text-ink-2"><span class="font-semibold text-accent">Pros:</span> {{ r.pros }}</div>{% endif %}
+                    {% if r.cons %}<div class="text-ink-2"><span class="font-semibold text-ink">Cons:</span> {{ r.cons }}</div>{% endif %}
+                  </div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex flex-col items-start gap-2.5 px-7 py-9 border border-dashed border-line rounded-card bg-surface-2">
+            <span class="flex gap-[3px] text-bar-idle" aria-hidden="true">
+              {% for _ in range(5) %}<span class="flex">{{ icon('star', 15) }}</span>{% endfor %}
+            </span>
+            <span class="text-[15.5px] font-semibold text-ink">No reviews yet</span>
+            <span class="text-sm leading-[1.55] text-faint max-w-[44ch] [text-wrap:pretty]">
+              Be the first to say whether this product was worth the money. Reviews
+              here come from buyers who confirmed their email, not from the shops.
+            </span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="p-[22px] border border-line rounded-card bg-surface">
+        <div class="text-base font-semibold text-ink">Write a review</div>
+        <form hx-post="/reviews" hx-target="this" hx-swap="outerHTML" class="mt-4">
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+
+          <div class="text-xs font-semibold tracking-[0.05em] uppercase text-faint">Your rating</div>
           {# Cumulative star-fill: clicking star N lights stars 1..N. The
              previous peer-checked approach only lit the exact clicked
              radio — clicking 3 gave the reader a single amber star at
              position 3, which read as "broken". Handled in JS so it
              also updates on click AND on keyboard nav (radio group). #}
-          <div class="flex gap-1" data-star-group>
+          <div class="flex gap-1.5 mt-2" data-star-group>
             {% for i in range(1, 6) %}
               <label class="cursor-pointer">
                 <input type="radio" name="rating" value="{{ i }}" required class="sr-only" onchange="fillStars(this)">
-                <span class="text-2xl text-slate-300 dark:text-slate-600 hover:text-amber-400" data-star aria-hidden="true">★</span>
+                <span class="flex text-bar-idle transition" data-star aria-hidden="true">{{ icon('star', 24) }}</span>
                 <span class="sr-only">{{ i }} star{% if i != 1 %}s{% endif %}</span>
               </label>
             {% endfor %}
@@ -402,64 +513,68 @@
                 var value = parseInt(input.value, 10);
                 var stars = group.querySelectorAll('[data-star]');
                 stars.forEach(function (star, i) {
-                  if (i < value) {
-                    star.classList.add('text-amber-500');
-                    star.classList.remove('text-slate-300', 'dark:text-slate-600');
-                  } else {
-                    star.classList.remove('text-amber-500');
-                    star.classList.add('text-slate-300', 'dark:text-slate-600');
-                  }
+                  // Colour is a literal here rather than a token class: these
+                  // are toggled from JS, so Tailwind never sees them.
+                  star.style.color = i < value ? '#C9962B' : '';
+                  star.classList.toggle('text-bar-idle', i >= value);
                 });
               };
             })();
           </script>
-        </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input type="text" name="display_name" required maxlength="40" placeholder="Your name"
-            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+                 class="w-full h-10 mt-3.5 px-3.5 border border-line rounded-ctrl bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-accent">
           <input type="email" name="email" required placeholder="you@example.com"
-            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
-        </div>
+                 class="w-full h-10 mt-2 px-3.5 border border-line rounded-ctrl bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-accent">
+          <input type="text" name="title" maxlength="80" placeholder="Review title (optional)"
+                 class="w-full h-10 mt-2 px-3.5 border border-line rounded-ctrl bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-accent">
+          <textarea name="body" required minlength="30" maxlength="3000" rows="3"
+                    placeholder="What did you think? Minimum 30 characters."
+                    class="w-full mt-2 px-3.5 py-3 border border-line rounded-ctrl bg-surface text-sm leading-[1.5] text-ink placeholder:text-faint outline-none resize-none transition focus:border-accent"></textarea>
 
-        <input type="text" name="title" maxlength="80" placeholder="Review title (optional)"
-          class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+          {# minmax(0,1fr) rather than 1fr: with 1fr the columns floor at the
+             inputs' min-content width and the row overruns its card. #}
+          <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 mt-2">
+            <input type="text" name="pros" maxlength="200" placeholder="Pros"
+                   class="h-10 px-3.5 border border-line rounded-ctrl bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-accent">
+            <input type="text" name="cons" maxlength="200" placeholder="Cons"
+                   class="h-10 px-3.5 border border-line rounded-ctrl bg-surface text-sm text-ink placeholder:text-faint outline-none transition focus:border-accent">
+          </div>
 
-        <textarea name="body" required minlength="30" maxlength="3000" rows="4"
-          placeholder="What did you think? Minimum 30 characters."
-          class="w-full rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"></textarea>
+          <label class="flex items-start gap-2.5 mt-3 text-xs text-faint cursor-pointer">
+            <input type="checkbox" name="marketing_opt_in" value="1" class="pk-check mt-0.5">
+            <span>Also email me occasional PriceKenya updates (optional).</span>
+          </label>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input type="text" name="pros" maxlength="200" placeholder="Pros (optional)"
-            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
-          <input type="text" name="cons" maxlength="200" placeholder="Cons (optional)"
-            class="rounded border px-2 py-1 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
-        </div>
-
-        <label class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-          <input type="checkbox" name="marketing_opt_in" value="1"
-            class="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800">
-          <span>Also email me occasional PriceKenya updates (optional).</span>
-        </label>
-
-        <button class="rounded bg-emerald-600 text-white text-sm px-4 py-1.5 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400">
-          Submit review
-        </button>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-          We'll email you a link to confirm your review before it's published.
-          By submitting, you agree to our
-          <a href="/reviews-policy" class="underline">review guidelines</a>,
-          <a href="/privacy" class="underline">Privacy Policy</a>, and
-          <a href="/terms" class="underline">Terms</a>.
-        </p>
-      </form>
-    </details>
+          <button type="submit"
+                  class="w-full h-11 mt-3 rounded-ctl bg-accent text-accent-ink text-[14.5px] font-semibold transition hover:bg-accent-hover">
+            Submit review
+          </button>
+          <p class="mt-3 text-xs leading-[1.5] text-faint">
+            We email you a link to confirm your review before it is published. By
+            submitting you agree to the
+            <a href="/reviews-policy" class="underline transition hover:text-accent">review guidelines</a>,
+            <a href="/privacy" class="underline transition hover:text-accent">privacy policy</a> and
+            <a href="/terms" class="underline transition hover:text-accent">terms</a>.
+          </p>
+        </form>
+      </div>
+    </div>
   </section>
 
+  {% if product.description %}
+    <section class="pb-11">
+      <h2 class="text-[22px] font-semibold tracking-[-0.025em] text-ink mb-3.5">About this product</h2>
+      <div class="p-6 border border-line rounded-card bg-surface text-[14.5px] leading-[1.6] text-ink-2 whitespace-pre-line [text-wrap:pretty]">{{ product.description }}</div>
+    </section>
+  {% endif %}
+
   {% if related %}
-    <section class="mt-10">
-      <h2 class="text-lg font-semibold mb-3">Related products</h2>
-      {% with rows = related %}
+    <section class="pb-11">
+      <h2 class="text-[22px] font-semibold tracking-[-0.025em] text-ink mb-3.5">
+        {{ product.category_slug | replace('-', ' ') | title }} around this price
+      </h2>
+      {% with rows = related, grid_class = 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6' %}
         {% include "partials/_product_grid.html" %}
       {% endwith %}
     </section>

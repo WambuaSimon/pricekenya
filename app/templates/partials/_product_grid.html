@@ -1,31 +1,65 @@
+{# Shared product card grid. Included by search.html, category.html and the
+   "around this price" strip on product.html, so the column count is passed
+   in by the caller via `grid_class` rather than baked in here.
+
+   Rows are (Product, min_price, shop_count) and may carry a 4th element,
+   max_price. The category grid supplies it so the card can show "Save up
+   to X"; search and the product-page strip do not, and those cards simply
+   omit that line. Unpacked by index so both shapes work. #}
 {% if rows %}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    {% for product, min_price, offer_count in rows %}
-      <a href="/p/{{ product.slug }}" class="block bg-white border rounded-lg p-3 hover:shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700">
-        {# Image container: emoji fallback ALWAYS renders behind. When the
-           img loads it covers the emoji; when it 404s (or is null), the
-           emoji shows through. Previously `onerror="display:none"` left a
-           blank grey square — worse UX than the emoji we already had for
-           the NULL case. 2026-08-09 audit: ~7% of merchant image URLs
-           return 4xx (phoneplacekenya.com hotlink-blocks with 403 despite
-           referrerpolicy=no-referrer). #}
-        <div class="aspect-square bg-slate-100 rounded mb-2 relative overflow-hidden dark:bg-slate-800">
-          <span class="absolute inset-0 flex items-center justify-center text-4xl opacity-70">
-            {{ product_placeholder_icon(product) }}
+  <div class="grid gap-3.5 {{ grid_class | default('grid-cols-2 lg:grid-cols-3') }}">
+    {% for row in rows %}
+      {% set product = row[0] %}
+      {% set min_price = row[1] %}
+      {% set offer_count = row[2] %}
+      {% set max_price = row[3] if row | length > 3 else None %}
+      <a href="/p/{{ product.slug }}"
+         class="group flex flex-col border border-line rounded-card bg-surface overflow-hidden transition hover:border-[#C3CCC7] hover:shadow-card-hover dark:hover:border-faint dark:hover:shadow-none">
+        {# Fallback layer ALWAYS renders behind. When the img loads it covers
+           the fallback; when it 404s it shows through. 2026-08-09 audit: ~7%
+           of merchant image URLs return 4xx (phoneplacekenya.com hotlink-
+           blocks with 403 despite referrerpolicy=no-referrer). The fallback
+           is the brand name rather than an emoji since the revamp — on a
+           blocked image it is the only identifying mark the card has left. #}
+        <div class="relative aspect-[4/3] bg-tile border-b border-line overflow-hidden">
+          <span class="absolute inset-0 flex items-center justify-center px-2 text-center text-sm font-semibold text-faint">
+            {{ product_fallback_label(product) }}
           </span>
           {% if product.image_url %}
             <img src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy"
-              class="relative object-contain w-full h-full"
-              referrerpolicy="no-referrer"
-              onerror="this.style.display='none'">
+                 class="relative block object-contain w-full h-full"
+                 referrerpolicy="no-referrer"
+                 onerror="this.style.display='none'">
           {% endif %}
         </div>
-        <div class="text-sm font-medium line-clamp-2">{{ product.title }}</div>
-        <div class="mt-1 text-base font-semibold">{{ min_price | kes }}</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400">{{ offer_count }} offer{{ '' if offer_count == 1 else 's' }}</div>
+        <div class="flex flex-col flex-1 p-3.5">
+          {# Fixed min-height so titles of different lengths still line the
+             price rows up across a grid row. #}
+          <div class="text-[14.5px] font-medium leading-[1.35] text-ink line-clamp-2 min-h-[39px] [text-wrap:pretty]">
+            {{ product.title }}
+          </div>
+          {# nowrap on both: at 6-up the cards are narrow enough that
+             "KSh 19,499" was breaking across two lines mid-figure. #}
+          <div class="flex flex-wrap items-baseline justify-between gap-x-2.5 gap-y-0.5 mt-2">
+            <span class="font-mono text-[17px] font-semibold text-ink whitespace-nowrap">{{ min_price | kes }}</span>
+            <span class="text-[12.5px] text-faint whitespace-nowrap">
+              {{ offer_count }} shop{{ '' if offer_count == 1 else 's' }}
+            </span>
+          </div>
+          {# Only claim a saving the spread actually supports. trusted_saving
+             returns None when the high price is implausibly far above the
+             low one, which on this catalog means a corrupt or mismatched
+             listing rather than a bargain. See app/pricing.py. #}
+          {% set saving = trusted_saving(min_price, max_price) %}
+          {% if saving %}
+            <span class="mt-1.5 text-[12.5px] font-semibold text-accent">
+              Save up to {{ saving | kes }}
+            </span>
+          {% endif %}
+        </div>
       </a>
     {% endfor %}
   </div>
 {% else %}
-  <div class="text-slate-500 text-sm py-12 text-center dark:text-slate-400">No products yet.</div>
+  <div class="text-faint text-sm py-12 text-center">No products yet.</div>
 {% endif %}

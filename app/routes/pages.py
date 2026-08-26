@@ -6,8 +6,15 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, func, select
 
+from app.context import get_category_names, get_category_product_counts
+from app.pricing import (
+    GAP_MAX_RATIO,
+    GAP_MIN_MERCHANTS,
+    INSTALMENT_MARKERS,
+    trim_price_outliers,
+)
 from app.templating import templates
-from db.models import Click, Listing, Merchant, Product
+from db.models import Click, Listing, Merchant, PriceHistory, Product
 from db.session import get_session
 
 router = APIRouter()
@@ -25,7 +32,14 @@ _HOME_ROTATION_HOURS = 6    # bucket width → 4 rotations/day
 # to make the comparison compelling. 30 * 6h buckets = ~7.5 days to cycle
 # through the top slice.
 _FEATURED_POOL_SLICE = 30
-_FEATURED_MAX_OFFERS = 4    # cards shown in the hero comparison strip
+_FEATURED_MAX_OFFERS = 7    # offer rows shown in the hero head-to-head card
+
+# "Where the gap is biggest" / "Dropped this week" sizing. The trust rules
+# these sections lean on (GAP_MAX_RATIO, instalment markers, the outlier
+# trim) live in app/pricing.py because the category grid applies them too.
+_GAP_DISPLAY = 4
+_DROP_DISPLAY = 6
+_DROP_WINDOW_DAYS = 7
 
 
 def _time_bucket(now: datetime | None = None) -> int:
@@ -48,28 +62,22 @@ def _select_featured(pool, bucket_seed: int, slice_size: int):
     return top_slice[bucket_seed % len(top_slice)]
 
 
-def _fetch_featured_offers(
-    session: Session, product_id: int, limit: int
-) -> tuple[list[tuple], object | None, object | None]:
-    """Fetch top-N in-stock offers for the featured product, sorted cheapest
-    first. Returns (offers, savings_abs, savings_pct) where offers is a list
-    of (Listing, Merchant) tuples and savings compares cheapest vs most
-    expensive shown."""
-    offers = session.exec(
+def _fetch_featured_offers(session: Session, product_id: int) -> list[tuple]:
+    """Every in-stock offer for the featured product, cheapest first.
+
+    Returns the full list rather than a top-N slice: the hero card states a
+    min-to-max range and an "All N offers" link, and both have to describe
+    the whole set. The template decides how many rows to draw. Products
+    here carry a few dozen offers at most, so fetching all of them is
+    cheaper than a second aggregate query.
+    """
+    return session.exec(
         select(Listing, Merchant)
         .join(Merchant, Merchant.id == Listing.merchant_id)
         .where(Listing.product_id == product_id)
-        .where(Listing.in_stock.is_(True))
+        .where(*_trustworthy_offers())
         .order_by(Listing.price_kes.asc())
-        .limit(limit)
     ).all()
-    if len(offers) < 2:
-        return offers, None, None
-    cheapest = offers[0][0].price_kes
-    dearest = offers[-1][0].price_kes
-    savings_abs = dearest - cheapest
-    savings_pct = round((savings_abs / dearest) * 100) if dearest else None
-    return offers, savings_abs, savings_pct
 
 
 def _select_home_rows(pool, bucket_seed: int, max_per_category: int, display: int):
@@ -97,12 +105,140 @@ def _select_home_rows(pool, bucket_seed: int, max_per_category: int, display: in
     return selected
 
 
+def _trustworthy_offers():
+    """WHERE-clause fragments limiting a Listing query to offers we are
+    willing to publish a savings claim against. See GAP_MAX_RATIO."""
+    clauses = [Listing.in_stock.is_(True)]
+    for marker in INSTALMENT_MARKERS:
+        clauses.append(~func.lower(Listing.title_on_merchant).contains(marker))
+    return clauses
+
+
+def _fetch_price_gaps(session: Session, pool_ids: list[int], limit: int):
+    """Products in the popular pool with the largest cheapest-to-dearest
+    spread in shillings.
+
+    Ranked by absolute saving rather than percentage: the section answers
+    "where is the most money on the table", and a 40% gap on a 2,000 KSh
+    kettle is not the answer. Restricted to pool_ids so the lede ("on
+    things people actually buy") is true — the unrestricted query surfaces
+    1.6M shilling TVs with three offers.
+
+    Returns a list of dicts with the low, high, saving and the percentage
+    the saving represents, which is also the progress-track fill.
+    """
+    if not pool_ids:
+        return []
+    q = select(
+        Product,
+        func.min(Listing.price_kes).label("low"),
+        func.max(Listing.price_kes).label("high"),
+        func.count(func.distinct(Listing.merchant_id)).label("shops"),
+    ).join(Listing, Listing.product_id == Product.id)
+    for clause in _trustworthy_offers():
+        q = q.where(clause)
+    rows = session.exec(
+        q.where(Product.id.in_(pool_ids))
+        .group_by(Product.id)
+        .having(func.count(func.distinct(Listing.merchant_id)) >= GAP_MIN_MERCHANTS)
+        .having(func.max(Listing.price_kes) <= GAP_MAX_RATIO * func.min(Listing.price_kes))
+        .order_by((func.max(Listing.price_kes) - func.min(Listing.price_kes)).desc())
+        .limit(limit)
+    ).all()
+    names = get_category_names()
+    gaps = []
+    for product, low, high, shops in rows:
+        if not high or high <= low:
+            continue
+        saving = high - low
+        gaps.append(
+            {
+                "product": product,
+                "category": names.get(product.category_slug or "", ""),
+                "low": low,
+                "high": high,
+                "saving": saving,
+                "pct": round(saving / high * 100),
+                "shops": shops,
+            }
+        )
+    return gaps
+
+
+def _fetch_price_drops(session: Session, pool_ids: list[int], limit: int):
+    """Products whose cheapest live price is below what it was a week ago.
+
+    "Was" is the cheapest price observed in the 8-to-6-day-old window
+    rather than at an exact instant: scrape times drift, so pinning to
+    `now - 7d` exactly would miss products that happened not to be checked
+    that hour.
+
+    Carries the same ratio guard as the gap cards. A week-over-week fall
+    steeper than the guard allows is nearly always a matcher error rather
+    than a real drop, and a wrong "-66%" badge is worse than no section.
+    """
+    if not pool_ids:
+        return []
+    now = datetime.utcnow()
+    current = (
+        select(
+            Listing.product_id.label("pid"),
+            func.min(Listing.price_kes).label("now_price"),
+        )
+        .where(*_trustworthy_offers())
+        .group_by(Listing.product_id)
+        .subquery()
+    )
+    previous = (
+        select(
+            Listing.product_id.label("pid"),
+            func.min(PriceHistory.price_kes).label("was_price"),
+        )
+        .join(Listing, Listing.id == PriceHistory.listing_id)
+        .where(
+            PriceHistory.observed_at.between(
+                now - timedelta(days=_DROP_WINDOW_DAYS + 1),
+                now - timedelta(days=_DROP_WINDOW_DAYS - 1),
+            )
+        )
+        .group_by(Listing.product_id)
+        .subquery()
+    )
+    rows = session.exec(
+        select(Product, current.c.now_price, previous.c.was_price)
+        .join(current, current.c.pid == Product.id)
+        .join(previous, previous.c.pid == Product.id)
+        .where(Product.id.in_(pool_ids))
+        .where(current.c.now_price < previous.c.was_price)
+        .where(previous.c.was_price <= GAP_MAX_RATIO * current.c.now_price)
+        .order_by(
+            (
+                (previous.c.was_price - current.c.now_price) / previous.c.was_price
+            ).desc()
+        )
+        .limit(limit)
+    ).all()
+    drops = []
+    for product, now_price, was_price in rows:
+        if not was_price or was_price <= now_price:
+            continue
+        drops.append(
+            {
+                "product": product,
+                "price": now_price,
+                "was": was_price,
+                "pct": round((was_price - now_price) / was_price * 100),
+            }
+        )
+    return drops
+
+
 def _humanize_ago(ts: datetime | None) -> str:
     """Short compact ago-string for the homepage stats chip. Naive UTC in,
     "12m ago" / "3h ago" / "2d ago" out. Only used for display — precision
     beyond the current bucket doesn't matter."""
     if ts is None:
-        return "—"
+        return "not yet checked"
     delta = datetime.utcnow() - ts
     secs = int(delta.total_seconds())
     if secs < 60:
@@ -170,22 +306,37 @@ def home(request: Request, session: Session = Depends(get_session)):
     featured = None
     if featured_row is not None:
         product = featured_row[0]
-        offers, savings_abs, savings_pct = _fetch_featured_offers(
-            session, product.id, _FEATURED_MAX_OFFERS
-        )
+        offers = trim_price_outliers(_fetch_featured_offers(session, product.id))
         # Only expose the featured block when the comparison is meaningful
         # (2+ offers). If the top-of-pool product got its second offer
         # delisted between the pool query and here, degrade to no hero
         # comparison rather than showing a 1-merchant "comparison".
         if len(offers) >= 2:
+            cheapest_listing, cheapest_merchant = offers[0]
+            dearest_listing, dearest_merchant = offers[-1]
+            savings_abs = dearest_listing.price_kes - cheapest_listing.price_kes
+            savings_pct = (
+                round(savings_abs / dearest_listing.price_kes * 100)
+                if dearest_listing.price_kes
+                else None
+            )
             featured = {
                 "product": product,
-                "offers": offers,          # list of (Listing, Merchant)
-                "min_price": offers[0][0].price_kes,
+                # Rows the card draws, vs the true totals behind the range
+                # line and the "All N offers" link.
+                "offers": offers[:_FEATURED_MAX_OFFERS],
+                "total_offer_count": len(offers),
+                "min_price": cheapest_listing.price_kes,
+                "max_price": dearest_listing.price_kes,
+                "cheapest_shop": cheapest_merchant.name,
+                "dearest_shop": dearest_merchant.name,
                 "savings_abs": savings_abs,
                 "savings_pct": savings_pct,
-                "total_offer_count": featured_row[2],  # from the pool aggregate
             }
+
+    pool_ids = [row[0].id for row in pool]
+    gaps = _fetch_price_gaps(session, pool_ids, _GAP_DISPLAY)
+    drops = _fetch_price_drops(session, pool_ids, _DROP_DISPLAY)
 
     # Hero stats — cheap counts + one MAX().
     product_count = session.exec(select(func.count(Product.id))).one()
@@ -208,6 +359,9 @@ def home(request: Request, session: Session = Depends(get_session)):
         {
             "rows": rows,
             "featured": featured,
+            "gaps": gaps,
+            "drops": drops,
+            "category_counts": get_category_product_counts(),
             "product_count": product_count or 0,
             "merchant_count": merchant_count or 0,
             "last_updated_ago": _humanize_ago(last_listing_check),

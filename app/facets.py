@@ -38,6 +38,12 @@ class Facet:
 UNIVERSAL: tuple[Facet, ...] = (
     Facet("brand", "Brand", "enum", "brand"),
     Facet("price_max", "Max price (KSh)", "range", "min_price"),
+    # "Comparable" = listed by 2+ distinct merchants, the same rule as
+    # app/indexing.py's MIN_DISTINCT_MERCHANTS and the category page's
+    # `compared_count` stat. Unlike the "In stock only" facet this replaced,
+    # it genuinely narrows the grid: single-merchant products are the
+    # majority of the catalog and there is nothing to compare on them.
+    Facet("comparable", "Only comparable products", "bool", "comparable"),
     # "In stock only" removed 2026-08-25. Category pages now restrict to
     # in-stock listings unconditionally (see the base query in
     # app/routes/categories.py for why), which left this facet unable to

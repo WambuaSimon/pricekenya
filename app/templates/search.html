@@ -6,8 +6,10 @@
      app/routes/pages.py:search for rationale. #}
   {% if noindex %}<meta name="robots" content="noindex,follow">{% endif %}
 {% endblock %}
+{# This page renders #results, so the header search can swap into it live. #}
+{% block header_search_live %}hx-get="/search" hx-trigger="keyup changed delay:300ms" hx-target="#results" hx-push-url="true"{% endblock %}
 {% block content %}
-  <h1 class="text-xl font-semibold mb-4">
+  <h1 class="text-[34px] font-semibold tracking-[-0.03em] mb-6">
     {% if q %}Results for "{{ q }}"{% else %}Popular products{% endif %}
   </h1>
   <div id="results">

@@ -1,9 +1,12 @@
 {# Pagination controls for /c/<slug> pages.
 
    Passed in from the category route: page, total_pages, total_matching,
-   page_size. Preserves any active facet filters (?brand=... etc.) by
-   copying the request's query string minus its own `page=` param.
-   Hidden when there's only one page. #}
+   page_size. Preserves any active facet filters (?brand=... etc.) and the
+   active sort by copying the request's query string minus its own `page=`
+   param. Hidden when there's only one page.
+
+   The "Showing X to Y of Z" line lives above the grid in category.html
+   since the revamp, so this partial is just the number strip. #}
 {% if total_pages > 1 %}
   {# Build a URL that preserves every current query param EXCEPT page=.
      Wrapped in Jinja's namespace() so we can append without dict copy. #}
@@ -16,56 +19,43 @@
   {% set base_qs = qs.pairs | join('&') %}
   {% set page_prefix = '?' ~ base_qs ~ ('&' if base_qs else '') ~ 'page=' %}
 
-  <nav aria-label="Category pagination"
-       class="mt-8 flex items-center justify-between gap-2 text-sm">
-    <div class="text-slate-500 dark:text-slate-400">
-      Showing {{ (page - 1) * page_size + 1 }}–{{ [(page * page_size), total_matching] | min }}
-      of {{ '{:,}'.format(total_matching) }}
-    </div>
+  {% set box = 'inline-flex items-center justify-center h-[38px] min-w-[38px] px-3 border rounded-ctrl text-[13.5px] transition' %}
+  {% set idle = 'border-line bg-surface text-ink-2 hover:border-accent hover:text-accent' %}
+  {% set off = 'border-line bg-surface text-faint cursor-default' %}
 
-    <div class="flex items-center gap-1">
-      {# Prev #}
-      {% if page > 1 %}
-        <a href="{{ page_prefix }}{{ page - 1 }}"
-           class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">
-          ← Prev
-        </a>
-      {% else %}
-        <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600">← Prev</span>
+  <nav aria-label="Category pagination" class="flex flex-wrap items-center justify-center gap-1.5 mt-7">
+    {% if page > 1 %}
+      <a href="{{ page_prefix }}{{ page - 1 }}" rel="prev" class="{{ box }} {{ idle }} font-medium">Previous</a>
+    {% else %}
+      <span class="{{ box }} {{ off }}" aria-disabled="true">Previous</span>
+    {% endif %}
+
+    {# Compact number strip: current ± 2, first, last, ellipses. Keeps
+       the row short even on categories with 100+ pages. #}
+    {% set window = 2 %}
+    {% set _pages = [] %}
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == 1 or p == total_pages or (p >= page - window and p <= page + window) %}
+        {% set _pages = _pages + [p] %}
       {% endif %}
-
-      {# Compact number strip: current ± 2, first, last, ellipses. Keeps
-         the row short even on categories with 100+ pages. #}
-      {% set window = 2 %}
-      {% set _pages = [] %}
-      {% for p in range(1, total_pages + 1) %}
-        {% if p == 1 or p == total_pages or (p >= page - window and p <= page + window) %}
-          {% set _pages = _pages + [p] %}
-        {% endif %}
-      {% endfor %}
-      {% set prev_p = namespace(v=0) %}
-      {% for p in _pages %}
-        {% if prev_p.v and p - prev_p.v > 1 %}
-          <span class="px-1 text-slate-400 select-none">…</span>
-        {% endif %}
-        {% if p == page %}
-          <span class="inline-flex items-center justify-center min-w-[2.25rem] rounded-md bg-emerald-600 px-3 py-1.5 font-medium text-white">{{ p }}</span>
-        {% else %}
-          <a href="{{ page_prefix }}{{ p }}"
-             class="inline-flex items-center justify-center min-w-[2.25rem] rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">{{ p }}</a>
-        {% endif %}
-        {% set prev_p.v = p %}
-      {% endfor %}
-
-      {# Next #}
-      {% if page < total_pages %}
-        <a href="{{ page_prefix }}{{ page + 1 }}"
-           class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700">
-          Next →
-        </a>
-      {% else %}
-        <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600">Next →</span>
+    {% endfor %}
+    {% set prev_p = namespace(v=0) %}
+    {% for p in _pages %}
+      {% if prev_p.v and p - prev_p.v > 1 %}
+        <span class="px-1.5 text-faint select-none">…</span>
       {% endif %}
-    </div>
+      {% if p == page %}
+        <span aria-current="page" class="{{ box }} border-accent bg-accent text-accent-ink font-mono font-semibold">{{ p }}</span>
+      {% else %}
+        <a href="{{ page_prefix }}{{ p }}" class="{{ box }} {{ idle }} font-mono">{{ p }}</a>
+      {% endif %}
+      {% set prev_p.v = p %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+      <a href="{{ page_prefix }}{{ page + 1 }}" rel="next" class="{{ box }} {{ idle }} font-medium">Next</a>
+    {% else %}
+      <span class="{{ box }} {{ off }}" aria-disabled="true">Next</span>
+    {% endif %}
   </nav>
 {% endif %}

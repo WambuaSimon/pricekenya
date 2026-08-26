@@ -27,6 +27,39 @@ def whatsapp_href(text: str | None = None) -> str | None:
         return f"https://wa.me/{num}?text={quote(text)}"
     return f"https://wa.me/{num}"
 
+# Stroke-icon key + short nav label per top-level category slug. The key
+# indexes _ICON_PATHS in partials/_icons.html; `short` is what the horizontal
+# nav strip renders, since the full names ("Phones, Tablets and Accessories")
+# blow the strip past one line.
+#
+# Superseded NAV_ICONS below for every surface that has been revamped. That
+# dict stays because watchlist.html and any not-yet-revamped template still
+# read `cat.icon`.
+NAV_STROKE_ICONS: dict[str, str] = {
+    "phones-tablets-accessories": "phones",
+    "computing": "computing",
+    "tvs": "tv",
+    "audio": "audio",
+    "cameras": "camera",
+    "appliances": "appliances",
+    "gaming": "gaming",
+    "power-energy": "power",
+    "home-kitchen": "home",
+}
+
+NAV_SHORT_NAMES: dict[str, str] = {
+    "phones-tablets-accessories": "Phones",
+    "computing": "Computing",
+    "tvs": "TVs",
+    "audio": "Audio",
+    "cameras": "Cameras",
+    "appliances": "Appliances",
+    "gaming": "Gaming",
+    "power-energy": "Solar",
+    "home-kitchen": "Home",
+}
+
+
 # Emoji per top-level category slug — hardcoded because the tree is stable
 # and the icons are a UI concern, not data.
 NAV_ICONS: dict[str, str] = {
@@ -70,9 +103,36 @@ LEAF_ICONS: dict[str, str] = {
 
 
 def product_placeholder_icon(product) -> str:
-    """Return an emoji-fallback icon for a product with no image_url."""
+    """Return an emoji-fallback icon for a product with no image_url.
+
+    Kept for watchlist.html, which is out of scope for the revamp. Revamped
+    templates call product_fallback_label() instead — do not change this
+    signature without checking that caller.
+    """
     slug = getattr(product, "category_slug", None) or ""
     return LEAF_ICONS.get(slug, "📦")
+
+
+def product_fallback_label(product) -> str:
+    """Return the text drawn on a product's image-fallback tile.
+
+    The revamp replaced the emoji fallback with the brand name set in `faint`
+    on a `tile` box. Brand is the useful thing to show: ~7% of merchant image
+    URLs hotlink-block (403) and those cards are otherwise anonymous, so the
+    brand is the only identifying mark left before the title.
+
+    Falls back to the first word of the title when brand is empty, and to ""
+    when there is nothing to draw — templates render the box either way, so
+    an empty label degrades to a plain tile rather than to broken markup.
+    Small slots render `label[:1]`; the caller decides, not this helper.
+    """
+    brand = (getattr(product, "brand", None) or "").strip()
+    if brand:
+        # Brands are stored lowercase ("samsung"); the tile is a display
+        # surface, so title-case it.
+        return brand.title()
+    title = (getattr(product, "title", None) or "").strip()
+    return title.split(" ", 1)[0] if title else ""
 
 
 def _has_products_in_subtree(session: Session, root_id: int) -> bool:
@@ -152,10 +212,96 @@ def _compute_nav_categories() -> list[dict]:
             ).all()
 
         return [
-            {"slug": r.slug, "name": r.name, "icon": NAV_ICONS.get(r.slug, "")}
+            {
+                "slug": r.slug,
+                "name": r.name,
+                "short": NAV_SHORT_NAMES.get(r.slug, r.name),
+                "icon_key": NAV_STROKE_ICONS.get(r.slug, ""),
+                "icon": NAV_ICONS.get(r.slug, ""),
+            }
             for r in rows
             if _has_products_in_subtree(s, r.id)
         ]
+
+
+@lru_cache(maxsize=1)
+def get_category_names() -> dict[str, str]:
+    """slug -> display name for every category in the tree.
+
+    Used for the eyebrow label on the homepage gap cards. The tree only
+    changes on deploy, so a process-lifetime cache is the right TTL.
+    """
+    with Session(engine) as s:
+        return {c.slug: c.name for c in s.exec(select(Category)).all()}
+
+
+_counts_cache: tuple[dict[str, int], float] | None = None
+
+
+def get_category_product_counts() -> dict[str, int]:
+    """Product count per top-level nav category, for the homepage browse grid.
+
+    Counts products with at least one in-stock listing, matching the rule
+    every other surface uses (home grid, category grid, product page,
+    sitemap). A browse card advertising 1,904 appliances that resolves to a
+    grid of 1,100 is the same class of lie the in_stock restriction was
+    added to kill.
+
+    Shares the nav's 10-minute TTL. The figure moves only as the scrapers
+    run, and the walk underneath is 9 subtree expansions plus one grouped
+    count, which is not something to repeat per pageview.
+    """
+    global _counts_cache
+    now = time.monotonic()
+    cached = _counts_cache
+    if cached is not None and (now - cached[1]) < _NAV_CACHE_TTL_SECONDS:
+        return cached[0]
+    result = _compute_category_product_counts()
+    _counts_cache = (result, now)
+    return result
+
+
+def _compute_category_product_counts() -> dict[str, int]:
+    from sqlalchemy import func
+
+    from db.models import Listing
+
+    counts: dict[str, int] = {}
+    with Session(engine) as s:
+        for cat in get_nav_categories():
+            top = s.exec(select(Category).where(Category.slug == cat["slug"])).first()
+            if not top:
+                continue
+            slugs = _subtree_slugs(s, top)
+            counts[cat["slug"]] = (
+                s.exec(
+                    select(func.count(func.distinct(Product.id)))
+                    .join(Listing, Listing.product_id == Product.id)
+                    .where(Product.category_slug.in_(slugs))
+                    .where(Listing.in_stock.is_(True))
+                ).one()
+                or 0
+            )
+    return counts
+
+
+def _subtree_slugs(session: Session, root: Category) -> list[str]:
+    """Every category slug at or beneath `root`, including the root itself."""
+    slugs = [root.slug]
+    frontier = [root.id]
+    visited: set[int] = set()
+    while frontier:
+        next_ids: list[int] = []
+        for child in session.exec(
+            select(Category).where(Category.parent_id.in_(frontier))
+        ).all():
+            if child.id in visited:
+                continue
+            visited.add(child.id)
+            slugs.append(child.slug)
+            next_ids.append(child.id)
+        frontier = next_ids
+    return slugs
 
 
 def _walk_to_top_level_slug(session: Session, current_slug: str) -> str | None:

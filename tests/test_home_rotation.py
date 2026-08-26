@@ -206,9 +206,12 @@ def test_home_hero_renders_head_to_head(client, session):
     # Cheapest badge shows on the winner (Kilimall @ 24,500).
     assert "Cheapest" in body
 
-    # Savings line: max - min = 26,200 - 24,500 = 1,700 KSh (~6%).
-    assert "Save" in body
+    # Savings line: max - min = 26,200 - 24,500 = 1,700 KSh (~6%). The
+    # revamp restated this as "Buying from X instead of Y keeps KSh 1,700
+    # in your pocket", so assert the figure and the shops it compares
+    # rather than the old "Save" phrasing.
     assert "1,700" in body
+    assert "in your pocket" in body
 
 
 def test_home_hero_degrades_when_no_multi_offer_products(client, session):
