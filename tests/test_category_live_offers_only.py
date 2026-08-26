@@ -87,12 +87,16 @@ def test_card_price_excludes_dead_offers(client, session):
 
 
 def test_offer_count_excludes_dead_offers(client, session):
-    """Two listings, one live: the card says 1 offer, not 2."""
+    """Two listings, one live: the card says 1 shop, not 2.
+
+    Cards counted "offers" until the 2026-08 revamp and now count "shops";
+    the number is what this test is about, not the noun.
+    """
     _seed(session)
     resp = client.get("/c/phones")
     assert resp.status_code == 200
-    assert "1 offer" in resp.text
-    assert "2 offers" not in resp.text
+    assert "1 shop" in resp.text
+    assert "2 shops" not in resp.text
 
 
 def test_product_with_no_live_offer_is_not_listed(client, session):

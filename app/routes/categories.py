@@ -140,6 +140,77 @@ def _available_values(
     return out
 
 
+def _facet_counts(
+    session: Session, category_slugs: list[str], facets: list[Facet]
+) -> dict[str, dict[str, int]]:
+    """Product count per enum facet value, as `{facet_key: {value: count}}`.
+
+    Counted under the same base restrictions as the grid (this category
+    tree, in-stock listings only) but deliberately NOT under the currently
+    active filters, matching _available_values above. The sidebar is a map
+    of where you could go, so the Samsung count should not drop to zero
+    just because you currently have Xiaomi ticked.
+
+    One grouped query per enum facet, same as _available_values.
+    """
+    out: dict[str, dict[str, int]] = {}
+    for f in facets:
+        if f.kind != "enum":
+            continue
+        if f.source == "brand":
+            expr = Product.brand
+        elif key := _spec_key(f.source):
+            expr = _spec_as_text(key)
+        else:
+            continue
+        rows = session.exec(
+            select(expr, func.count(func.distinct(Product.id)))
+            .join(Listing, Listing.product_id == Product.id)
+            .where(Product.category_slug.in_(category_slugs))
+            .where(Listing.in_stock.is_(True))
+            .where(expr.is_not(None))
+            .group_by(expr)
+        ).all()
+        counts: dict[str, int] = {}
+        for value, n in rows:
+            if value in (None, "", "null"):
+                continue
+            # _available_values trims integer-valued specs to "128"; match
+            # that spelling so template lookups line up.
+            label = str(value)
+            if label.endswith(".0"):
+                label = label[:-2]
+            counts[label] = n
+        out[f.key] = counts
+    return out
+
+
+def _ancestors(session: Session, category: Category) -> list[Category]:
+    """Parent chain above `category`, outermost first, for the breadcrumb."""
+    chain: list[Category] = []
+    node = category
+    seen: set[int] = set()
+    while node.parent_id is not None and node.parent_id not in seen:
+        seen.add(node.parent_id)
+        parent = session.get(Category, node.parent_id)
+        if parent is None:
+            break
+        chain.append(parent)
+        node = parent
+    return list(reversed(chain))
+
+
+# Grid sort options. Keys are what appears in ?sort=; the default is the
+# historical ordering (most shops first, then freshest).
+SORTS = {
+    "shops": "Most shops",
+    "gap": "Biggest gap",
+    "price_asc": "Price: low to high",
+    "price_desc": "Price: high to low",
+}
+DEFAULT_SORT = "shops"
+
+
 PAGE_SIZE = 48
 
 
@@ -148,6 +219,7 @@ def category_page(
     slug: str,
     request: Request,
     page: int = 1,
+    sort: str = DEFAULT_SORT,
     session: Session = Depends(get_session),
 ):
     category = session.exec(select(Category).where(Category.slug == slug)).first()
@@ -172,9 +244,22 @@ def category_page(
             .order_by(Category.sort_order)
         ).all()
 
+    if sort not in SORTS:
+        sort = DEFAULT_SORT
+
     facets = facets_for(slug)
     active = _parse_filters(request, facets)
     available = _available_values(session, slugs, facets)
+    facet_counts = _facet_counts(session, slugs, facets)
+    # _available_values reads every distinct value in the tree, including
+    # ones whose products have no live listing. The grid is in-stock-only,
+    # so those options would filter to an empty grid and render with no
+    # count beside them. Keep only values the counts query actually saw,
+    # preserving _available_values' numeric ordering.
+    available = {
+        key: [v for v in values if facet_counts.get(key, {}).get(v)]
+        for key, values in available.items()
+    }
 
     # Base query: Product joined to Listing so we can aggregate min_price +
     # offer_count. Filters get layered in as WHERE (enum) or HAVING (range
@@ -195,11 +280,16 @@ def category_page(
     # its own. Every user-facing surface now agrees: this grid, the home grid
     # (pages.py), the product page (products.py) and the sitemap (meta.py)
     # all count only in-stock listings.
+    # Cards count DISTINCT MERCHANTS, not listings. The label reads "N
+    # shops", and a merchant carrying the same product under two SKUs was
+    # inflating that to "2 shops" from one seller. Same definition as
+    # compared_count below and as indexing.MIN_DISTINCT_MERCHANTS.
     q = (
         select(
             Product,
             func.min(Listing.price_kes).label("min_price"),
-            func.count(Listing.id).label("offer_count"),
+            func.count(func.distinct(Listing.merchant_id)).label("shop_count"),
+            func.max(Listing.price_kes).label("max_price"),
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
@@ -225,6 +315,11 @@ def category_page(
     if isinstance(price_max, str) and price_max.isdigit():
         q = q.having(func.min(Listing.price_kes) <= int(price_max))
 
+    # "Only comparable products" — 2+ distinct merchants, the same rule the
+    # Comparable stat and the sitemap use.
+    if active.get("comparable"):
+        q = q.having(func.count(func.distinct(Listing.merchant_id)) >= 2)
+
     # Ordering: multi-offer products first, then freshest. A comparison
     # site's value prop is "see all merchants for this product side by
     # side" — putting single-offer products at the top (which the prior
@@ -234,11 +329,23 @@ def category_page(
     # dominated by 1-offer products, which is exactly the failure users
     # see. Ties within an offer count fall back to freshness so
     # newly-scraped products still surface within their tier.
-    q = q.order_by(
-        func.count(Listing.id).desc(),
-        Product.created_at.desc(),
-        func.max(Listing.last_checked_at).desc(),
-    )
+    #
+    # The sort control added with the 2026-08 revamp layers on top of this:
+    # `shops` is the historical default described above, and the others are
+    # opt-in via ?sort=. Every branch keeps a deterministic final tiebreak so
+    # pagination can't show the same product on two pages.
+    if sort == "gap":
+        order = [(func.max(Listing.price_kes) - func.min(Listing.price_kes)).desc()]
+    elif sort == "price_asc":
+        order = [func.min(Listing.price_kes).asc()]
+    elif sort == "price_desc":
+        order = [func.min(Listing.price_kes).desc()]
+    else:
+        order = [
+            func.count(func.distinct(Listing.merchant_id)).desc(),
+            Product.created_at.desc(),
+        ]
+    q = q.order_by(*order, func.max(Listing.last_checked_at).desc(), Product.id.asc())
 
     # Count total matching products up-front so we can render pagination
     # controls. Using a subquery keeps the aggregation semantics identical
@@ -299,6 +406,10 @@ def category_page(
     # Base /c/<slug> with results stays indexed — that's where the
     # category-level SEO value lives.
     #
+    #   - A non-default ?sort= — it reorders the same product set, so it is
+    #     duplicate content against the base URL for the same reason a facet
+    #     is. Treated exactly like a filter, including for the canonical.
+    #
     # `page > 1` was in this list until 2026-08-22 and is deliberately not
     # any more. Paginated views were emitting BOTH `noindex` and a canonical
     # pointing at a different URL (page 1, because base.html strips the query
@@ -311,20 +422,24 @@ def category_page(
     # Standard pagination handling instead: let page 2+ be indexable with a
     # self-referential canonical (see `canonical_url` below). Thin-content
     # risk is low — each page carries PAGE_SIZE distinct products.
-    noindex = bool(active) or total_rows == 0
+    noindex = bool(active) or total_rows == 0 or sort != DEFAULT_SORT
 
     # Self-referential canonical for paginated views, so the page no longer
-    # claims to be a different URL. Filtered views keep pointing at the clean
-    # base URL: they're noindex either way, and self-canonicalising them
-    # would mint a canonical for every facet combination.
+    # claims to be a different URL. Filtered and sorted views keep pointing at
+    # the clean base URL: they're noindex either way, and self-canonicalising
+    # them would mint a canonical for every facet/sort combination. Gating on
+    # the default sort also keeps us out of the contradictory pair above —
+    # without it, /c/x?sort=gap&page=2 would be noindex while canonicalising
+    # to ?page=2, a third URL that is neither itself nor the base.
     canonical_url = str(request.url).split("?")[0]
-    if page > 1 and not active:
+    if page > 1 and not active and sort == DEFAULT_SORT:
         canonical_url = f"{canonical_url}?page={page}"
     return templates.TemplateResponse(
         request,
         "category.html",
         {
             "category": category,
+            "ancestors": _ancestors(session, category),
             "children": children,
             "rows": rows,
             "product_count": product_count or 0,
@@ -333,6 +448,9 @@ def category_page(
             "facets": facets,
             "active_filters": active,
             "available_values": available,
+            "facet_counts": facet_counts,
+            "sort": sort,
+            "sorts": SORTS,
             "page": page,
             "total_pages": total_pages,
             "page_size": PAGE_SIZE,

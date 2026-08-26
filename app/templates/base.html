@@ -14,9 +14,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon-192.png">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-  <link rel="mask-icon" href="/static/favicon.svg" color="#059669">
-  <meta name="theme-color" content="#059669" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <link rel="mask-icon" href="/static/favicon.svg" color="#0F5132">
+  <meta name="theme-color" content="#E9EBEA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#08130D" media="(prefers-color-scheme: dark)">
 
   {# Open Graph — controls WhatsApp / Twitter / Facebook link previews. #}
   <meta property="og:site_name" content="PriceKenya">
@@ -30,6 +30,15 @@
   <meta name="twitter:title" content="{{ self.og_title() }}">
   <meta name="twitter:description" content="{{ self.og_description() }}">
   <meta name="twitter:image" content="{{ self.og_image() }}">
+
+  {# Self-hosted, latin-subset woff2. No Google Fonts request and no
+     preconnect — the site loads no third-party font host. Only the two
+     above-the-fold faces are preloaded: the sans is a variable file so one
+     preload covers 400-700, and mono 600 is what prices render in. The
+     other two mono weights load on demand. #}
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/instrument-sans-latin-var.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/ibm-plex-mono-latin-600.woff2" crossorigin>
+
   <script>
     // Apply saved (or system) theme before first paint to avoid FOUC.
     (function () {
@@ -43,133 +52,388 @@
     })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
+  <script>
+    // Design tokens. Every colour resolves to a CSS custom property declared
+    // in the <style> block below, so light/dark is one variable swap on
+    // :root/.dark rather than a `dark:` prefix on every element.
+    //
+    // Because the values are hex rather than raw channels, Tailwind's opacity
+    // shorthand does NOT work on these (`text-ink/50` produces invalid CSS).
+    // Use a literal rgba() for the rare case that needs alpha — the two
+    // shadows below are the only ones in the design.
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            canvas:            'var(--canvas)',
+            surface:           'var(--surface)',
+            'surface-2':       'var(--surface-2)',
+            tile:              'var(--tile)',
+            field:             'var(--field)',
+            line:              'var(--line)',
+            'line-soft':       'var(--line-soft)',
+            'line-row':        'var(--line-row)',
+            ink:               'var(--ink)',
+            'ink-2':           'var(--ink-2)',
+            faint:             'var(--faint)',
+            accent:            'var(--accent)',
+            'accent-hover':    'var(--accent-hover)',
+            'accent-tint':     'var(--accent-tint)',
+            'accent-ink':      'var(--accent-ink)',
+            'accent-ink-tint': 'var(--accent-ink-tint)',
+            'bar-idle':        'var(--bar-idle)',
+            focus:             'var(--focus)',
+            // Alert CTA band. Dark on a light page; in dark mode it inverts
+            // to an elevated panel because there is no darker surface left
+            // to punch into (see the --panel-* swap in the .dark block).
+            panel:             'var(--panel)',
+            'panel-line':      'var(--panel-line)',
+            'panel-field':     'var(--panel-field)',
+            'panel-ink':       'var(--panel-ink)',
+            'panel-muted':     'var(--panel-muted)',
+          },
+          fontFamily: {
+            sans: ['"Instrument Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          borderRadius: {
+            page:   '12px',
+            card:   '11px',
+            ctl:    '9px',
+            'ctl-lg': '10px',
+            ctrl:   '8px',
+            nav:    '7px',
+            badge:  '5px',
+          },
+          boxShadow: {
+            'card-hover': '0 4px 14px rgba(16,20,19,.06)',
+            wa:           '0 6px 18px rgba(15,81,50,.24)',
+          },
+          transitionDuration: { DEFAULT: '160ms', row: '140ms' },
+        },
+      },
+    };
+  </script>
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+  <style>
+    @font-face {
+      font-family: 'Instrument Sans';
+      src: url('/static/fonts/instrument-sans-latin-var.woff2') format('woff2');
+      font-weight: 400 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'IBM Plex Mono';
+      src: url('/static/fonts/ibm-plex-mono-latin-400.woff2') format('woff2');
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'IBM Plex Mono';
+      src: url('/static/fonts/ibm-plex-mono-latin-500.woff2') format('woff2');
+      font-weight: 500; font-style: normal; font-display: swap;
+    }
+    @font-face {
+      font-family: 'IBM Plex Mono';
+      src: url('/static/fonts/ibm-plex-mono-latin-600.woff2') format('woff2');
+      font-weight: 600; font-style: normal; font-display: swap;
+    }
+
+    /* Light ramp. Every grey here clears WCAG AA on the surface it sits on;
+       #8B938F, #9AA19D and #B9BFBC were removed for failing and must not
+       come back. `faint` is the floor at 6.16:1 on surface. */
+    :root {
+      --canvas:            #E9EBEA;
+      --surface:           #FFFFFF;
+      --surface-2:         #FCFDFC;
+      --tile:              #F1F4F2;
+      --field:             #F4F6F5;
+      --line:              #E4E7E5;
+      --line-soft:         #EDEFEE;
+      --line-row:          #F1F3F2;
+      --ink:               #101413;
+      --ink-2:             #3D4441;
+      --faint:             #5C6360;
+      --accent:            #0F5132;
+      --accent-hover:      #0B3E27;
+      --accent-tint:       #EAF1EC;
+      --accent-ink:        #FFFFFF;
+      --accent-ink-tint:   #3F6E56;
+      --bar-idle:          #D3DED7;
+      --focus:             #0F5132;
+      --panel:             #101413;
+      --panel-line:        #333A37;
+      --panel-field:       #1A1F1D;
+      --panel-ink:         #FFFFFF;
+      --panel-muted:       #A8AFAB;
+    }
+
+    /* Green-tinted dark ramp: the accent survives instead of the whole UI
+       going neutral charcoal. Elevation is border-only here — the light
+       box-shadows read as smudge on a dark canvas, so `card-hover` is
+       swapped for a brighter border in the .dark rules below. */
+    .dark {
+      --canvas:            #08130D;
+      --surface:           #0F1F16;
+      --surface-2:         #14281C;
+      --tile:              #142A1E;
+      --field:             #14291D;
+      --line:              #1E3A2A;
+      --line-soft:         #17301F;
+      --line-row:          #152B1D;
+      --ink:               #E8F2EB;
+      --ink-2:             #A8BFB1;
+      --faint:             #7B968A;
+      --accent:            #5CCF94;
+      --accent-hover:      #7BDCA8;
+      --accent-tint:       #143026;
+      --accent-ink:        #08130D;
+      --accent-ink-tint:   #9FD9B6;
+      --bar-idle:          #264934;
+      --focus:             #7FE3B0;
+      /* The band stops being "dark" and becomes "raised". */
+      --panel:             #14281C;
+      --panel-line:        #1E3A2A;
+      --panel-field:       #0F1F16;
+      --panel-ink:         #E8F2EB;
+      --panel-muted:       #A8BFB1;
+    }
+
+    /* Focus is specified as tightly as hover. Never `:focus` alone — mouse
+       users should not see rings — and never removed without a replacement.
+       The offset matters on accent-filled buttons: the ring sits outside
+       the fill rather than on it. */
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition-duration: 0.01ms !important; }
+    }
+
+    /* Prices, counts, dates and stat figures stack in columns all over the
+       site, so tabular figures are the default for mono rather than a
+       per-element opt-in. */
+    .font-mono { font-variant-numeric: tabular-nums; }
+
+    /* Facet checkbox. The Tailwind CDN build ships without the forms
+       plugin, so a bare `appearance:none` box has to be drawn by hand
+       rather than styled with `accent-*` utilities. 16px per the spec; the
+       44px tap target comes from padding on the enclosing label. */
+    .pk-check {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      flex: none;
+      margin: 0;
+      border: 1.5px solid #C3CCC7;
+      border-radius: 4px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: background-color .16s ease, border-color .16s ease;
+    }
+    .dark .pk-check { border-color: var(--line); }
+    .pk-check:checked {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      /* Check glyph drawn as a background image so it inherits nothing and
+         renders identically in both themes. */
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 9.5 17 19 7'/%3E%3C/svg%3E");
+      background-size: 11px 11px;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .dark .pk-check:checked {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2308130D' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 9.5 17 19 7'/%3E%3C/svg%3E");
+    }
+    .pk-check:hover { border-color: var(--accent); }
+  </style>
   {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-  <header class="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+<body class="bg-canvas text-ink antialiased font-sans">
+  {% from "partials/_icons.html" import icon %}
+
+  <div class="max-w-[1216px] mx-auto bg-surface min-h-screen">
+
+    <header class="flex items-center gap-3 md:gap-5 px-4 md:px-6 lg:px-8 py-3.5 border-b border-line-soft">
       <button
         data-sidebar-open
         type="button"
         aria-label="Open menu"
-        class="md:hidden shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 5.75A.75.75 0 0 1 3.75 5h12.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 5.75zm0 4.25a.75.75 0 0 1 .75-.75h12.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 10zm.75 3.5a.75.75 0 0 0 0 1.5h12.5a.75.75 0 0 0 0-1.5H3.75z"/></svg>
+        class="lg:hidden shrink-0 inline-flex items-center justify-center w-10 h-10 -ml-1 rounded-ctrl text-ink-2 transition hover:bg-field hover:text-accent">
+        {{ icon('menu', 19) }}
       </button>
-      <a href="/" class="flex items-center gap-2 font-bold text-lg text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300">
-        <img src="/static/logo.svg" alt="" class="w-8 h-8" width="32" height="32">
-        <span class="hidden sm:inline">PriceKenya</span>
+
+      <a href="/" class="flex items-center gap-2.5 shrink-0 text-ink">
+        <img src="/static/logo.svg" alt="" width="26" height="26" class="block w-[26px] h-[26px] rounded-nav">
+        <span class="text-[17.5px] font-bold tracking-[-0.025em] hidden sm:inline">PriceKenya</span>
       </a>
-      <form action="/search" method="get" class="flex-1">
-        <input
-          name="q"
-          value="{{ q or '' }}"
-          placeholder="Search products, brands or models…"
-          class="w-full rounded-lg border px-3 py-2 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
-          hx-get="/search"
-          hx-trigger="keyup changed delay:300ms"
-          hx-target="#results"
-          hx-push-url="true">
+
+      <form action="/search" method="get" class="flex-1 min-w-0">
+        <label class="flex items-center gap-2.5 h-10 px-3.5 bg-field border border-line rounded-ctrl transition
+                      focus-within:border-accent focus-within:bg-surface">
+          <span class="flex text-faint shrink-0">{{ icon('search', 17) }}</span>
+          {# Plain GET by default so the form works on every page. Live
+             type-ahead is opt-in via the block below, because it swaps into
+             #results and only /search renders that container. It used to be
+             unconditional, which meant every keystroke on a category,
+             product or watchlist page fired a /search request that HTMX then
+             dropped for want of a target. #}
+          <input
+            name="q"
+            value="{{ q or '' }}"
+            placeholder="Search products, brands or models"
+            aria-label="Search products, brands or models"
+            class="flex-1 min-w-0 border-0 bg-transparent outline-none text-[14.5px] text-ink placeholder:text-faint"
+            {% block header_search_live %}{% endblock %}>
+        </label>
       </form>
-      {% if request and request.cookies.get('watchlist') %}
-      <a
-        href="/watchlist"
-        title="My watchlist"
-        aria-label="My watchlist"
-        class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.161c.969 0 1.371 1.24.588 1.81l-3.366 2.446a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.539 1.118l-3.366-2.446a1 1 0 00-1.175 0l-3.366 2.446c-.783.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.465 9.384c-.783-.57-.38-1.81.588-1.81h4.161a1 1 0 00.95-.69l1.286-3.957z"/></svg>
-      </a>
-      {% endif %}
-      <button
-        id="theme-toggle"
-        type="button"
-        aria-label="Toggle dark mode"
-        title="Toggle dark mode"
-        class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-        <svg class="w-4 h-4 block dark:hidden" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
-        <svg class="w-4 h-4 hidden dark:block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.95 2.05a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zm-2.05 4.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 111.414-1.414l.707.707a1 1 0 010 1.414zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4.95-1.05a1 1 0 011.414 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zm1.05-4.95a1 1 0 011.414-1.414l.707.707A1 1 0 015.757 5.757l-.707-.707zM10 6a4 4 0 100 8 4 4 0 000-8z"/></svg>
-      </button>
-    </div>
-  </header>
-  <div class="md:flex md:max-w-7xl md:mx-auto">
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <a href="/watchlist"
+           class="hidden sm:flex items-center gap-[7px] h-9 px-3 rounded-ctrl text-ink-2 text-[13.5px] font-medium transition hover:bg-field hover:text-accent">
+          <span class="flex">{{ icon('star', 17) }}</span><span>Watchlist</span>
+        </a>
+        <button
+          id="theme-toggle"
+          type="button"
+          aria-label="Toggle dark mode"
+          title="Toggle dark mode"
+          class="shrink-0 inline-flex items-center justify-center w-9 h-9 border border-line rounded-ctrl bg-surface text-ink-2 transition hover:border-accent hover:text-accent">
+          <span class="flex dark:hidden">{{ icon('moon', 16) }}</span>
+          <span class="hidden dark:flex">{{ icon('sun', 16) }}</span>
+        </button>
+      </div>
+    </header>
+
+    {# Horizontal category strip. Replaces the persistent desktop sidebar —
+       the revamp puts categories across the top so content gets the full
+       width. The off-canvas drawer below still serves mobile, where the
+       strip scrolls rather than wraps. #}
+    {% if nav_categories() %}
+      {% set active_slug = get_active_top_slug(request) %}
+      <nav aria-label="Categories"
+           class="flex items-center gap-1 px-4 md:px-6 lg:px-8 py-2 border-b border-line-soft bg-surface-2 overflow-x-auto">
+        {% for cat in nav_categories() %}
+          <a href="/c/{{ cat.slug }}"
+             class="flex items-center gap-[7px] px-[11px] py-[7px] rounded-nav text-[13.5px] font-medium whitespace-nowrap transition
+                    {% if active_slug == cat.slug %}bg-accent-tint text-accent{% else %}text-ink-2 hover:bg-accent-tint hover:text-accent{% endif %}">
+            {% if cat.icon_key %}<span class="flex {% if active_slug == cat.slug %}text-accent{% else %}text-faint{% endif %}">{{ icon(cat.icon_key, 16) }}</span>{% endif %}
+            <span>{{ cat.short }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {# Mobile-only category drawer. Kept because the nav strip has no room
+       for full category names on a phone. #}
     {% if nav_categories() %}{% include "partials/_sidebar_nav.html" %}{% endif %}
-    {# Mobile drawer backdrop — click to close. #}
-    <div data-sidebar-backdrop class="fixed inset-0 z-30 bg-black/40 hidden md:hidden"></div>
-    <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-6 md:mx-0 md:px-6">
+    <div data-sidebar-backdrop class="fixed inset-0 z-30 bg-black/40 hidden lg:hidden"></div>
+
+    <main class="px-4 md:px-6 lg:px-8 py-8">
       {% block content %}{% endblock %}
     </main>
+
+    {# Floating "Chat on WhatsApp" widget. Silently hides when the env var
+       PRICEKENYA_WHATSAPP_NUMBER is empty (whatsapp_href() returns None).
+       Dismissible via the small (x); the dismissal is remembered for 7 days
+       in a client cookie so we don't nag every pageload. Sits above HTMX
+       swap regions but below any modal (z-30 vs z-40+ for drawers).
+
+       Stays `fixed`: the design reference places it in normal flow above the
+       footer, but that was a fix for the reference's own absolute-positioned
+       overlap bug, which this app never had. Fixed keeps it reachable after
+       the user scrolls, which is the point of the widget. #}
+    {# Deliberately no pre-fill: the "Chat" button opens WhatsApp to an empty
+       compose so users write what they actually want. Scripted pre-fills feel
+       canned and get deleted before anyone types anyway. The product-page
+       "Share" button DOES pre-fill because there it's the point (product
+       title + price + URL for forwarding a deal). #}
+    {% set _chat_href = whatsapp_href() %}
+    {% if _chat_href %}
+      {# Render visible by default; the JS below only hides the widget when
+         the user has clicked (x) and the 7-day dismiss cookie is present.
+         Doing it this way instead of `hidden` + JS-unhides means the widget
+         is resilient to any JS error elsewhere on the page — a broken HTMX
+         or Alpine block above wouldn't silently kill the chat pill. #}
+      <div data-wa-widget
+           class="fixed bottom-4 right-4 z-30 flex items-center gap-1.5 sm:bottom-6 sm:right-6">
+        <a href="{{ _chat_href }}" target="_blank" rel="noopener"
+           aria-label="Chat with PriceKenya on WhatsApp"
+           class="inline-flex items-center gap-2 h-[42px] px-[17px] rounded-full bg-accent text-accent-ink text-sm font-semibold shadow-wa transition hover:bg-accent-hover">
+          <span class="flex">{{ icon('chat', 18) }}</span>
+          <span class="hidden sm:inline">Chat on WhatsApp</span>
+          <span class="sm:hidden">Chat</span>
+        </a>
+        <button type="button" data-wa-dismiss
+                aria-label="Dismiss WhatsApp chat pill"
+                class="inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-ink-2 text-surface transition hover:bg-ink">
+          {{ icon('close', 12) }}
+        </button>
+      </div>
+      <script>
+        (function () {
+          var widget = document.querySelector('[data-wa-widget]');
+          if (!widget) return;
+          // Honour the 7-day dismissal cookie. Widget is visible by default
+          // so a broken script elsewhere on the page can't silently hide it.
+          var dismissed = document.cookie.split(';').some(function (c) {
+            return c.trim().indexOf('pk_wa_dismissed=1') === 0;
+          });
+          if (dismissed) widget.hidden = true;
+          var closeBtn = widget.querySelector('[data-wa-dismiss]');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+              widget.hidden = true;
+              var d = new Date();
+              d.setDate(d.getDate() + 7);
+              document.cookie = 'pk_wa_dismissed=1; expires=' + d.toUTCString() +
+                '; path=/; SameSite=Lax';
+            });
+          }
+        })();
+      </script>
+    {% endif %}
+
+    <footer class="px-4 md:px-6 lg:px-8 py-8 border-t border-line-soft bg-surface-2">
+      <div class="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+        <div>
+          <div class="flex items-center gap-2 text-ink">
+            <img src="/static/logo.svg" alt="" width="22" height="22" class="block w-[22px] h-[22px] rounded-badge">
+            <span class="text-[15px] font-bold tracking-[-0.02em]">PriceKenya</span>
+          </div>
+          <p class="mt-3 text-[13.5px] leading-relaxed text-faint max-w-[40ch] [text-wrap:pretty]">
+            Prices come from public merchant listings and can change at any time.
+            Always check the price on the shop's own site before you pay.
+          </p>
+        </div>
+        <div class="flex flex-col gap-2.5">
+          <span class="text-xs font-bold tracking-[0.06em] uppercase text-faint font-mono">Shop</span>
+          {% for cat in nav_categories()[:4] %}
+            <a href="/c/{{ cat.slug }}" class="text-[13.5px] text-faint transition hover:text-accent">{{ cat.short }}</a>
+          {% endfor %}
+        </div>
+        <div class="flex flex-col gap-2.5">
+          <span class="text-xs font-bold tracking-[0.06em] uppercase text-faint font-mono">Tools</span>
+          <a href="/watchlist" class="text-[13.5px] text-faint transition hover:text-accent">Watchlist</a>
+          {% if _chat_href %}
+            <a href="{{ _chat_href }}" target="_blank" rel="noopener" class="text-[13.5px] text-faint transition hover:text-accent">WhatsApp</a>
+          {% endif %}
+        </div>
+        <div class="flex flex-col gap-2.5">
+          <span class="text-xs font-bold tracking-[0.06em] uppercase text-faint font-mono">About</span>
+          <a href="/privacy" class="text-[13.5px] text-faint transition hover:text-accent">Privacy</a>
+          <a href="/terms" class="text-[13.5px] text-faint transition hover:text-accent">Terms</a>
+          <a href="/reviews-policy" class="text-[13.5px] text-faint transition hover:text-accent">Reviews policy</a>
+        </div>
+      </div>
+    </footer>
   </div>
 
-  {# Floating "Chat on WhatsApp" widget. Silently hides when the env var
-     PRICEKENYA_WHATSAPP_NUMBER is empty (whatsapp_href() returns None).
-     Dismissible via the small (x); the dismissal is remembered for 7 days
-     in a client cookie so we don't nag every pageload. Sits above HTMX
-     swap regions but below any modal (z-30 vs z-40+ for drawers). #}
-  {# Deliberately no pre-fill: the "Chat" button opens WhatsApp to an empty
-     compose so users write what they actually want. Scripted pre-fills feel
-     canned and get deleted before anyone types anyway. The product-page
-     "Share" button DOES pre-fill because there it's the point (product
-     title + price + URL for forwarding a deal). #}
-  {% set _chat_href = whatsapp_href() %}
-  {% if _chat_href %}
-    {# Render visible by default; the JS below only hides the widget when
-       the user has clicked (x) and the 7-day dismiss cookie is present.
-       Doing it this way instead of `hidden` + JS-unhides means the widget
-       is resilient to any JS error elsewhere on the page — a broken HTMX
-       or Alpine block above wouldn't silently kill the chat pill. #}
-    <div data-wa-widget
-         class="fixed bottom-4 right-4 z-30 flex items-center gap-1 sm:bottom-6 sm:right-6">
-      <a href="{{ _chat_href }}" target="_blank" rel="noopener"
-         aria-label="Chat with PriceKenya on WhatsApp"
-         class="group inline-flex items-center gap-2 rounded-full bg-emerald-600 pl-3 pr-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/25 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:shadow-emerald-950/40">
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.45 3.45 1.31 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31c-.82-1.31-1.26-2.83-1.26-4.38 0-4.54 3.7-8.24 8.25-8.24s8.24 3.7 8.24 8.24-3.7 8.24-8.24 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.7-.8-.23-.08-.39-.12-.56.12-.17.25-.64.8-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.35-.77-1.85-.2-.49-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.23.9 2.42 1.02 2.59.12.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.44.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.14-1.18-.06-.1-.22-.16-.47-.28z"/>
-        </svg>
-        <span class="hidden sm:inline">Chat on WhatsApp</span>
-        <span class="sm:hidden">Chat</span>
-      </a>
-      <button type="button" data-wa-dismiss
-              aria-label="Dismiss WhatsApp chat pill"
-              class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800/75 text-white/80 shadow-md hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50">
-        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
-    <script>
-      (function () {
-        var widget = document.querySelector('[data-wa-widget]');
-        if (!widget) return;
-        // Honour the 7-day dismissal cookie. Widget is visible by default
-        // so a broken script elsewhere on the page can't silently hide it.
-        var dismissed = document.cookie.split(';').some(function (c) {
-          return c.trim().indexOf('pk_wa_dismissed=1') === 0;
-        });
-        if (dismissed) widget.hidden = true;
-        var closeBtn = widget.querySelector('[data-wa-dismiss]');
-        if (closeBtn) {
-          closeBtn.addEventListener('click', function () {
-            widget.hidden = true;
-            var d = new Date();
-            d.setDate(d.getDate() + 7);
-            document.cookie = 'pk_wa_dismissed=1; expires=' + d.toUTCString() +
-              '; path=/; SameSite=Lax';
-          });
-        }
-      })();
-    </script>
-  {% endif %}
-
-  <footer class="mt-12">
-    <div class="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-4 gap-y-2">
-      <span>PriceKenya · Always verify on the merchant site before buying.</span>
-      <span class="ml-auto flex gap-4">
-        <a href="/privacy" class="hover:text-slate-700 dark:hover:text-slate-300">Privacy</a>
-        <a href="/terms" class="hover:text-slate-700 dark:hover:text-slate-300">Terms</a>
-      </span>
-    </div>
-  </footer>
   <script>
     (function () {
       var btn = document.getElementById('theme-toggle');
@@ -180,8 +444,9 @@
         });
       }
 
-      // Off-canvas sidebar toggle (mobile only — desktop keeps it visible via
-      // `md:translate-x-0`). One backdrop, one sidebar; open/close both together.
+      // Off-canvas category drawer. Mobile-only now: the desktop sidebar was
+      // replaced by the horizontal nav strip, so the breakpoint moved from
+      // md to lg and the drawer no longer has a `translate-x-0` desktop state.
       var sidebar = document.querySelector('[data-sidebar]');
       var backdrop = document.querySelector('[data-sidebar-backdrop]');
       var openBtn = document.querySelector('[data-sidebar-open]');
@@ -190,13 +455,13 @@
         if (!sidebar || !backdrop) return;
         sidebar.classList.remove('-translate-x-full');
         backdrop.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden', 'md:overflow-auto');
+        document.body.classList.add('overflow-hidden', 'lg:overflow-auto');
       }
       function close() {
         if (!sidebar || !backdrop) return;
         sidebar.classList.add('-translate-x-full');
         backdrop.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden', 'md:overflow-auto');
+        document.body.classList.remove('overflow-hidden', 'lg:overflow-auto');
       }
       if (openBtn) openBtn.addEventListener('click', open);
       if (closeBtn) closeBtn.addEventListener('click', close);
