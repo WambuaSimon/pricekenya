@@ -29,6 +29,41 @@ from scrapers.common.base import RawListing
 # failure.
 MIN_PRIOR_LISTINGS_FOR_CHECK = 5
 
+# Reject a listing whose price is too large to be a real consumer-electronics
+# price in KES. This is an input-validation guard, not a parser fix: the
+# scraper reads these correctly and the merchant is publishing them.
+#
+# smartdevices-ke serves prices inflated by a factor of ~1e6 on some products.
+# Their own category HTML carries, verbatim:
+#
+#   <bdi><span class="woocommerce-Price-currencySymbol">KSh</span>86,000,000,000.00</bdi>
+#
+# That is KSh 86 billion for a washing machine — 86,000 x 1e6. _parse_price
+# faithfully returns 86000000000, and the row lands in the DB. Ten such rows
+# were live, and they were the only listings above KSh 10m in the entire
+# catalog. They inflated every price-spread figure the site computes: the
+# homepage gap cards, the product page's "Dearest" panel, and the category
+# grid's "Save up to" line all derive from max(price).
+#
+# 20m is deliberately loose. The most expensive genuine live listing is a
+# Hisense 116" TV at 2,499,995, so this leaves roughly 8x headroom and will
+# not clip a real product; anything above it has been a data fault every time.
+# The floor stays at "> 0", enforced by the scrapers themselves.
+MAX_PLAUSIBLE_PRICE_KES = Decimal("20000000")
+
+
+class ImplausiblePrice(ValueError):
+    """A scraped price outside the range a real listing can occupy."""
+
+
+def price_is_plausible(price: Decimal) -> bool:
+    """True when `price` is inside the range we are willing to store.
+
+    Kept as a predicate so both the ingest path and its tests read the same
+    rule, and so a future floor (minimum price) has an obvious home.
+    """
+    return Decimal(0) < price <= MAX_PLAUSIBLE_PRICE_KES
+
 
 class ScraperYieldTooLow(RuntimeError):
     """Raised when a scrape produced literal zero rows on a merchant that
@@ -87,6 +122,19 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     """
     from scrapers.common.woocommerce import is_placeholder_image
 
+    # Validate before matching. A rejected price must not create a Product
+    # either: match_or_create_product is a write, so letting garbage through
+    # to it would leave an orphan product behind with no sellable listing.
+    price = Decimal(raw.price_kes)
+    if not price_is_plausible(price):
+        print(
+            f"[ingest] rejected implausible price {price} from "
+            f"merchant_id={merchant_id} ({raw.title[:60]!r}) — max is "
+            f"{MAX_PLAUSIBLE_PRICE_KES}. Source: {raw.url}"
+        )
+        session.rollback()
+        return
+
     product = match_or_create_product(
         session,
         title=raw.title,
@@ -119,7 +167,6 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     ).first()
 
     now = datetime.utcnow()
-    price = Decimal(raw.price_kes)
 
     if listing:
         price_changed = listing.price_kes != price

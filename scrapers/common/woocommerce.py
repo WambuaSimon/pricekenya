@@ -92,9 +92,24 @@ def _extract_product(card, base_url: str, merchant_slug: str, category_slug: str
         or card.css_first("h2")
         or card.css_first("h3")
     )
+    # `ins` FIRST. On a discounted product WooCommerce renders both prices:
+    #
+    #   <span class="price">
+    #     <del><bdi>KSh18,995.00</bdi></del>
+    #     <ins><bdi>KSh14,995.00</bdi></ins>
+    #   </span>
+    #
+    # `.price bdi` matches the first bdi in document order, which is the one
+    # inside <del> — the price BEFORE the discount. This chain used to try it
+    # first, so the `.price ins bdi` branch below could never be reached and
+    # every sale item across every WooCommerce merchant was stored at its
+    # pre-sale price. A shopper sent to a listing we advertised at 18,995 was
+    # charged 14,995: we over-reported, which is the failure direction a
+    # price-comparison site can least afford.
     price_node = (
-        card.css_first(".price bdi")
-        or card.css_first(".price ins bdi")
+        card.css_first(".price ins bdi")
+        or card.css_first(".price ins .amount")
+        or card.css_first(".price bdi")
         or card.css_first(".price .amount")
         or card.css_first(".price")
     )
