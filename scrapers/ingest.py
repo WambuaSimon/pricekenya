@@ -10,6 +10,7 @@ from decimal import Decimal
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from app.pricing import title_looks_like_instalment
 from db.models import Listing, Merchant, PriceHistory
 from db.session import engine, init_db
 from matching.match import match_or_create_product
@@ -112,6 +113,47 @@ def _is_deadlock(exc: Exception) -> bool:
     return "deadlock" in str(exc).lower()
 
 
+def _reject(session: Session, raw: RawListing, merchant_id: int, reason: str) -> None:
+    """Refuse a scraped row, and retire the listing it would have updated.
+
+    Declining to write is only half the job. Nothing in this pipeline ever
+    marks a listing out of stock on its own: `in_stock` is only ever set from
+    a scrape's own value, and there is no sweep for rows that stop appearing.
+    So a row we start rejecting would otherwise freeze — keeping in_stock=True
+    and its last price forever, still live on the site, with last_checked_at
+    stuck at the last time we accepted it. A guard that silently pins a stale
+    price is worse than no guard.
+
+    Retiring by URL rather than by (product, merchant) is deliberate: finding
+    the product means calling the matcher, which is a write, and that is the
+    orphan-product problem the caller rejects early to avoid.
+
+    Marks out of stock rather than deleting, because it is reversible. If the
+    merchant goes back to quoting a normal price, the next scrape upserts the
+    same row and flips in_stock back to True on its own.
+    """
+    existing = session.exec(
+        select(Listing)
+        .where(Listing.merchant_id == merchant_id)
+        .where(Listing.url == raw.url)
+    ).first()
+    retired = ""
+    if existing is not None and existing.in_stock:
+        existing.in_stock = False
+        existing.last_checked_at = datetime.utcnow()
+        session.add(existing)
+        session.commit()
+        retired = f" — retired listing {existing.id}"
+    else:
+        # Roll back any autoflush side effects so the txn stays clean for the
+        # next iteration.
+        session.rollback()
+    print(
+        f"[ingest] rejected {reason} from merchant_id={merchant_id} "
+        f"({raw.title[:60]!r}){retired}. Source: {raw.url}"
+    )
+
+
 def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> None:
     """Match a RawListing to a Product (creating one if needed) and upsert
     the corresponding Listing + PriceHistory rows. Commits the whole unit
@@ -122,17 +164,21 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     """
     from scrapers.common.woocommerce import is_placeholder_image
 
-    # Validate before matching. A rejected price must not create a Product
-    # either: match_or_create_product is a write, so letting garbage through
-    # to it would leave an orphan product behind with no sellable listing.
+    # Validate before matching. A rejected row must not create a Product
+    # either: match_or_create_product is a write, so letting one through to
+    # it would leave an orphan product behind with no sellable listing.
     price = Decimal(raw.price_kes)
     if not price_is_plausible(price):
-        print(
-            f"[ingest] rejected implausible price {price} from "
-            f"merchant_id={merchant_id} ({raw.title[:60]!r}) — max is "
-            f"{MAX_PLAUSIBLE_PRICE_KES}. Source: {raw.url}"
+        _reject(
+            session, raw, merchant_id,
+            f"implausible price {price} (max {MAX_PLAUSIBLE_PRICE_KES})",
         )
-        session.rollback()
+        return
+    if title_looks_like_instalment(raw.title):
+        # A deposit is not the price of the product. Rejecting here rather
+        # than only filtering at read time keeps Listing.price_kes meaning
+        # one thing: what this merchant charges for this item, today.
+        _reject(session, raw, merchant_id, "instalment or deposit pricing")
         return
 
     product = match_or_create_product(

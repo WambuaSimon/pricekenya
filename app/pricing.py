@@ -42,6 +42,19 @@ INSTALMENT_MARKERS = (
 )
 
 
+def title_looks_like_instalment(title: str | None) -> bool:
+    """True when a listing title advertises an instalment plan, not a price.
+
+    "Iphone 17 Pro Max Lipa Mdogo Mdogo" at 87,800 is a deposit. Measured on
+    prod 2026-08-27, the three such listings sat at 39-49% of their product's
+    median price — 52,000 against a real 117,000-150,000 range on the iPhone
+    17, for instance. Stored in `Listing.price_kes` that reads as the cheapest
+    offer for the product and wins the comparison it should not be in.
+    """
+    lowered = (title or "").lower()
+    return any(marker in lowered for marker in INSTALMENT_MARKERS)
+
+
 def instalment_exclusions(listing_model):
     """NOT-LIKE clauses excluding instalment/deposit listings.
 
