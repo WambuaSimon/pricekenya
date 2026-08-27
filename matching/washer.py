@@ -17,6 +17,24 @@ from matching.base import ParsedTitle, clean_title, slugify
 # "8KG", "8Kg", "10 kg", "7.5KG", "8kgs"
 _CAPACITY_RE = re.compile(r"(\d{1,2}(?:\.\d)?)\s*(?:kgs?|kilogram)", re.IGNORECASE)
 
+# Combo washer-dryers advertise two figures: "15/8 Kg", "10.5/6kg", "9 / 6 KG".
+# The FIRST is the wash load, the second the (smaller) dry load.
+#
+# _CAPACITY_RE alone reads these backwards. Scanning "15/8 Kg" it finds no
+# "kg" after 15, matches "8 Kg" instead, and returns the DRY capacity as the
+# machine's capacity. Measured on prod 2026-08-27: all 54 combo listings in
+# washers-dryers were keyed on their dryer figure.
+#
+# On its own that is a bad spec. Combined with the dryer-marker gap below it
+# was a collision: "LG 15/8 Kg Front Load Washer and Dryer" produced
+# `lg|8kg|front`, identical to the genuine "LG 8KG Front Load Washing
+# Machine", so a 238,995 combo merged into a 62,995 washer and the product
+# page advertised a spread no shopper could act on.
+_COMBO_CAPACITY_RE = re.compile(
+    r"(\d{1,2}(?:\.\d)?)\s*/\s*(\d{1,2}(?:\.\d)?)\s*(?:kgs?|kilogram)",
+    re.IGNORECASE,
+)
+
 # Load type detection — order matters (check twin-tub before top-load since
 # a twin-tub is technically top-loaded but sold as a distinct type).
 LOAD_TWIN_TUB = ("twin tub", "twin-tub", "twintub")
@@ -33,6 +51,16 @@ DRYER_MARKERS = (
     "wash & 7 kg dry", "wash & 8 kg dry", "wash and dry function",
 )
 
+# The phrase-list above missed the most natural spellings — "Washer and
+# Dryer", "Washer/Dryer", "Washer & Dryer" — so those listings came out with
+# has_dryer=False and no `with-dryer` segment to keep them apart from a plain
+# washer of the same capacity. One regex covers the whole family rather than
+# another round of near-duplicate literals.
+_DRYER_PHRASE_RE = re.compile(
+    r"wash(?:er|ing\s+machine)?\s*(?:and|&|\+|/|-)\s*dry(?:er)?",
+    re.IGNORECASE,
+)
+
 NON_WASHER_MARKERS = (
     "vacuum cleaner",
     "cloth line", "clothesline",
@@ -45,12 +73,27 @@ NON_WASHER_MARKERS = (
 )
 
 
-def _find_capacity_kg(cleaned: str) -> float | None:
+def _find_capacities(cleaned: str) -> tuple[float | None, float | None]:
+    """Return (wash_kg, dry_kg). dry_kg is None unless a combo spec is present.
+
+    A "15/8 kg" style figure is checked first and wins outright: when a title
+    carries both a combo spec and a loose capacity elsewhere, the combo is the
+    authoritative one.
+    """
+    combo = _COMBO_CAPACITY_RE.search(cleaned)
+    if combo:
+        wash, dry = float(combo.group(1)), float(combo.group(2))
+        # Guard the orientation rather than trusting position: a dryer load is
+        # never larger than the wash load on these machines, so a reversed
+        # pair means we have misread something that is not a combo spec.
+        if 1 <= wash <= 25 and 1 <= dry <= 25 and dry <= wash:
+            return wash, dry
+
     for m in _CAPACITY_RE.finditer(cleaned):
         n = float(m.group(1))
         if 1 <= n <= 25:
-            return n
-    return None
+            return n, None
+    return None, None
 
 
 def _find_load_type(cleaned: str) -> str | None:
@@ -91,13 +134,21 @@ def parse_title(title: str) -> ParsedTitle:
             return ParsedTitle()
 
     brand = find_brand(cleaned)
-    capacity = _find_capacity_kg(cleaned)
+    capacity, dryer_capacity = _find_capacities(cleaned)
     load_type = _find_load_type(cleaned)
     if not (brand and capacity and load_type):
         return ParsedTitle()
 
     automation = _find_automation(cleaned, load_type)
-    has_dryer = any(m in cleaned for m in DRYER_MARKERS)
+    # A combo capacity spec is itself proof of a dryer, and a more reliable
+    # one than phrasing: "VON VWD-106FDDTX Front Load Washer/Dryer 10/6KG"
+    # names the machine in three different ways across the catalog, but every
+    # one of them carries the two-figure spec.
+    has_dryer = (
+        dryer_capacity is not None
+        or bool(_DRYER_PHRASE_RE.search(cleaned))
+        or any(m in cleaned for m in DRYER_MARKERS)
+    )
     condition = find_condition(cleaned)
 
     cap_str = _fmt_capacity(capacity)
@@ -119,6 +170,13 @@ def parse_title(title: str) -> ParsedTitle:
         specs["automation"] = automation.replace("-", " ").title()
     if has_dryer:
         specs["has_dryer"] = True
+    # Spec only, deliberately NOT part of the canonical key. Merchants list
+    # the same machine as both "10kg Wash & Dry" and "10/7kg", so keying on
+    # the dry figure would split one product in two — the opposite of the
+    # merge this fix exists to prevent. `with-dryer` already separates a combo
+    # from a plain washer, which is the distinction that was missing.
+    if dryer_capacity is not None:
+        specs["dryer_capacity_kg"] = dryer_capacity
 
     display_bits = [
         brand.replace("-", " ").title(),
