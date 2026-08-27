@@ -22,3 +22,6 @@ playwright-report/
 # Private operations log — merchant bot-mitigation details.
 # See the section 8 stub in CONTEXT.md for why this is not tracked.
 OPERATIONS.md
+
+# pytest scratch DB (see tests/conftest.py)
+.pytest-pricekenya.db
