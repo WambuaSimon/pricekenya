@@ -228,3 +228,69 @@ def test_normalize_picks_plurality_target_when_listings_scatter(session):
     redirect = session.get(ProductRedirect, "scattered")
     assert redirect is not None
     assert redirect.new_slug == "big-target", "should follow the plurality of listings"
+
+
+def test_rematch_washer_dryers_records_redirect(session):
+    """The washer-dryer re-home is the newest deletion path.
+
+    When the combo-capacity fix moves every listing off a product that was
+    built entirely from mis-parsed titles — 26 of them on prod — the vacated
+    slug has to 301 to wherever those listings went.
+    """
+    from scripts.rematch_washer_dryers import run
+
+    session.add(Merchant(id=1, slug="m1", name="M1", base_url="https://m1.example"))
+    session.commit()
+
+    # `lg|8kg|front` is the collision itself: the combo below used to key
+    # here, on top of the genuine 8kg washer.
+    old = _product(session, "lg-8kg-front-washer-dryer", "lg|8kg|front|with-dryer")
+    old.category_slug = "washers-dryers"
+    session.add(old)
+    session.commit()
+    _listing(
+        session, old.id, 1,
+        title="LG 15/8 Kg Front Load Washer and Dryer F0Z6DRP24",
+    )
+    # Capture primitives up front: the script commits its deletes from its
+    # own Session, after which touching `old.<attr>` here would trigger a
+    # refresh of a row that no longer exists.
+    old_id, old_slug = old.id, old.slug
+
+    run(category="washers-dryers", apply=True)
+    session.expire_all()
+
+    assert session.get(Product, old_id) is None, "emptied product should be deleted"
+    redirect = session.get(ProductRedirect, old_slug)
+    assert redirect is not None, "re-home deleted a product without a redirect"
+
+    # It points at the product the listing actually moved to: 15kg, not 8kg.
+    landed = session.exec(
+        select(Product).where(Product.canonical_key == "lg|15kg|front|with-dryer")
+    ).first()
+    assert landed is not None
+    assert redirect.new_slug == landed.slug
+
+
+def test_rematch_leaves_correctly_keyed_listings_alone(session):
+    """The re-home must not churn rows that are already right."""
+    from scripts.rematch_washer_dryers import run
+
+    session.add(Merchant(id=1, slug="m1", name="M1", base_url="https://m1.example"))
+    session.commit()
+    keep = _product(session, "lg-8kg-front", "lg|8kg|front")
+    keep.category_slug = "washers-dryers"
+    session.add(keep)
+    session.commit()
+    lst = _listing(
+        session, keep.id, 1,
+        title="LG F4J3TYG6J Front Load Washing Machine, 8KG",
+    )
+    keep_id, lst_id = keep.id, lst.id
+
+    moved = run(category="washers-dryers", apply=True)
+    session.expire_all()
+
+    assert moved == 0
+    assert session.get(Product, keep_id) is not None
+    assert session.get(Listing, lst_id).product_id == keep_id
