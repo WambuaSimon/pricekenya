@@ -37,8 +37,10 @@ on a site whose entire proposition is accurate prices. The next scrape
 re-adds the product at whatever the merchant then publishes, and the ingest
 guard keeps it out if that is still garbage.
 
-PriceHistory rows referencing a deleted Listing are removed too, so the
-weekly chart on the product page cannot resurrect the bad figure.
+PriceHistory and Click rows referencing a deleted Listing are removed too.
+Both FKs are NOT NULL so there is no set-null option, and an orphaned
+PriceHistory row would let the weekly chart on the product page resurrect
+the bad figure.
 
 Usage:
     python -m scripts.purge_implausible_prices               # dry run
@@ -51,7 +53,7 @@ import argparse
 
 from sqlmodel import Session, delete, select
 
-from db.models import Listing, Merchant, PriceHistory
+from db.models import Click, Listing, Merchant, PriceHistory
 from db.session import engine
 from scrapers.ingest import MAX_PLAUSIBLE_PRICE_KES
 
@@ -87,14 +89,31 @@ def run(apply: bool = False) -> int:
             return len(rows)
 
         listing_ids = [listing.id for listing, _ in rows]
-        # History first: the FK points this way, and an orphaned PriceHistory
-        # row would let the product page's weekly chart redraw the bad price.
+        # Children first. Both FKs are NOT NULL, so there is no
+        # set-null option — a Listing cannot be deleted while either table
+        # still points at it, and Postgres rejects the whole transaction.
+        #
+        # PriceHistory: an orphan would let the product page's weekly chart
+        # redraw the bad price.
+        #
+        # Click: measured on prod 2026-08-27, 35 clicks across 8 of the 10
+        # rows — 0.13% of the 26,117-row table. Worth noting rather than
+        # skipping past: those are real shoppers who clicked through to a
+        # listing advertising KSh 640 billion. A Click row pointing at a
+        # deleted Listing cannot be resolved back to a merchant or product,
+        # so it has no analytical value once its parent is gone.
         history_deleted = session.exec(
             delete(PriceHistory).where(PriceHistory.listing_id.in_(listing_ids))
         ).rowcount
+        clicks_deleted = session.exec(
+            delete(Click).where(Click.listing_id.in_(listing_ids))
+        ).rowcount
         session.exec(delete(Listing).where(Listing.id.in_(listing_ids)))
         session.commit()
-        print(f"\nDeleted {len(listing_ids)} listing(s) and {history_deleted} history row(s).")
+        print(
+            f"\nDeleted {len(listing_ids)} listing(s), {history_deleted} history "
+            f"row(s) and {clicks_deleted} click(s)."
+        )
         return len(rows)
 
 
