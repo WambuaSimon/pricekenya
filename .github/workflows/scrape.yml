@@ -148,7 +148,10 @@ jobs:
           - pricepoint-ke       # WC Store API scraper (was wc-*)
           - wc-phoneshop-ke     # phones + gaming accessories
           - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
-          - wc-overtech-ke      # Cloudflare TLS shield — curl_cffi (was Playwright until 2026-08-04)
+          # wc-overtech-ke deprecated 2026-08-29: network-layer block on GHA
+          # IPs (RetryError[Future ... raised Timeout], no HTTP response) —
+          # same signature as zuka-ke/nairobitvshop-ke. See wc_merchants.py
+          # and OPERATIONS.md §8k.
           # NOTE: Shopify targets (all-shopify + shopify-*) are intentionally
           # not in this matrix. GH Actions Azure IPs get HTTP 429
           # ('local_rate_limited') from Shopify's edge, AND Render's

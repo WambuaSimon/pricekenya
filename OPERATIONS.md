@@ -193,3 +193,19 @@ Note this is a latent race, not an observed failure: megatech runs green on play
 
 **Not acted on:** `sollatek-ke` shows `never scraped` in `scrape_health`. That's not an outage — it was deliberately never wired up (see the comment in `shopify_merchants.py`: `shop.sollatek.com` sells voltage guards/AVS units with no category overlap). It's a stray `Merchant` row creating a permanent false positive on the health report; delete the row or teach the report to skip merchants with no configured target.
 
+## 8k. Fourth stale-merchant triage (2026-08-29)
+
+No DB access this pass (no `DATABASE_URL` in this environment, so `scripts.scrape_health` couldn't run) — signal came entirely from the GH Actions `scrape.yml` matrix, which is sufficient now that `MIN_PRIOR_LISTINGS_FOR_CHECK` sits at 5 (§8j): a zero-yield leg fails red instead of exiting 0 silently.
+
+Covered the last 4 scheduled runs (2026-08-27 09:46 → 2026-08-28 22:18). Three legs failed somewhere in that window; only one was persistent.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **overtech-ke** | 33166873237 (08-28 11:22), 33216269580 (08-28 22:18) — 2/2 most recent, was green through 08-27 22:15 | Every leaf (`audio`, `cameras`, `console-accessories`, `laptops`, `peripherals-accessories`, `phone-tablet-accessories`) logged `[wc] overtech-ke/<leaf> page1 GET failed: RetryError: RetryError[<Future ... raised Timeout>]` — no HTTP response reached the client at all, on `client_type: "cffi"`, which had been holding since the 2026-08-04 Turnstile-drop fix (§8h). `overtech.co.ke` still resolves in DNS (not dead). | **Deprecated.** Same signature as zuka-ke/nairobitvshop-ke (§8i/8j) — GHA IPs dropped at the network layer, not a TLS or challenge problem `client_type` can fix. Residential-proxy Playwright is the only path back; not worth it for a 239-listing catalog (audio/cameras/laptops/accessories) already covered by Jumia/Kilimall/Hotpoint/Phone Place. Removed from `scrape.yml` matrix and `wc_merchants.py`. |
+| wc-smartphoneskenya-ke | 33121723127 (08-27 22:15) only | `failure` conclusion, but green on the run immediately before and both runs after. | **Noise.** One-off CI blip, not re-verified as a pattern — no action, per the megatech-ke lesson in §8j about not chasing a single red run. |
+| wc-eamobitech-ke | 33060088510 (08-27 09:46) only | Same — `failure` once, green on every other run in the window. | **Noise.** Same reasoning. |
+
+**Why two of the four runs showed as `cancelled` instead of `failure` at the top level.** `phonesstore-ke` shows `conclusion: cancelled` in both runs where overtech-ke failed. The matrix strategy's default `fail-fast: true` cancels any leg still queued/running when another leg in the same matrix fails — `phonesstore-ke` was mid-queue when `wc-overtech-ke` raised, so it got cancelled, which drags the whole run's top-level conclusion to `cancelled` even though the real failure is `wc-overtech-ke`'s red leg underneath. Read `list_workflow_jobs` per-leg, not the run-level conclusion, when triaging — a `cancelled` run can be hiding a genuine break.
+
+**Cross-check against the deprecation list.** All other legs in the 4-run window were green throughout, and none of the already-deprecated merchants (7 Shopify, techonline-ke, zuka-ke, finetech-ke, nairobitvshop-ke, sollatek-ke's stray row) triggered anything — consistent with §8j's point that they're not wired into the matrix any more so they can't produce CI signal at all now.
+

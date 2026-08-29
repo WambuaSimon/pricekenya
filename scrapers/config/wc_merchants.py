@@ -402,27 +402,18 @@ WC_MERCHANTS: dict[str, dict] = {
     # residential-proxy Playwright or a per-URL warm-up phase; neither is
     # worth the cost right now given the categories they cover already have
     # heavy coverage from Jumia/Kilimall/Hotpoint/etc.
-    "overtech-ke": {
-        "meta": {"slug": "overtech-ke", "name": "Overtech Kenya", "base_url": "https://overtech.co.ke"},
-        # Originally Playwright because of a Cloudflare Turnstile challenge, but
-        # as of 2026-08-04 the site serves category pages 200 to plain httpx +
-        # curl_cffi from residential and CI IPs — Turnstile has been dropped
-        # (verified with both clients returning full 500KB DOM with 40 product
-        # cards). Playwright was also blowing the 30-min job budget: ~25 min
-        # per run with the 4s Turnstile-wait + max_pages=1. Downgrading to
-        # curl_cffi keeps a Chrome TLS fingerprint (same shield-hopping tactic
-        # as megatech / nairobilaptops / phoneshop) in case Cloudflare
-        # posture-shifts back, and unlocks max_pages=3 for fuller coverage.
-        "client_type": "cffi",
-        "leaf_to_urls": {
-            "audio": ["https://overtech.co.ke/product-category/audio-systems/earphones-headphones", "https://overtech.co.ke/product-category/audio-systems/portable-speakers", "https://overtech.co.ke/product-category/audio-systems/soundbars"],
-            "cameras": ["https://overtech.co.ke/product-category/cameras", "https://overtech.co.ke/product-category/cameras/photography"],
-            "console-accessories": ["https://overtech.co.ke/product-category/gaming/gaming-accessories"],
-            "laptops": ["https://overtech.co.ke/product-category/computing/laptops", "https://overtech.co.ke/product-category/computing/computer-desktops"],
-            "peripherals-accessories": ["https://overtech.co.ke/product-category/computing/computer-accessories"],
-            "phone-tablet-accessories": ["https://overtech.co.ke/product-category/mobile-accessories/chargers-cables", "https://overtech.co.ke/product-category/mobile-accessories/memory-cards"],
-        },
-    },
+    # overtech-ke deprecated 2026-08-29: escalated past the 2026-08-04
+    # curl_cffi fix to a network-layer block — every leaf on both the
+    # 2026-08-28 11:22 and 22:18 scheduled runs exited as
+    # RetryError[Future ... raised Timeout] with no HTTP response at all
+    # (runs 33166873237 and 33216269580), same signature as zuka-ke and
+    # nairobitvshop-ke. DNS still resolves (overtech.co.ke is not dead),
+    # so this is GitHub Actions IPs being dropped at the network layer,
+    # not a dead domain or a TLS/challenge fix. Residential-proxy
+    # Playwright is the only path back and isn't cost-justified for a
+    # 239-listing catalog (audio/cameras/laptops/accessories) that's
+    # already covered by Jumia/Kilimall/Hotpoint/Phone Place. See
+    # OPERATIONS.md §8k.
     "hisense-kenya-ke": {
         "meta": {"slug": "hisense-kenya-ke", "name": "Hisense Kenya (Official)", "base_url": "https://hisense-kenya.co.ke"},
         # Cloudflare + Turnstile JS challenge; plain httpx and curl_cffi both
