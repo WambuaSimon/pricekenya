@@ -12,29 +12,47 @@
     </div>
   </div>
   <p class="text-slate-600 dark:text-slate-400 text-sm mb-6">
-    Per-merchant last-scrape freshness. Merchants stale &gt; {{ stale_hours }}h
-    are flagged in red — that's ~{{ (stale_hours / 6) | round(1) }}x the
-    6-hourly cron interval. Data pulls straight from
-    <code>Listing.last_checked_at</code>.
+    Per-merchant last-scrape freshness, from <code>Listing.last_checked_at</code>.
+    Stale means &gt; {{ stale_hours }}h, about {{ (stale_hours / 6) | round(1) }}x the
+    6-hourly cron interval.
+    <span class="block mt-1">
+      Only <strong>active</strong> merchants going stale means something broke.
+      <span class="font-medium text-amber-700 dark:text-amber-400">Parked</span>
+      merchants are configured but deliberately not run by CI, and
+      <span class="font-medium text-slate-500 dark:text-slate-400">deprecated</span>
+      ones have no scraper at all — both are stale by design.
+    </span>
   </p>
 
   {# Top-of-page counters — quick health-at-a-glance. #}
-  <div class="grid grid-cols-3 gap-3 mb-6">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
       <div class="text-2xl font-bold">{{ rows | length }}</div>
       <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Merchants</div>
     </div>
-    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-      <div class="text-2xl font-bold {% if stale_count %}text-red-600 dark:text-red-400{% endif %}">
-        {{ stale_count }}
+    {# The number to act on: stale AND supposed to be running. #}
+    <div class="rounded-lg border {% if attention_count %}border-red-300 dark:border-red-700{% else %}border-slate-200 dark:border-slate-700{% endif %} bg-white dark:bg-slate-900 p-4">
+      <div class="text-2xl font-bold {% if attention_count %}text-red-600 dark:text-red-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">
+        {{ attention_count }}
       </div>
-      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Stale (&gt; {{ stale_hours }}h)</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Broken</div>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+        active &amp; stale &gt; {{ stale_hours }}h
+      </div>
     </div>
     <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-      <div class="text-2xl font-bold {% if never_count %}text-amber-600 dark:text-amber-400{% endif %}">
-        {{ never_count }}
+      <div class="text-2xl font-bold {% if parked_count %}text-amber-600 dark:text-amber-400{% endif %}">
+        {{ parked_count }}
       </div>
-      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Never scraped</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Parked</div>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">configured, not run by CI</div>
+    </div>
+    <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <div class="text-2xl font-bold text-slate-500 dark:text-slate-400">{{ deprecated_count }}</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Deprecated</div>
+      <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+        no scraper{% if never_count %} · {{ never_count }} never scraped{% endif %}
+      </div>
     </div>
   </div>
 
@@ -74,6 +92,7 @@
       <thead class="bg-slate-100 dark:bg-slate-800">
         <tr>
           <th class="text-left px-3 py-2 font-semibold">Merchant</th>
+          <th class="text-left px-3 py-2 font-semibold">Coverage</th>
           <th class="text-right px-3 py-2 font-semibold">Listings</th>
           <th class="text-right px-3 py-2 font-semibold">In stock</th>
           <th class="text-left px-3 py-2 font-semibold">Last checked</th>
@@ -82,13 +101,34 @@
       </thead>
       <tbody>
         {% for r in rows %}
-          {% set is_stale = r.hours_since_last_check is not none and r.hours_since_last_check > stale_hours %}
+          {% set is_stale = r.is_stale(stale_hours) %}
           {% set is_never = r.hours_since_last_check is none %}
+          {# Red is reserved for merchants that are supposed to be running.
+             Parked and deprecated rows are stale by design, so they get a
+             muted treatment — that distinction is the whole point of this
+             column. #}
+          {% set is_broken = r.needs_attention(stale_hours) %}
           <tr class="border-t border-slate-200 dark:border-slate-700
-                     {% if is_stale %}bg-red-50 dark:bg-red-950/30{% elif is_never %}bg-amber-50 dark:bg-amber-950/30{% endif %}">
+                     {% if is_broken %}bg-red-50 dark:bg-red-950/30
+                     {% elif is_never and r.coverage.value == 'active' %}bg-amber-50 dark:bg-amber-950/30
+                     {% elif r.coverage.value != 'active' %}opacity-60{% endif %}">
             <td class="px-3 py-2">
               <div class="font-medium">{{ r.slug }}</div>
               <div class="text-xs text-slate-500 dark:text-slate-400">{{ r.name }}</div>
+            </td>
+            <td class="px-3 py-2">
+              {% if r.coverage.value == 'parked' %}
+                <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide
+                             bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                      title="Configured but deliberately excluded from the CI matrix. See scrapers/coverage.py.">parked</span>
+              {% elif r.coverage.value == 'deprecated' %}
+                <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide
+                             bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                      title="No scraper config and no module. Stale by design.">deprecated</span>
+              {% else %}
+                <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide
+                             bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">active</span>
+              {% endif %}
             </td>
             <td class="text-right px-3 py-2 tabular-nums">{{ r.listing_count }}</td>
             <td class="text-right px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400">
@@ -102,11 +142,11 @@
               {% endif %}
             </td>
             <td class="text-right px-3 py-2 tabular-nums
-                       {% if is_stale %}text-red-600 dark:text-red-400 font-semibold
+                       {% if is_broken %}text-red-600 dark:text-red-400 font-semibold
                        {% elif is_never %}text-amber-600 dark:text-amber-400
                        {% else %}text-slate-600 dark:text-slate-400{% endif %}">
               {% if r.hours_since_last_check is not none %}
-                {{ '%.1f' % r.hours_since_last_check }}h{% if is_stale %} STALE{% endif %}
+                {{ '%.1f' % r.hours_since_last_check }}h{% if is_broken %} STALE{% endif %}
               {% else %}—{% endif %}
             </td>
           </tr>

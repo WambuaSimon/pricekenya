@@ -34,6 +34,7 @@ from db.models import (
 )
 from db.redirects import record_redirect
 from db.session import get_session
+from scrapers.coverage import Coverage
 from scripts.scrape_health import merchant_health
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -69,10 +70,11 @@ def admin_index(
     don't have to click into each detail page to see if there's anything
     to look at. Each tile links to its detail page."""
     scrape_rows = merchant_health(session)
-    scrapes_stale = sum(
-        1 for r in scrape_rows
-        if r.hours_since_last_check is not None and r.hours_since_last_check > 24
-    )
+    # Count only merchants that are supposed to be running. Parked and
+    # deprecated merchants are stale by design, and folding them in here
+    # meant the overview tile read "11 stale" on a day when nothing was
+    # actually broken. See scrapers/coverage.py.
+    scrapes_stale = sum(1 for r in scrape_rows if r.needs_attention(24))
     scrapes_never = sum(1 for r in scrape_rows if r.hours_since_last_check is None)
 
     alerts_active = session.exec(
@@ -408,10 +410,14 @@ def scrapes_dashboard(
     """Per-merchant scrape freshness. Same data as
     `python -m scripts.scrape_health`, viewable behind the admin key."""
     rows = merchant_health(session)
-    stale_count = sum(
-        1 for r in rows
-        if r.hours_since_last_check is not None and r.hours_since_last_check > stale_hours
-    )
+    stale_count = sum(1 for r in rows if r.is_stale(stale_hours))
+    # The number worth acting on. A parked or deprecated merchant going
+    # stale is the designed outcome; only an ACTIVE one means something
+    # broke. Counting all three together is what made 11 red rows read as
+    # 11 incidents when none of them were. See scrapers/coverage.py.
+    attention_count = sum(1 for r in rows if r.needs_attention(stale_hours))
+    parked_count = sum(1 for r in rows if r.coverage is Coverage.PARKED)
+    deprecated_count = sum(1 for r in rows if r.coverage is Coverage.DEPRECATED)
     never_count = sum(1 for r in rows if r.hours_since_last_check is None)
     return templates.TemplateResponse(
         request,
@@ -420,6 +426,9 @@ def scrapes_dashboard(
             "rows": rows,
             "stale_hours": stale_hours,
             "stale_count": stale_count,
+            "attention_count": attention_count,
+            "parked_count": parked_count,
+            "deprecated_count": deprecated_count,
             "never_count": never_count,
             "now_utc": datetime.now(UTC),
             "admin_key": settings.admin_key,
