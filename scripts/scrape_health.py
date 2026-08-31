@@ -25,6 +25,7 @@ from sqlmodel import Session, func, select
 
 from db.models import Listing, Merchant
 from db.session import engine
+from scrapers.coverage import Coverage, classify, needs_attention
 
 
 @dataclass
@@ -37,9 +38,24 @@ class MerchantHealth:
     in_stock_count: int
     last_checked_at: datetime | None  # None only if merchant has zero listings
     hours_since_last_check: float | None
+    #: Why this merchant is or isn't being refreshed. Staleness only means
+    #: something broke when this is ACTIVE — see scrapers/coverage.py.
+    coverage: Coverage = Coverage.ACTIVE
+
+    def is_stale(self, stale_hours: float) -> bool:
+        return (
+            self.hours_since_last_check is not None
+            and self.hours_since_last_check > stale_hours
+        )
+
+    def needs_attention(self, stale_hours: float) -> bool:
+        """Stale AND supposed to be running. This is the number to alert on."""
+        return needs_attention(self.coverage, self.is_stale(stale_hours))
 
     def to_row(self) -> dict:
-        return asdict(self)
+        row = asdict(self)
+        row["coverage"] = self.coverage.value
+        return row
 
 
 def merchant_health(session: Session) -> list[MerchantHealth]:
@@ -92,6 +108,7 @@ def merchant_health(session: Session) -> list[MerchantHealth]:
                 in_stock_count=stock_by_slug.get(slug, 0),
                 last_checked_at=last_checked_at,
                 hours_since_last_check=hours,
+                coverage=classify(slug),
             )
         )
 
@@ -105,12 +122,19 @@ def merchant_health(session: Session) -> list[MerchantHealth]:
 
 
 def _format_row(r: MerchantHealth, *, stale_hours: float, use_colour: bool) -> str:
+    # Red is reserved for merchants that are supposed to be running. A parked
+    # or deprecated merchant is stale by design, and colouring it the same as
+    # a real breakage is what let seven genuinely-parked Shopify stores and
+    # four deprecated ones read as eleven incidents.
     if r.hours_since_last_check is None:
         staleness = "never"
         colour_start, colour_end = ("", "")
-    elif r.hours_since_last_check > stale_hours:
+    elif r.needs_attention(stale_hours):
         staleness = f"{r.hours_since_last_check:>6.1f}h STALE"
         colour_start, colour_end = ("\033[31m", "\033[0m") if use_colour else ("", "")
+    elif r.is_stale(stale_hours):
+        staleness = f"{r.hours_since_last_check:>6.1f}h"
+        colour_start, colour_end = ("\033[90m", "\033[0m") if use_colour else ("", "")
     else:
         staleness = f"{r.hours_since_last_check:>6.1f}h"
         colour_start, colour_end = ("", "")
@@ -119,6 +143,7 @@ def _format_row(r: MerchantHealth, *, stale_hours: float, use_colour: bool) -> s
     )
     return (
         f"{colour_start}{r.slug:<22} "
+        f"{r.coverage.value:<11}"
         f"{r.listing_count:>6}  "
         f"{r.in_stock_count:>6}  "
         f"{last:<20}  "
@@ -129,18 +154,27 @@ def _format_row(r: MerchantHealth, *, stale_hours: float, use_colour: bool) -> s
 
 def _print_table(rows: list[MerchantHealth], *, stale_hours: float) -> None:
     use_colour = sys.stdout.isatty()
-    header = f"{'MERCHANT':<22} {'LISTINGS':>6}  {'INSTOCK':>6}  {'LAST CHECKED':<20}  {'AGE':<14}"
+    header = (
+        f"{'MERCHANT':<22} {'COVERAGE':<11}{'LISTINGS':>6}  {'INSTOCK':>6}  "
+        f"{'LAST CHECKED':<20}  {'AGE':<14}"
+    )
     print(header)
     print("-" * len(header))
     for r in rows:
         print(_format_row(r, stale_hours=stale_hours, use_colour=use_colour))
-    stale = sum(1 for r in rows if r.hours_since_last_check is not None and r.hours_since_last_check > stale_hours)
+    stale = sum(1 for r in rows if r.is_stale(stale_hours))
+    broken = sum(1 for r in rows if r.needs_attention(stale_hours))
+    parked = sum(1 for r in rows if r.coverage is Coverage.PARKED)
+    deprecated = sum(1 for r in rows if r.coverage is Coverage.DEPRECATED)
     never = sum(1 for r in rows if r.hours_since_last_check is None)
     print()
     print(
-        f"Total: {len(rows)} merchants  |  {stale} stale (> {stale_hours:g}h)  "
-        f"|  {never} never scraped"
+        f"Total: {len(rows)} merchants  |  {broken} BROKEN (active & stale > "
+        f"{stale_hours:g}h)  |  {stale} stale overall  |  {parked} parked  "
+        f"|  {deprecated} deprecated  |  {never} never scraped"
     )
+    if stale and not broken:
+        print("Every stale merchant is parked or deprecated. Nothing to chase.")
 
 
 def main() -> None:
