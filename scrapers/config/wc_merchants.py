@@ -313,11 +313,18 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "eamobitech-ke": {
         "meta": {"slug": "eamobitech-ke", "name": "EAM Mobitech", "base_url": "https://eamobitech.com"},
-        # 403 on every path from plain httpx as of 2026-09-02, homepage
-        # included — the site started fingerprinting TLS rather than
-        # blocking by UA. Chrome impersonation via curl_cffi restores a
-        # 200 with intact WooCommerce markup. Same fix as megatech-ke
-        # (2026-07-19) and smartphoneskenya-ke.
+        # 2026-09-03: every leg failed `RetryError[HTTPStatusError]` on plain
+        # httpx across 4 straight scheduled runs (2026-09-01 16:38 ->
+        # 2026-09-03 04:31), tripping ScraperYieldTooLow at 52 listings on
+        # record. Not a dead domain and not a network-layer drop: eamobitech.com
+        # resolves fine to Cloudflare IPs and an actual HTTP response comes
+        # back — a 403, on every path including the homepage, so the site is
+        # fingerprinting TLS rather than blocking by UA or by URL.
+        #
+        # Chrome impersonation via curl_cffi restores 200 with intact
+        # WooCommerce markup (445KB, 12 listings on page 1). Same
+        # discrimination pattern and same one-line fix as megatech-ke
+        # (2026-07-19) and smartphoneskenya-ke. See OPERATIONS.md §8l.
         "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://eamobitech.com/product-category/audio-podcast", "https://eamobitech.com/product-category/audio-podcast/dynamic-microphones"],
