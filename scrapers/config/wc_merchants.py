@@ -291,7 +291,7 @@ WC_MERCHANTS: dict[str, dict] = {
         # Every leaf started failing 2026-09-03 with RetryError[HTTPStatusError]
         # (and one ConnectError) on plain httpx from GHA IPs — same
         # TLS-fingerprinting pattern as tclke-ke/eamobitech-ke. See
-        # OPERATIONS.md §8l.
+        # OPERATIONS.md §8m.
         "client_type": "cffi",
         "leaf_to_urls": {
             "inverters": ["https://solarshop.co.ke/product-category/solar-inverters"],
