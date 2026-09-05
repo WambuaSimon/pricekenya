@@ -288,6 +288,11 @@ WC_MERCHANTS: dict[str, dict] = {
         # "controller" is in the leaf keyword — that's for PS5/Xbox pads,
         # not power electronics; no matcher covers charge controllers yet).
         # Also dropping /solar-dc-cables-accessories/ and outdoor-lights.
+        # Every leaf started failing 2026-09-03 with RetryError[HTTPStatusError]
+        # (and one ConnectError) on plain httpx from GHA IPs — same
+        # TLS-fingerprinting pattern as tclke-ke/eamobitech-ke. See
+        # OPERATIONS.md §8l.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "inverters": ["https://solarshop.co.ke/product-category/solar-inverters"],
             "solar-batteries": ["https://solarshop.co.ke/product-category/solar-batteries", "https://solarshop.co.ke/product-category/solar-batteries/lithium-ion-batteries"],
