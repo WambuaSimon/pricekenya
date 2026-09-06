@@ -125,7 +125,9 @@ jobs:
           - wc-quest-ke
           - wc-smartdevices-ke
           - wc-smartphoneskenya-ke
-          - wc-tclke-ke
+          # wc-tclke-ke deprecated 2026-09-06: site rebuilt on base44, a JS
+          # app platform serving an SPA shell with no WooCommerce markup.
+          # See wc_merchants.py.
           - wc-zurimall-ke
           # wc-zuka-ke deprecated 2026-08-11: LiteSpeed firewall silently drops
           # GHA IPs at network layer (RetryError[Future ... raised Timeout]);

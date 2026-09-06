@@ -92,24 +92,20 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://jojabotechnologies.co.ke/product-category/gaming-tv-sound-systems", "https://jojabotechnologies.co.ke/product-category/tv-sound-systems"],
         },
     },
-    "tclke-ke": {
-        "meta": {"slug": "tclke-ke", "name": "TCL Kenya", "base_url": "https://tclke.co.ke"},
-        # Category pages return 200 fine from residential IPs on plain httpx
-        # (198KB DOM per page, prior 87 listings) but the 2026-08 crons blew
-        # up with RetryError[HTTPStatusError] on every URL from GitHub
-        # Actions IPs — same bot-posture discrimination pattern as
-        # megatech-ke / smartphoneskenya-ke / zuka-ke / nairobilaptops-ke.
-        # Chrome TLS impersonation via curl_cffi unblocks the CI runner IPs.
-        "client_type": "cffi",
-        "leaf_to_urls": {
-            "audio": ["https://tclke.co.ke/product-category/jbl/jbl-earbuds", "https://tclke.co.ke/product-category/jbl/jbl-headphones", "https://tclke.co.ke/product-category/jbl/jbl-portable-speakers"],
-            "cooking": ["https://tclke.co.ke/product-category/scl/scl-cookers"],
-            "phone-tablet-accessories": ["https://tclke.co.ke/product-category/accessories"],
-            "refrigerators": ["https://tclke.co.ke/product-category/scl/scl-freezers", "https://tclke.co.ke/product-category/scl/scl-fridges", "https://tclke.co.ke/product-category/tcl-refrigerators"],
-            "tvs": ["https://tclke.co.ke/product-category/tcl-tvs", "https://tclke.co.ke/product-category/tcl-tvs/tcl-tvs-by-size", "https://tclke.co.ke/product-category/tcl-tvs/tv-by-feature"],
-            "washers-dryers": ["https://tclke.co.ke/product-category/scl/scl-washing-machines", "https://tclke.co.ke/product-category/tcl-washing-machines", "https://tclke.co.ke/product-category/washing-machines"],
-        },
-    },
+    # tclke-ke deprecated 2026-09-06: the site was rebuilt on base44, a
+    # JS app platform. tclke.co.ke now serves a 4.4KB SPA shell on every
+    # path and renders to 7.8KB with zero product nodes under Playwright —
+    # no li.product, no .product, no /product/ links, no "woocommerce"
+    # anywhere in the DOM. This is not a block: curl_cffi already returns
+    # 200. The WooCommerce fetcher simply has nothing to parse, so the leg
+    # went to zero cards rather than erroring, which is why it sat stale
+    # for 76h without tripping ScraperYieldTooLow (that guard needs a leg
+    # to RUN and yield zero; this one ran and yielded zero, but the
+    # per-category caller opts out of the check).
+    #
+    # Recovering the 88 listings means a base44-specific fetcher against
+    # whatever JSON API the app calls — a new scraper, not a config tweak.
+    # Deprecated until that is worth building.
     "megatech-ke": {
         "meta": {"slug": "megatech-ke", "name": "Megatech Electronics", "base_url": "https://megatechelectronics.co.ke"},
         # Category pages 200 fine from residential IPs. Bot posture has
@@ -283,6 +279,9 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "solarshop-ke": {
         "meta": {"slug": "solarshop-ke", "name": "SolarShop Africa", "base_url": "https://solarshop.co.ke"},
+        # 403 from plain httpx on every path as of 2026-09-03, same
+        # signature and same fix as eamobitech-ke above.
+        "client_type": "cffi",
         # Solar-focused specialist. Dropping /solar-charge-controllers/ URLs
         # (my keyword discovery routed them to console-accessories because
         # "controller" is in the leaf keyword — that's for PS5/Xbox pads,
@@ -309,6 +308,12 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "eamobitech-ke": {
         "meta": {"slug": "eamobitech-ke", "name": "EAM Mobitech", "base_url": "https://eamobitech.com"},
+        # 403 on every path from plain httpx as of 2026-09-02, homepage
+        # included — the site started fingerprinting TLS rather than
+        # blocking by UA. Chrome impersonation via curl_cffi restores a
+        # 200 with intact WooCommerce markup. Same fix as megatech-ke
+        # (2026-07-19) and smartphoneskenya-ke.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://eamobitech.com/product-category/audio-podcast", "https://eamobitech.com/product-category/audio-podcast/dynamic-microphones"],
             "cameras": ["https://eamobitech.com/product-category/camera-video", "https://eamobitech.com/product-category/camera-video-accessories"],
