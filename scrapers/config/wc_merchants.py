@@ -279,9 +279,6 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "solarshop-ke": {
         "meta": {"slug": "solarshop-ke", "name": "SolarShop Africa", "base_url": "https://solarshop.co.ke"},
-        # 403 from plain httpx on every path as of 2026-09-03, same
-        # signature and same fix as eamobitech-ke above.
-        "client_type": "cffi",
         # Solar-focused specialist. Dropping /solar-charge-controllers/ URLs
         # (my keyword discovery routed them to console-accessories because
         # "controller" is in the leaf keyword — that's for PS5/Xbox pads,
