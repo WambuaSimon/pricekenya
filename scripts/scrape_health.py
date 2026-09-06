@@ -192,6 +192,14 @@ def main() -> None:
         action="store_true",
         help="Emit newline-delimited JSON instead of a table (for scripts).",
     )
+    parser.add_argument(
+        "--fail-on-broken",
+        action="store_true",
+        help=(
+            "Exit 1 if any ACTIVE merchant is stale. Parked and deprecated "
+            "merchants are stale by design and never trip this."
+        ),
+    )
     args = parser.parse_args()
 
     with Session(engine) as s:
@@ -206,6 +214,22 @@ def main() -> None:
             print(jsonlib.dumps(row))
     else:
         _print_table(rows, stale_hours=args.stale_hours)
+
+    if args.fail_on_broken:
+        broken = [r for r in rows if r.needs_attention(args.stale_hours)]
+        if broken:
+            print(
+                f"\nBROKEN: {len(broken)} active merchant(s) stale > "
+                f"{args.stale_hours:g}h",
+                file=sys.stderr,
+            )
+            for r in broken:
+                print(
+                    f"  {r.slug} — {r.hours_since_last_check:.1f}h, "
+                    f"{r.listing_count} listings",
+                    file=sys.stderr,
+                )
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

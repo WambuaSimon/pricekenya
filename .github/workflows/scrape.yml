@@ -194,6 +194,39 @@ jobs:
       - name: Dispatch price-drop alerts
         run: python -m alerts.dispatcher
 
+  health:
+    # Catch merchants that broke WITHOUT any leg failing.
+    #
+    # The matrix legs above only fail on an exception. A merchant whose site
+    # was rebuilt returns 200 and parses to zero cards, so its leg exits 0 and
+    # `notify` (which keys off needs.scrape.result == 'failure') stays quiet.
+    # ScraperYieldTooLow does not cover it either: per-category callers opt out
+    # of that guard, deliberately, so a category a merchant genuinely does not
+    # stock cannot false-positive — which means a whole-site rebuild is
+    # indistinguishable from an empty category from inside the leg.
+    #
+    # tclke-ke sat broken for 76h in exactly that blind spot. This job closes
+    # it by asking the DB instead of the leg: is any merchant we still expect
+    # to be scraping now stale? Parked and deprecated merchants are stale by
+    # design and never trip it — see scrapers/coverage.py.
+    #
+    # 30h, not 24h: the cron runs every 12h, so a merchant that misses a
+    # single window is not yet news. Two consecutive misses is.
+    needs: scrape
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+      - name: Fail if any active merchant is stale
+        run: python -m scripts.scrape_health --stale-hours 30 --fail-on-broken
+
   notify:
     # Post to Telegram when any scrape matrix leg failed. `needs.scrape.result`
     # is "success" only if EVERY leg passed, "failure" if any failed,
@@ -209,8 +242,10 @@ jobs:
     #        TELEGRAM_BOT_TOKEN = <token from step 1>
     #        TELEGRAM_CHAT_ID   = <number from step 3>
     #   No secrets set = job silently no-ops (safe default; won't fail CI).
-    needs: scrape
-    if: always() && needs.scrape.result == 'failure'
+    needs: [scrape, health]
+    if: >-
+      always() &&
+      (needs.scrape.result == 'failure' || needs.health.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -219,12 +254,18 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SCRAPE_RESULT: ${{ needs.scrape.result }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "Telegram secrets not configured — skipping notification."
             exit 0
           fi
-          MSG="⚠️ PriceKenya scrape had one or more failing merchants.%0AView: ${RUN_URL}%0AOpen /admin/scrapes to see which merchants are now stale."
+          if [ "${SCRAPE_RESULT}" = "failure" ]; then
+            REASON="one or more scrape legs failed"
+          else
+            REASON="every leg passed, but an active merchant is stale — a scraper is yielding nothing without erroring"
+          fi
+          MSG="⚠️ PriceKenya scrape: ${REASON}.%0AView: ${RUN_URL}%0AOpen /admin/scrapes — the BROKEN counter excludes parked and deprecated merchants."
           curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${MSG}" \
