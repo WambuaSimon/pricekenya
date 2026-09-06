@@ -42,6 +42,19 @@
   {% else %}
     {% set _condition = 'https://schema.org/NewCondition' %}
   {% endif %}
+  {# Product markup is emitted ONLY for pages that have at least one live
+     offer. Without one there is no price, so the AggregateOffer came out as
+     `{"@type":"AggregateOffer","priceCurrency":"KES","offerCount":0}` — no
+     lowPrice, which Search Console reports as a critical
+     "Missing field 'lowPrice' (in 'offers')". That was firing on 3,874
+     products, 43.5% of the catalog.
+     Dropping just the offers key would swap one error for another, since
+     Google treats a Product with no offers, review or aggregateRating as
+     incomplete too. These pages are already noindex (app/indexing.py wants
+     2+ merchants), so the honest fix is to serve no product markup at all
+     for something we are asking Google not to index. BreadcrumbList below
+     stays: it is valid regardless. #}
+  {% if offers %}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -90,6 +103,7 @@
     ]{% endif %}
   }
   </script>
+  {% endif %}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
