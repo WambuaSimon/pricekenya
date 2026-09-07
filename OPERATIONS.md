@@ -209,6 +209,21 @@ Covered the last 4 scheduled runs (2026-08-27 09:46 → 2026-08-28 22:18). Three
 
 **Cross-check against the deprecation list.** All other legs in the 4-run window were green throughout, and none of the already-deprecated merchants (7 Shopify, techonline-ke, zuka-ke, finetech-ke, nairobitvshop-ke, sollatek-ke's stray row) triggered anything — consistent with §8j's point that they're not wired into the matrix any more so they can't produce CI signal at all now.
 
+## 8l. Fifth stale-merchant triage (2026-09-03)
+
+Same constraint as §8k — no `DATABASE_URL` in this environment, signal came entirely from the `scrape.yml` matrix on GH Actions.
+
+Covered the last 4 scheduled runs (2026-09-01 16:38 → 2026-09-03 04:31, runs `33533028249` → `33715378198`). One leg was persistent; the rest were single-run blips.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-eamobitech-ke** | 33533028249, 33591161024, 33655640018, 33715378198 — 4/4 in the window | Every leaf (`audio`, `cameras`, `laptops`, `peripherals-accessories`, `phones`, `tablets`, `tvs`) logged `[wc] eamobitech-ke/<leaf> page1 GET failed: RetryError: RetryError[<Future ... raised HTTPStatusError>]` on plain httpx (`client_type` was unset — default `"polite"`), tripping `ScraperYieldTooLow: eamobitech-ke: yielded ZERO listings but had 52 on record`. `eamobitech.com` resolves fine to Cloudflare IPs (`104.26.4.215`, `2606:4700:...`) — not a dead domain, not a network-layer drop (an actual HTTP response came back, just one httpx's default fingerprint can't get past). Same discrimination pattern as tclke-ke/megatech-ke/smartphoneskenya-ke (§8h/§8i). This is the same merchant §8k logged as a one-off blip on 2026-08-27 (green everywhere else in that window) — it has since gone persistent. | **Fixed.** One-line: `client_type: "cffi"` in `wc_merchants.py`. No workflow change needed (cffi doesn't touch the Chromium install gate). |
+| wc-megatech-ke | 33591161024 (09-02 04:31) only, `cancelled` | `wc-eamobitech-ke` failed earlier in the same matrix run and `fail-fast: true` cancelled `wc-megatech-ke` mid-queue (same mechanism §8k documented for `phonesstore-ke`) — not a real megatech break. Green on the runs immediately before and after. | **Noise** (cascade artifact of the eamobitech failure, not megatech's own). No action. |
+| all-mybigorder, audiocom-ke | 33655640018 (09-02 16:33) only | Both `failure`, but green on the runs immediately before and after. | **Noise.** One-off CI blip, not re-verified as a pattern — per the megatech-ke lesson in §8j. |
+| wc-devicestech-ke | 33533028249 (09-01 16:38) only | `failure`, green on the runs immediately before and after. | **Noise.** Same reasoning. |
+
+**Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, sollatek-ke's stray row) produced any signal in this window — consistent with them no longer being wired into the matrix.
+
 ## 8m. Sixth stale-merchant triage (2026-09-05)
 
 Same constraint as §8k/§8l — no `DATABASE_URL` here, signal came entirely from the `scrape.yml` matrix. Covered the last 8 scheduled runs (2026-09-01 16:38 → 2026-09-05 04:26, runs `33533028249` → `33944551667`); every one of the 8 was red at the top level, so this pass leaned on per-leg job status (`list_workflow_jobs`), not run conclusion, to separate persistent breaks from cascade/noise.
