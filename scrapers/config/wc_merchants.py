@@ -284,18 +284,19 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "solarshop-ke": {
         "meta": {"slug": "solarshop-ke", "name": "SolarShop Africa", "base_url": "https://solarshop.co.ke"},
-        # 403 from plain httpx on every path as of 2026-09-03, same
-        # signature and same fix as eamobitech-ke above.
-        "client_type": "cffi",
         # Solar-focused specialist. Dropping /solar-charge-controllers/ URLs
         # (my keyword discovery routed them to console-accessories because
         # "controller" is in the leaf keyword — that's for PS5/Xbox pads,
         # not power electronics; no matcher covers charge controllers yet).
         # Also dropping /solar-dc-cables-accessories/ and outdoor-lights.
+        #
         # Every leaf started failing 2026-09-03 with RetryError[HTTPStatusError]
-        # (and one ConnectError) on plain httpx from GHA IPs — same
-        # TLS-fingerprinting pattern as tclke-ke/eamobitech-ke. See
-        # OPERATIONS.md §8m.
+        # (and one ConnectError) on plain httpx from GHA IPs — a 403 on every
+        # path, homepage included, so the site is fingerprinting TLS rather
+        # than blocking by UA or URL. Chrome impersonation via curl_cffi
+        # restores 200 with intact WooCommerce markup (1.0MB, 24 listings on
+        # page 1). Same pattern as tclke-ke/eamobitech-ke. See OPERATIONS.md
+        # §8m.
         "client_type": "cffi",
         "leaf_to_urls": {
             "inverters": ["https://solarshop.co.ke/product-category/solar-inverters"],
