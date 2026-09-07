@@ -203,6 +203,11 @@ WC_MERCHANTS: dict[str, dict] = {
     },
     "smartdevices-ke": {
         "meta": {"slug": "smartdevices-ke", "name": "Smart Devices Kenya", "base_url": "https://www.smartdeviceskenya.co.ke"},
+        # Every leaf started failing 2026-09-06 with RetryError[HTTPStatusError]
+        # on plain httpx (runs 34042350500, 34083907559 — 2/2 most recent,
+        # green before that) — same TLS-fingerprinting signature as
+        # tclke-ke/eamobitech-ke/solarshop-ke. See OPERATIONS.md §8n.
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://www.smartdeviceskenya.co.ke/product-category/audio", "https://www.smartdeviceskenya.co.ke/product-category/audio/soundbars", "https://www.smartdeviceskenya.co.ke/product-category/tv-audio"],
             "cooking": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/cookers", "https://www.smartdeviceskenya.co.ke/product-category/home-appliances/microwaves"],
