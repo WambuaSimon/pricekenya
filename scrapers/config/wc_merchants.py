@@ -334,11 +334,20 @@ WC_MERCHANTS: dict[str, dict] = {
         # back — a 403, on every path including the homepage, so the site is
         # fingerprinting TLS rather than blocking by UA or by URL.
         #
-        # Chrome impersonation via curl_cffi restores 200 with intact
-        # WooCommerce markup (445KB, 12 listings on page 1). Same
-        # discrimination pattern and same one-line fix as megatech-ke
+        # Chrome impersonation via curl_cffi restored 200 with intact
+        # WooCommerce markup (445KB, 12 listings on page 1) at the time —
+        # same discrimination pattern and same one-line fix as megatech-ke
         # (2026-07-19) and smartphoneskenya-ke. See OPERATIONS.md §8l.
-        "client_type": "cffi",
+        #
+        # 2026-09-07/08: stopped holding. Every leg failed again in 3 of
+        # the next 4 scheduled runs (34148815845, 34187430656, 34252143451)
+        # with curl_cffi's own `RetryError[HTTPError]` — a real HTTP error
+        # status even under Chrome TLS impersonation, on every retry, no
+        # ConnectTimeout/Timeout anywhere (rules out the network-layer-drop
+        # pattern from zuka-ke/overtech-ke). Same past-cffi escalation
+        # megatech-ke and housewife-ke already went through, where
+        # playwright-stealth is what held. See OPERATIONS.md §8n.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://eamobitech.com/product-category/audio-podcast", "https://eamobitech.com/product-category/audio-podcast/dynamic-microphones"],
             "cameras": ["https://eamobitech.com/product-category/camera-video", "https://eamobitech.com/product-category/camera-video-accessories"],
