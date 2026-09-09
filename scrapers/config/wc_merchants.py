@@ -206,8 +206,15 @@ WC_MERCHANTS: dict[str, dict] = {
         # Every leaf started failing 2026-09-06 with RetryError[HTTPStatusError]
         # on plain httpx (runs 34042350500, 34083907559 — 2/2 most recent,
         # green before that) — same TLS-fingerprinting signature as
-        # tclke-ke/eamobitech-ke/solarshop-ke. See OPERATIONS.md §8n.
-        "client_type": "cffi",
+        # tclke-ke/eamobitech-ke/solarshop-ke. Flipped to cffi (#41,
+        # 2026-09-07), which held for zero runs: every leaf kept failing
+        # (runs 34148815845, 34187430656, 34252143451 — 3/3 since the fix
+        # landed) with curl_cffi's own `RetryError[HTTPError]` on every
+        # attempt — a real HTTP error status even with Chrome TLS
+        # impersonation, not a timeout. Same escalation megatech-ke and
+        # housewife-ke went through: cffi stopped being enough and
+        # playwright-stealth is what held. See OPERATIONS.md §8n.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://www.smartdeviceskenya.co.ke/product-category/audio", "https://www.smartdeviceskenya.co.ke/product-category/audio/soundbars", "https://www.smartdeviceskenya.co.ke/product-category/tv-audio"],
             "cooking": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/cookers", "https://www.smartdeviceskenya.co.ke/product-category/home-appliances/microwaves"],
