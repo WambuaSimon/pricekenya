@@ -141,7 +141,7 @@ jobs:
           # up automatically by the all-shopify matrix leg below.
           - audiocom-ke         # WC Store API scraper (was wc-*)
           - wc-camerastore-ke   # camera specialist
-          - wc-eamobitech-ke    # cameras + computers
+          - wc-eamobitech-ke    # cameras + computers — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-09-07/08)
           - wc-housewife-ke     # kitchen appliances — Playwright-stealth (JS-refresh challenge got past cffi 2026-08-21)
           - wc-armco-ke         # Kenyan brand appliances
           - newmatic-ke         # WC Store API scraper (was wc-*) — built-in kitchen appliances
@@ -174,7 +174,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke'
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'wc-eamobitech-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
