@@ -87,10 +87,18 @@ def test_out_of_stock_offer_hidden(client, session):
     assert "Sold Out at Badili" not in body
 
 
-def test_single_offer_product_has_noindex(client, session):
-    """Single-offer products are noindex,follow so Google stops wasting crawl
-    budget on functional-redirect pages. Matches the sitemap MIN_OFFERS=2
-    prune."""
+def test_single_offer_product_is_indexable(client, session):
+    """Single-offer products are indexable as of 2026-09-09.
+
+    They were noindex,follow while MIN_DISTINCT_MERCHANTS was 2, on the
+    reasoning that a one-seller page is a functional redirect. That capped
+    the site at 16% of its own catalog — 3,700 products sat at exactly one
+    merchant — and it undersold the page, which carries a real price, a
+    spec strip, freshness, a merchant link and price history.
+
+    The floor is still a LIVE offer: tests above cover zero-offer and
+    all-sold-out products, which stay noindex.
+    """
     session.add(Merchant(id=1, slug="jumia", name="Jumia", base_url="https://x"))
     session.commit()
     product = Product(
@@ -117,7 +125,7 @@ def test_single_offer_product_has_noindex(client, session):
 
     resp = client.get(f"/p/{product.slug}")
     assert resp.status_code == 200
-    assert '<meta name="robots" content="noindex,follow">' in resp.text
+    assert '<meta name="robots" content="noindex,follow">' not in resp.text
 
 
 def test_multi_offer_product_is_indexable(client, session):

@@ -14,6 +14,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+#: Distinct live merchants a product needs before a shopper can genuinely
+#: cross-shop it. Powers both the "Only comparable products" facet and the
+#: category page's "Comparable" stat.
+#:
+#: This was the same number as app/indexing.py's MIN_DISTINCT_MERCHANTS until
+#: 2026-09-09, and several comments described them as one rule. They are not,
+#: and conflating them again would break something: indexing asks "is this
+#: page worth serving to Google", which a single-offer page can be, while
+#: this asks "can you compare prices here", which by definition needs two.
+#: Lowering indexing to 1 while leaving this at 2 is the whole point of the
+#: split — do not re-link them.
+MIN_MERCHANTS_TO_COMPARE = 2
+
 
 @dataclass(frozen=True)
 class Facet:
@@ -38,9 +51,9 @@ class Facet:
 UNIVERSAL: tuple[Facet, ...] = (
     Facet("brand", "Brand", "enum", "brand"),
     Facet("price_max", "Max price (KSh)", "range", "min_price"),
-    # "Comparable" = listed by 2+ distinct merchants, the same rule as
-    # app/indexing.py's MIN_DISTINCT_MERCHANTS and the category page's
-    # `compared_count` stat. Unlike the "In stock only" facet this replaced,
+    # "Comparable" = listed by MIN_MERCHANTS_TO_COMPARE+ distinct merchants,
+    # the same rule as the category page's `compared_count` stat. NOT the
+    # same as the indexing threshold any more — see that constant above. Unlike the "In stock only" facet this replaced,
     # it genuinely narrows the grid: single-merchant products are the
     # majority of the catalog and there is nothing to compare on them.
     Facet("comparable", "Only comparable products", "bool", "comparable"),
