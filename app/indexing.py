@@ -33,16 +33,37 @@ from __future__ import annotations
 
 from typing import Any
 
-# A product page earns indexing when it is a genuine *comparison* — at
-# least this many DISTINCT merchants with a live offer.
+# A product page earns indexing when it can show a shopper a real, live
+# price — at least this many DISTINCT merchants with an in-stock offer.
 #
-# Distinct merchants rather than raw offer count: two in-stock listings
-# from the same merchant is a duplicate SKU, not something a shopper can
-# compare, and it would render as a page with two identical-looking rows.
-# Measured on prod 2026-08-22, both definitions selected exactly the same
-# 1,329 products, so this costs nothing today and is the stricter of the
-# two as the catalog grows.
-MIN_DISTINCT_MERCHANTS = 2
+# Distinct merchants rather than raw offer count: two in-stock listings from
+# the same merchant is a duplicate SKU and would render as a page with two
+# identical-looking rows. At a threshold of 1 the two definitions cannot
+# actually diverge — any product with a live listing has a live merchant —
+# so the distinct count buys nothing today. It is kept because it is the
+# correct rule the moment the threshold rises again, and because the
+# aggregate and per-page forms below have to stay equivalent either way.
+#
+# Lowered 2 -> 1 on 2026-09-09. At 2 the rule was "index only genuine
+# comparisons", which sounds right and was quietly capping the site at 16%
+# of its own catalog: 1,456 of 8,973 products, with 3,700 sitting at exactly
+# one merchant. Those 3,700 are not thin pages — each carries a real price,
+# a spec strip, freshness, a merchant link and price history. A shopper
+# googling that exact model is well served by one.
+#
+# The tradeoff is real and this is the risk to watch: 3,700 new URLs is a
+# 3.5x increase in crawl surface, and if Google judges them low-value the
+# cost lands as "Crawled - currently not indexed" and wasted crawl budget on
+# the pages that do rank. Watch that bucket in Search Console over the weeks
+# after this ships. Reverting is a one-line change back to 2, but slow to
+# take effect once Google has crawled them.
+#
+# NOT the same question as "can you compare prices here" — that is
+# app/facets.py's MIN_MERCHANTS_TO_COMPARE, which stays at 2 and powers the
+# category page's Comparable stat and the comparable-only filter. The two
+# were one number until this change and several comments described them as
+# one rule; they answer different questions and must not be re-linked.
+MIN_DISTINCT_MERCHANTS = 1
 
 # Products whose every listing hasn't been re-verified within this window
 # are almost certainly delisted upstream — don't advertise them to Google.

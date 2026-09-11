@@ -96,19 +96,28 @@ def _sitemap_has(session, slug: str) -> bool:
     [
         ([(1, True), (2, True)], True,
          "two merchants, both live — a real comparison"),
-        ([(1, True)], False,
-         "one merchant is a redirect, not a comparison"),
+        ([(1, True)], True,
+         "one live merchant. Indexable since 2026-09-09: the page still "
+         "shows a real price, specs, freshness and a merchant link, which "
+         "is what someone googling this exact model wants. Was False while "
+         "MIN_DISTINCT_MERCHANTS was 2"),
         ([], False,
-         "no offers at all — a dead page"),
+         "no offers at all — a dead page. The floor is a LIVE offer, not "
+         "a listing, and lowering the threshold to 1 must not lower it to 0"),
         ([(1, False), (2, False)], False,
          "two merchants but both sold out: the page renders no offers. "
          "This is the exact case the old sitemap query got wrong — it "
-         "counted the listings and advertised the URL anyway"),
-        ([(1, True), (2, False)], False,
-         "only one live merchant once the sold-out one is dropped"),
-        ([(1, True), (1, True)], False,
-         "two live listings from ONE merchant is a duplicate SKU, not a "
-         "comparison — distinct-merchant rule rejects it"),
+         "counted the listings and advertised the URL anyway. Unaffected "
+         "by the 2026-09-09 change, and the reason that change is safe"),
+        ([(1, True), (2, False)], True,
+         "one live merchant once the sold-out one is dropped — indexable "
+         "on the same grounds as the single-offer case above"),
+        ([(1, True), (1, True)], True,
+         "two live listings from ONE merchant. Indexable at a threshold of "
+         "1, but note this is the case that stops discriminating: distinct-"
+         "merchant and raw-listing counting only diverge above 1. The "
+         "distinct count is kept because it is the correct rule if the "
+         "threshold ever rises again"),
     ],
 )
 def test_sitemap_and_page_agree(session, client, offers, expected_indexable, why):

@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import String, cast
 from sqlmodel import Session, func, select
 
-from app.facets import Facet, facets_for
+from app.facets import MIN_MERCHANTS_TO_COMPARE, Facet, facets_for
 from app.templating import templates
 from db.models import Category, Listing, Product
 from db.session import get_session
@@ -315,10 +315,14 @@ def category_page(
     if isinstance(price_max, str) and price_max.isdigit():
         q = q.having(func.min(Listing.price_kes) <= int(price_max))
 
-    # "Only comparable products" — 2+ distinct merchants, the same rule the
-    # Comparable stat and the sitemap use.
+    # "Only comparable products" — the same rule as the Comparable stat.
+    # Deliberately NOT the sitemap's rule any more: indexing dropped to a
+    # single merchant on 2026-09-09, but you still cannot compare prices
+    # against one seller. See app/facets.py.
     if active.get("comparable"):
-        q = q.having(func.count(func.distinct(Listing.merchant_id)) >= 2)
+        q = q.having(
+            func.count(func.distinct(Listing.merchant_id)) >= MIN_MERCHANTS_TO_COMPARE
+        )
 
     # Ordering: multi-offer products first, then freshest. A comparison
     # site's value prop is "see all merchants for this product side by
@@ -382,17 +386,23 @@ def category_page(
     ).one()
     product_count, merchant_count = counts
 
-    # "Compared" = products with LIVE listings from 2+ distinct merchants.
-    # Deliberately the same rule as app/indexing.py's MIN_DISTINCT_MERCHANTS,
-    # so this figure equals the set of products the sitemap advertises and
-    # the product page lets Google index. Three surfaces, one definition.
+    # "Compared" = products with LIVE listings from MIN_MERCHANTS_TO_COMPARE+
+    # distinct merchants. This used to be the same rule as app/indexing.py's
+    # MIN_DISTINCT_MERCHANTS, so the figure also equalled the set the
+    # sitemap advertised. That stopped being true on 2026-09-09 when
+    # indexing dropped to a single merchant: a one-seller page is worth
+    # serving to Google, but there is nothing on it to compare. This stat
+    # keeps the stricter rule because it is a claim about shopping, not
+    # about indexing.
     compared_subq = (
         select(Product.id)
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.category_slug.in_(slugs))
         .where(Listing.in_stock.is_(True))
         .group_by(Product.id)
-        .having(func.count(func.distinct(Listing.merchant_id)) >= 2)
+        .having(
+            func.count(func.distinct(Listing.merchant_id)) >= MIN_MERCHANTS_TO_COMPARE
+        )
         .subquery()
     )
     compared_count = session.exec(
