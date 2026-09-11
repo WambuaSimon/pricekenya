@@ -60,9 +60,18 @@ _OVERRIDES = {
 
 
 async def fetch_all() -> AsyncIterator[RawListing]:
+    # 2026-09-09/10: every run failed `RetryError[HTTPError]` on curl_cffi's
+    # own client (the default) across 4 straight scheduled runs
+    # (33778433274 was the last green one; every run since has been red) —
+    # a real HTTP error status even under Chrome TLS impersonation, not a
+    # timeout. Same signature that already forced smartdevices-ke and
+    # eamobitech-ke from cffi to playwright-stealth (OPERATIONS.md §8n),
+    # and the same IP-reputation pattern patabay-ke/hisense-kenya-ke hit on
+    # this same WC Store API path. See OPERATIONS.md §8o.
     async for r in fetch_wc_store_catalog(
         MERCHANT_META["base_url"],
         MERCHANT_META["slug"],
         override_category_map=_OVERRIDES,
+        client_type="playwright-stealth",
     ):
         yield r
