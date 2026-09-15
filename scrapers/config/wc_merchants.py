@@ -201,35 +201,26 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://www.questappliances.com/product-category/home-appliances/washing-machine"],
         },
     },
-    "smartdevices-ke": {
-        "meta": {"slug": "smartdevices-ke", "name": "Smart Devices Kenya", "base_url": "https://www.smartdeviceskenya.co.ke"},
-        # Every leaf started failing 2026-09-06 with RetryError[HTTPStatusError]
-        # on plain httpx (runs 34042350500, 34083907559 — 2/2 most recent,
-        # green before that) — same TLS-fingerprinting signature as
-        # tclke-ke/eamobitech-ke/solarshop-ke. Flipped to cffi (#41,
-        # 2026-09-07), which held for zero runs: every leaf kept failing
-        # (runs 34148815845, 34187430656, 34252143451 — 3/3 since the fix
-        # landed) with curl_cffi's own `RetryError[HTTPError]` on every
-        # attempt — a real HTTP error status even with Chrome TLS
-        # impersonation, not a timeout. Same escalation megatech-ke and
-        # housewife-ke went through: cffi stopped being enough and
-        # playwright-stealth is what held. See OPERATIONS.md §8n.
-        "client_type": "playwright-stealth",
-        "leaf_to_urls": {
-            "audio": ["https://www.smartdeviceskenya.co.ke/product-category/audio", "https://www.smartdeviceskenya.co.ke/product-category/audio/soundbars", "https://www.smartdeviceskenya.co.ke/product-category/tv-audio"],
-            "cooking": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/cookers", "https://www.smartdeviceskenya.co.ke/product-category/home-appliances/microwaves"],
-            "inverters": ["https://www.smartdeviceskenya.co.ke/product-category/inverters"],
-            "solar-panels": ["https://www.smartdeviceskenya.co.ke/product-category/solar-panels"],
-            "solar-batteries": ["https://www.smartdeviceskenya.co.ke/product-category/solar-batteries"],
-            "laptops": ["https://www.smartdeviceskenya.co.ke/product-category/computers-printers/computer-desktops", "https://www.smartdeviceskenya.co.ke/product-category/computers-printers/laptops"],
-            "phone-tablet-accessories": ["https://www.smartdeviceskenya.co.ke/product-category/power-banks"],
-            "phones": ["https://www.smartdeviceskenya.co.ke/product-category/smartphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/apple-iphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/google-pixel-phones"],
-            "refrigerators": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/fridges"],
-            "tablets": ["https://www.smartdeviceskenya.co.ke/product-category/laptops-tablets-pcs"],
-            "tvs": ["https://www.smartdeviceskenya.co.ke/product-category/televisions"],
-            "washers-dryers": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/washing-machines"],
-        },
-    },
+    # smartdevices-ke deprecated 2026-09-15: escalated past playwright-stealth,
+    # the top of this codebase's client_type ladder (grep `client_type ==` in
+    # scrapers/common/*.py — nothing stronger exists). §8n flipped it cffi ->
+    # playwright-stealth (#42) on 2026-09-07 after cffi started getting
+    # curl_cffi's own RetryError[HTTPError]; §8o found playwright-stealth
+    # never actually held — every leaf across runs 34377874909/34438111965/
+    # 34501761493 logged Cloudflare-issued `page1 zero cards (status 522 or
+    # 523, body head): '<html><head></head><body></body></html>'`, i.e. a
+    # real navigation response with Cloudflare itself reporting the origin
+    # server unreachable, not a challenge page. This pass (runs 34738650798 ->
+    # 34878569812, 2026-09-13 -> 2026-09-14) confirms it: still 522/523 on
+    # every leaf in all 4 scheduled runs checked, and there has not been a
+    # single green run on any client_type since #42 landed on 2026-09-07 —
+    # 8 consecutive scheduled runs, over a week, with no recovery. That
+    # matches exactly the "if it's still failing next pass with no green run
+    # in between" bar §8o set for calling this a merchant-hosting failure
+    # rather than a transient origin outage. No client-side change can route
+    # around an origin Cloudflare itself can't reach. 137 listings on record;
+    # catalog (phones/laptops/TVs/audio/appliances/solar) is fully covered by
+    # Jumia / Kilimall / Hotpoint / Phone Place / solar specialists.
     "smartphoneskenya-ke": {
         "meta": {"slug": "smartphoneskenya-ke", "name": "Smartphones Kenya", "base_url": "https://smartphoneskenya.co.ke"},
         # Category pages return healthy HTML (133 products) from residential
