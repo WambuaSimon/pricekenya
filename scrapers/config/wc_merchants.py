@@ -315,40 +315,29 @@ WC_MERCHANTS: dict[str, dict] = {
             "cameras": ["https://camerastoreke.co.ke/product-category/camera-lens/canon-camera-lens", "https://camerastoreke.co.ke/product-category/camera-lens/nikon-camera-lens", "https://camerastoreke.co.ke/product-category/camera-lens/sony-camera-lens"],
         },
     },
-    "eamobitech-ke": {
-        "meta": {"slug": "eamobitech-ke", "name": "EAM Mobitech", "base_url": "https://eamobitech.com"},
-        # 2026-09-03: every leg failed `RetryError[HTTPStatusError]` on plain
-        # httpx across 4 straight scheduled runs (2026-09-01 16:38 ->
-        # 2026-09-03 04:31), tripping ScraperYieldTooLow at 52 listings on
-        # record. Not a dead domain and not a network-layer drop: eamobitech.com
-        # resolves fine to Cloudflare IPs and an actual HTTP response comes
-        # back — a 403, on every path including the homepage, so the site is
-        # fingerprinting TLS rather than blocking by UA or by URL.
-        #
-        # Chrome impersonation via curl_cffi restored 200 with intact
-        # WooCommerce markup (445KB, 12 listings on page 1) at the time —
-        # same discrimination pattern and same one-line fix as megatech-ke
-        # (2026-07-19) and smartphoneskenya-ke. See OPERATIONS.md §8l.
-        #
-        # 2026-09-07/08: stopped holding. Every leg failed again in 3 of
-        # the next 4 scheduled runs (34148815845, 34187430656, 34252143451)
-        # with curl_cffi's own `RetryError[HTTPError]` — a real HTTP error
-        # status even under Chrome TLS impersonation, on every retry, no
-        # ConnectTimeout/Timeout anywhere (rules out the network-layer-drop
-        # pattern from zuka-ke/overtech-ke). Same past-cffi escalation
-        # megatech-ke and housewife-ke already went through, where
-        # playwright-stealth is what held. See OPERATIONS.md §8n.
-        "client_type": "playwright-stealth",
-        "leaf_to_urls": {
-            "audio": ["https://eamobitech.com/product-category/audio-podcast", "https://eamobitech.com/product-category/audio-podcast/dynamic-microphones"],
-            "cameras": ["https://eamobitech.com/product-category/camera-video", "https://eamobitech.com/product-category/camera-video-accessories"],
-            "laptops": ["https://eamobitech.com/product-category/apple-store/macbook", "https://eamobitech.com/product-category/computers"],
-            "peripherals-accessories": ["https://eamobitech.com/product-category/computers/keyboards-mice", "https://eamobitech.com/product-category/computers/webcams-accessories"],
-            "phones": ["https://eamobitech.com/product-category/apple-store/iphones", "https://eamobitech.com/product-category/smartphones-tablets"],
-            "tablets": ["https://eamobitech.com/product-category/apple-store/ipads"],
-            "tvs": ["https://eamobitech.com/product-category/tvs-and-hometheatres", "https://eamobitech.com/product-category/tvs-entertainment"],
-        },
-    },
+    # eamobitech-ke deprecated 2026-09-15: escalated past playwright-stealth,
+    # the top of this codebase's client_type ladder (grep `client_type ==`
+    # in scrapers/common/*.py — nothing stronger exists). §8n flipped it
+    # cffi -> playwright-stealth (#43) on 2026-09-07 after cffi started
+    # getting curl_cffi's own RetryError[HTTPError]; §8o found it never
+    # held — every leg raises PlaywrightPoliteClient's own RuntimeError
+    # (scrapers/common/base.py:153/166 — either "JS-refresh challenge
+    # unresolved" or "Cloudflare challenge unresolved ... title='Just a
+    # moment...'"), meaning stealth Chromium gets a real response but
+    # Cloudflare still serves it a challenge page. This pass (runs
+    # 34738650798 -> 34878569812, 2026-09-13 -> 2026-09-14) confirms it:
+    # every leaf in all 4 scheduled runs logs
+    # `RetryError: RetryError[<Future ... raised RuntimeError>]`, e.g. job
+    # 104092070251. There has been no green run on any client_type since
+    # #43 landed on 2026-09-07 — 8 consecutive scheduled runs, over a
+    # week, zero recovery. playwright-stealth is the strongest client this
+    # codebase has, and a challenge that survives stealth Chromium reads
+    # as an IP-reputation block on the GHA runner pool — the same root
+    # cause class as the Shopify batch deprecated in §8g, which needed the
+    # same bar (a sustained block past the strongest available client)
+    # before deprecating. 52 listings on record; catalog (cameras/
+    # computers/phones/tablets/TVs) is fully covered by Jumia / Kilimall /
+    # Phone Place / camerastore-ke / Dixons.
     "housewife-ke": {
         "meta": {"slug": "housewife-ke", "name": "Housewife's Paradise", "base_url": "https://housewifesparadise.com"},
         # WP Rocket + bot-mitigation on housewifesparadise.com serves a
