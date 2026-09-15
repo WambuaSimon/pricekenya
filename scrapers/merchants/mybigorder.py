@@ -209,8 +209,17 @@ async def _fetch_category(
             # `all-mybigorder` matrix job because one subcategory got removed
             # or throttled is a bigger problem than losing that subcategory's
             # data for one cron cycle.
-            print(f"mybigorder: {slug} page {page} failed ({e.__class__.__name__}); "
-                  f"skipping rest of this category")
+            #
+            # Print str(e), not just the class name: PoliteClient.get() is
+            # tenacity-retried, so `e` is a RetryError whose *class* is
+            # always "RetryError" regardless of cause — only its repr names
+            # the underlying exception (e.g. "RetryError[<Future ... raised
+            # HTTPStatusError>]" vs "...raised ConnectTimeout>]"), which is
+            # what actually distinguishes a TLS-fingerprint block from a
+            # network-layer drop. Same gap woocommerce.py/wc_store_api.py
+            # closed in OPERATIONS.md §8h/§8i — this scraper never got it.
+            print(f"mybigorder: {slug} page {page} failed "
+                  f"({type(e).__name__}: {e}); skipping rest of this category")
             return
         listings = _parse_cards(resp.text, fixed_category_slug=fixed_category_slug)
         new_this_page = 0
