@@ -143,7 +143,7 @@ jobs:
           # (RetryError[Future ... raised Timeout] on curl_cffi, no HTTP
           # response reached the client) — same signature as zuka-ke/
           # overtech-ke. See scrapers/config/wc_merchants.py and
-          # OPERATIONS.md §8p.
+          # OPERATIONS.md §8q.
           - wc-camerastore-ke   # camera specialist
           - wc-eamobitech-ke    # cameras + computers — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-09-07/08)
           - wc-housewife-ke     # kitchen appliances — Playwright-stealth (JS-refresh challenge got past cffi 2026-08-21)

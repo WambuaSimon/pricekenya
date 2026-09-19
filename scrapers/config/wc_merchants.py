@@ -327,7 +327,7 @@ WC_MERCHANTS: dict[str, dict] = {
     # overtech-ke, not a TLS-fingerprint or JS-challenge problem cffi/
     # playwright can solve. Residential-proxy-only; not cost-justified for
     # a 15-listing pro-audio catalog already covered by Jumia/Kilimall/
-    # Phone Place. See OPERATIONS.md §8p. The module file
+    # Phone Place. See OPERATIONS.md §8q. The module file
     # (scrapers/merchants/audiocom.py) was deleted along with its
     # ingest.py runner/TARGETS entry.
     "camerastore-ke": {
