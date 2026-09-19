@@ -52,6 +52,9 @@ def test_deprecation_is_derived_not_hardcoded():
     no change here. Classification has to follow that automatically or it
     becomes another list to forget to update."""
     assert classify("overtech-ke") is Coverage.DEPRECATED
+    # audiocom-ke deprecated 2026-09-19 (OPERATIONS.md §8p) the same way —
+    # its custom scraper module deleted, no change needed here.
+    assert classify("audiocom-ke") is Coverage.DEPRECATED
 
 
 def test_unknown_slug_is_deprecated():

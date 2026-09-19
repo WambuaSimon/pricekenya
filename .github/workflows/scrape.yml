@@ -139,7 +139,11 @@ jobs:
           - solarstore-ke       # WC Store API scraper — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-09-09/10) — solar specialist: hybrid inverters + batteries
           # sollatek moved to shopify_merchants (shop.sollatek.com) — picked
           # up automatically by the all-shopify matrix leg below.
-          - audiocom-ke         # WC Store API scraper (was wc-*)
+          # audiocom-ke deprecated 2026-09-19: network-layer block on GHA IPs
+          # (RetryError[Future ... raised Timeout] on curl_cffi, no HTTP
+          # response reached the client) — same signature as zuka-ke/
+          # overtech-ke. See scrapers/config/wc_merchants.py and
+          # OPERATIONS.md §8p.
           - wc-camerastore-ke   # camera specialist
           - wc-eamobitech-ke    # cameras + computers — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-09-07/08)
           - wc-housewife-ke     # kitchen appliances — Playwright-stealth (JS-refresh challenge got past cffi 2026-08-21)

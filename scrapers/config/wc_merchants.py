@@ -316,7 +316,20 @@ WC_MERCHANTS: dict[str, dict] = {
     # sollatek-ke moved to shopify_merchants.py — their store is Shopify at
     # shop.sollatek.com, not WooCommerce at sollatek.co.ke (which is the
     # corporate marketing site).
-    # audiocom-ke moved to scrapers/merchants/audiocom.py (WC Store API).
+    # audiocom-ke deprecated 2026-09-19: was on scrapers/merchants/audiocom.py
+    # (WC Store API, cffi client — the default). Every leg started failing
+    # `RetryError[Future ... raised Timeout]` with no HTTP response reaching
+    # the client starting ~2026-09-17, persistent across 4 consecutive
+    # scheduled runs with a green run immediately before (run 35124767013,
+    # 2026-09-16). DNS still resolves fine to Cloudflare anycast IPs
+    # (audiocomkenya.co.ke is not gone) — this is a network-layer packet
+    # drop against GitHub Actions IPs, the same signature as zuka-ke/
+    # overtech-ke, not a TLS-fingerprint or JS-challenge problem cffi/
+    # playwright can solve. Residential-proxy-only; not cost-justified for
+    # a 15-listing pro-audio catalog already covered by Jumia/Kilimall/
+    # Phone Place. See OPERATIONS.md §8p. The module file
+    # (scrapers/merchants/audiocom.py) was deleted along with its
+    # ingest.py runner/TARGETS entry.
     "camerastore-ke": {
         "meta": {"slug": "camerastore-ke", "name": "Camera Store Kenya", "base_url": "https://camerastoreke.co.ke"},
         "leaf_to_urls": {
