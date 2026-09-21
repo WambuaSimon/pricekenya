@@ -26,9 +26,18 @@ MERCHANT_META = {
 
 
 async def fetch_all() -> AsyncIterator[RawListing]:
+    # Every leg failed `RetryError[HTTPError]` on curl_cffi's own client
+    # (the default) in the 4 most recent scheduled runs checked, 2026-09-19
+    # 04:35 -> 2026-09-20 16:04 (runs 35421722659 -> 35521557261) — a real
+    # HTTP error status even under Chrome TLS impersonation, not a timeout.
+    # Confirmed green as recently as 2026-09-16 04:47 (run 35056989837), so
+    # this is a new escalation, not a standing issue. Same signature that
+    # already forced smartdevices-ke/eamobitech-ke (§8n) and solarstore-ke
+    # (§8o) from cffi to playwright-stealth. See OPERATIONS.md §8p.
     async for r in fetch_wc_store_catalog(
         MERCHANT_META["base_url"],
         MERCHANT_META["slug"],
         max_pages=60,  # ~1028 pages via API — 60 × 100 = 6000 ceiling
+        client_type="playwright-stealth",
     ):
         yield r
