@@ -327,7 +327,39 @@ None of these were re-created or duplicated. `audiocom-ke` (this pass's actual n
 
 **Process note for whoever runs this triage next.** This is the first pass to discover that the previous *scheduled* run of this same task left work sitting unmerged rather than landing it — five PRs, up to 6 days old at discovery time. A recurring triage task whose fixes never get merged just re-diagnoses the same merchants every cycle at increasing cost, and very nearly did here (this pass spent real effort re-deriving smartdevices-ke/eamobitech-ke's diagnosis from CI logs before finding #48/#49 already had it). Checking `gh pr list` / `list_pull_requests` for existing open branches touching the same merchants should be step 0 of every future pass, before diagnosing anything from CI.
 
-## 8r. Eleventh triage — not a merchant break at all (2026-09-25)
+## 8r. Eleventh stale-merchant triage (2026-09-21) — and a PR-backlog process gap
+
+Numbered §8r, not §8p — this recurring task's own scheduled runs had already claimed §8p (2026-09-15, PR #51, unmerged) and §8q (2026-09-19, PR #53, unmerged) by the time this pass started. See below for why that collision happened at all.
+
+Signal came from the `scrape.yml` matrix via the GitHub MCP tools (`gh` CLI unavailable this pass). Covered the last 4 scheduled runs (2026-09-19 04:35 → 2026-09-20 16:04, runs `35421722659` → `35521557261`), plus 3 sampled runs back to 2026-09-11 to check persistence on merchants already flagged inconclusive in §8o.
+
+**The triage itself, before the process problem surfaced:**
+
+| Merchant | Finding | Verdict |
+|---|---|---|
+| **audiocom-ke** | Green through 2026-09-16, then `RetryError[HTTPError]` on curl_cffi (real HTTP error under Chrome TLS impersonation) in all 4 primary-window runs — the same signature class that already forced smartdevices-ke/eamobitech-ke/solarstore-ke to `playwright-stealth`. | **Fixed** (PR #54). `client_type="playwright-stealth"` + Chromium gate. |
+| **wc-smartdevices-ke, wc-eamobitech-ke** | Both still failing on `playwright-stealth` (the escalation ladder's top) in every sampled run back to 2026-09-11, no green run anywhere in ~10 days / ~20 runs — meeting §8o's own bar for "genuine deprecation candidate." | Independently re-diagnosed and opened as PRs #55/#56 — **then found already deprecated** by pre-existing open PRs #48/#49 from the 2026-09-15 pass. See below. |
+| wc-le-ke, wc-quest-ke, wc-hisense-kenya-ke | Each failed exactly one of the 4 primary-window runs, green on the rest. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+
+**The process gap.** Before opening PR #55/#56, this pass had not checked for pre-existing open PRs from earlier runs of this same recurring task. It turns out none of the last four passes' PRs had ever been merged:
+
+| PR | Opened | Content | State found this pass |
+|---|---|---|---|
+| #47 | 2026-09-13 | mybigorder-ke diagnostic logging | Open, unmerged |
+| #48 | 2026-09-15 | Deprecate smartdevices-ke | Open, unmerged — **kept**, superior evidence (8 runs vs. 7) |
+| #49 | 2026-09-15 | Deprecate eamobitech-ke | Open, unmerged — **kept**, same reason |
+| #50 | 2026-09-15 | mybigorder diagnostics (supersedes #47) | Open, unmerged |
+| #51 | 2026-09-15 | OPERATIONS.md §8p write-up | Open, unmerged |
+| #52 | 2026-09-19 | Deprecate audiocom-ke (network-layer `Timeout`) | Open, unmerged — **closed this pass**, contradicted by fresher evidence (see below) |
+| #53 | 2026-09-19 | OPERATIONS.md §8q write-up | Open, unmerged |
+
+**Duplicate work.** This pass's PR #55 (deprecate smartdevices-ke) and #56 (deprecate eamobitech-ke) turned out to be near-exact duplicates of #48/#49, independently re-derived from a subset of the same evidence #48/#49 already had (a full week of runs vs. this pass's 4+3 sampled). Both closed in favor of the earlier, better-evidenced PRs — see the comments on #55/#56.
+
+**A genuine conflict, not just a duplicate.** #52 (2026-09-19) deprecated `audiocom-ke` on a `RetryError[Timeout]` signature (no HTTP response reaches curl_cffi at all) observed 2026-09-17→18 — verified accurate by re-pulling job `105675647591`. But this pass's own window (2026-09-19→20, the very next scheduled runs after #52's) shows a *different* failure class entirely: `RetryError[HTTPError]`, a real HTTP error response, not a dropped connection. A clean network-layer packet drop flipping to a real HTTP response one cycle later means #52's diagnosis, though accurate for its own window, wasn't the stable block the deprecation bar requires. Closed #52 in favor of PR #54 (escalate to `playwright-stealth`, the more conservative move given the site is still responding). Commented the full reasoning on #52 before closing it in case the `Timeout` pattern recurs and the deprecation call turns out to be right after all.
+
+**Why this matters going forward.** Four consecutive runs of this recurring task (§8p/#51, §8q/#53, and now this one) each diagnosed real, distinct problems correctly — but because nothing merged them, each new pass re-scans the same red CI, re-derives conclusions already reached, and burns a full diagnosis cycle re-establishing what a prior pass already nailed down. Worse, with `main` never moving, config drift between "what a PR proposes" and "what's actually deployed and scraping" compounds pass over pass — this pass nearly shipped a live-fix PR (#54) for a merchant a stale-but-unmerged PR (#52) had already tried to deprecate for a different reason. **Recommend the operator merge the surviving open PRs (#47 or #50 for mybigorder, #48, #49, #51, #53, #54) before the next scheduled run**, or the same collision risk repeats. This task's own prompt has no mechanism for checking pre-existing PRs before triaging — future passes should list open PRs first and treat any that already cover a merchant this pass would otherwise re-diagnose as done, not as signal to re-derive.
+
+## 8s. Twelfth triage — not a merchant break at all (2026-09-25)
 
 Same constraint as §8k-8o — no `DATABASE_URL`, no `curl`/`WebFetch` egress — so signal came entirely from the `scrape.yml` matrix.
 
