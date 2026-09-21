@@ -52,6 +52,7 @@ def test_deprecation_is_derived_not_hardcoded():
     no change here. Classification has to follow that automatically or it
     becomes another list to forget to update."""
     assert classify("overtech-ke") is Coverage.DEPRECATED
+    assert classify("eamobitech-ke") is Coverage.DEPRECATED
 
 
 def test_unknown_slug_is_deprecated():
