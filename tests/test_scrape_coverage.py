@@ -21,7 +21,7 @@ from scrapers.coverage import Coverage, classify, needs_attention
 
 
 def test_woocommerce_merchant_is_active():
-    assert classify("smartdevices-ke") is Coverage.ACTIVE
+    assert classify("fivestar-ke") is Coverage.ACTIVE
 
 
 def test_custom_module_merchant_is_active():
@@ -52,6 +52,7 @@ def test_deprecation_is_derived_not_hardcoded():
     no change here. Classification has to follow that automatically or it
     becomes another list to forget to update."""
     assert classify("overtech-ke") is Coverage.DEPRECATED
+    assert classify("smartdevices-ke") is Coverage.DEPRECATED
 
 
 def test_unknown_slug_is_deprecated():

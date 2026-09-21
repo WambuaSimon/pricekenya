@@ -201,35 +201,33 @@ WC_MERCHANTS: dict[str, dict] = {
             "washers-dryers": ["https://www.questappliances.com/product-category/home-appliances/washing-machine"],
         },
     },
-    "smartdevices-ke": {
-        "meta": {"slug": "smartdevices-ke", "name": "Smart Devices Kenya", "base_url": "https://www.smartdeviceskenya.co.ke"},
-        # Every leaf started failing 2026-09-06 with RetryError[HTTPStatusError]
-        # on plain httpx (runs 34042350500, 34083907559 — 2/2 most recent,
-        # green before that) — same TLS-fingerprinting signature as
-        # tclke-ke/eamobitech-ke/solarshop-ke. Flipped to cffi (#41,
-        # 2026-09-07), which held for zero runs: every leaf kept failing
-        # (runs 34148815845, 34187430656, 34252143451 — 3/3 since the fix
-        # landed) with curl_cffi's own `RetryError[HTTPError]` on every
-        # attempt — a real HTTP error status even with Chrome TLS
-        # impersonation, not a timeout. Same escalation megatech-ke and
-        # housewife-ke went through: cffi stopped being enough and
-        # playwright-stealth is what held. See OPERATIONS.md §8n.
-        "client_type": "playwright-stealth",
-        "leaf_to_urls": {
-            "audio": ["https://www.smartdeviceskenya.co.ke/product-category/audio", "https://www.smartdeviceskenya.co.ke/product-category/audio/soundbars", "https://www.smartdeviceskenya.co.ke/product-category/tv-audio"],
-            "cooking": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/cookers", "https://www.smartdeviceskenya.co.ke/product-category/home-appliances/microwaves"],
-            "inverters": ["https://www.smartdeviceskenya.co.ke/product-category/inverters"],
-            "solar-panels": ["https://www.smartdeviceskenya.co.ke/product-category/solar-panels"],
-            "solar-batteries": ["https://www.smartdeviceskenya.co.ke/product-category/solar-batteries"],
-            "laptops": ["https://www.smartdeviceskenya.co.ke/product-category/computers-printers/computer-desktops", "https://www.smartdeviceskenya.co.ke/product-category/computers-printers/laptops"],
-            "phone-tablet-accessories": ["https://www.smartdeviceskenya.co.ke/product-category/power-banks"],
-            "phones": ["https://www.smartdeviceskenya.co.ke/product-category/smartphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/apple-iphones", "https://www.smartdeviceskenya.co.ke/product-category/smartphones/google-pixel-phones"],
-            "refrigerators": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/fridges"],
-            "tablets": ["https://www.smartdeviceskenya.co.ke/product-category/laptops-tablets-pcs"],
-            "tvs": ["https://www.smartdeviceskenya.co.ke/product-category/televisions"],
-            "washers-dryers": ["https://www.smartdeviceskenya.co.ke/product-category/home-appliances/washing-machines"],
-        },
-    },
+    # smartdevices-ke deprecated 2026-09-21: exhausted the client escalation
+    # ladder with no green run since. Escalated plain httpx -> cffi (#41,
+    # 2026-09-07) -> playwright-stealth (#42, 2026-09-07) after each stopped
+    # holding in turn — see OPERATIONS.md §8n/§8o for that history. On
+    # playwright-stealth every leg has logged Cloudflare's own 522/523
+    # origin-error pages ('<html><head></head><body></body></html>') on
+    # every scheduled run from 2026-09-11 04:38 through at least 2026-09-20
+    # 16:04 (confirmed at 34562957686, 34807724512, 35056989837, and every
+    # run 35421722659 -> 35521557261 — no green run anywhere in that span).
+    # Not a JS-refresh shell (no window.location.reload, no script at all)
+    # and not a Cloudflare challenge (no title="Just a moment...", no
+    # cf-mitigated) — playwright-stealth is getting a real navigation
+    # response, Cloudflare itself is reporting it cannot reach the origin.
+    # DNS resolves fine to Cloudflare anycast IPs, so this isn't a dead
+    # domain either, and it isn't the RetryError[Timeout]-with-no-response
+    # network-layer-drop pattern (zuka-ke/overtech-ke) — it just has nothing
+    # left to escalate to: playwright-stealth is the strongest client this
+    # codebase has (grep `client_type ==` in scrapers/common/*.py). §8o
+    # flagged this as a "genuine deprecation candidate" if it persisted with
+    # no green run through another triage cycle; it has. Same underlying
+    # class as the 7 Shopify stores (§8g) and techonline-ke (§8h): an
+    # IP-reputation block on the GHA runner pool that only a residential
+    # proxy could route around, not cost-justified for a 137-listing
+    # catalog (audio/cooking/inverters/solar/laptops/phones/tvs/appliances)
+    # already covered by Jumia/Kilimall/Hotpoint/Phone Place. Restore
+    # verbatim (this whole entry plus the matrix leg + Chromium gate line in
+    # .github/workflows/scrape.yml) if the 522/523s ever stop.
     "smartphoneskenya-ke": {
         "meta": {"slug": "smartphoneskenya-ke", "name": "Smartphones Kenya", "base_url": "https://smartphoneskenya.co.ke"},
         # Category pages return healthy HTML (133 products) from residential
