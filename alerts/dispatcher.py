@@ -17,7 +17,7 @@ Semantics:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from sqlmodel import Session, func, select
@@ -129,7 +129,7 @@ def run() -> None:
 
             subject, text, html, unsub_url = _render(product, float(min_price), alert)
             if _send(alert.email, subject, text, html, unsub_url):
-                alert.last_notified_at = datetime.utcnow()
+                alert.last_notified_at = datetime.now(UTC)
                 alert.active = False  # single-shot; user re-subscribes if desired
                 session.add(alert)
                 sent += 1

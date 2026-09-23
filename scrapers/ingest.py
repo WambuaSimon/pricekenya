@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func
@@ -140,7 +140,7 @@ def _reject(session: Session, raw: RawListing, merchant_id: int, reason: str) ->
     retired = ""
     if existing is not None and existing.in_stock:
         existing.in_stock = False
-        existing.last_checked_at = datetime.utcnow()
+        existing.last_checked_at = datetime.now(UTC)
         session.add(existing)
         session.commit()
         retired = f" — retired listing {existing.id}"
@@ -212,7 +212,7 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
         )
     ).first()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     if listing:
         price_changed = listing.price_kes != price

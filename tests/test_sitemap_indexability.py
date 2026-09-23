@@ -77,7 +77,7 @@ def _seed(session, offers: list[tuple[int, bool]]) -> str:
                 title_on_merchant="Samsung Test Product",
                 price_kes=Decimal("10000"),
                 in_stock=in_stock,
-                last_checked_at=datetime.now(UTC).replace(tzinfo=None),
+                last_checked_at=datetime.now(UTC),
             )
         )
     session.commit()
@@ -165,7 +165,7 @@ def test_empty_categories_are_not_advertised(session):
         product_id=phone.id, merchant_id=1, url="https://m1.example/p",
         title_on_merchant="A Phone", price_kes=Decimal("10000"),
         in_stock=True,
-        last_checked_at=datetime.now(UTC).replace(tzinfo=None),
+        last_checked_at=datetime.now(UTC),
     ))
     session.commit()
 

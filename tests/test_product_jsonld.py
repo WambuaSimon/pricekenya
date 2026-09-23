@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -59,7 +59,7 @@ def _offer(session, product_id: int, merchant_id: int, price: str, in_stock: boo
     session.add(Listing(
         product_id=product_id, merchant_id=merchant_id,
         url=f"https://m{merchant_id}.example/p", title_on_merchant="Brand Test Phone",
-        price_kes=Decimal(price), in_stock=in_stock, last_checked_at=datetime.utcnow(),
+        price_kes=Decimal(price), in_stock=in_stock, last_checked_at=datetime.now(UTC),
     ))
     session.commit()
 

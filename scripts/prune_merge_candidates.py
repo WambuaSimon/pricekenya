@@ -15,7 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -54,7 +54,7 @@ def main() -> None:
                 )
                 if not args.dry_run:
                     cand.status = "rejected"
-                    cand.reviewed_at = datetime.utcnow()
+                    cand.reviewed_at = datetime.now(UTC)
                     cand.reviewer_note = "auto-pruned: obvious spec/model conflict"
                     session.add(cand)
             else:
