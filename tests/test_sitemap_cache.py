@@ -15,7 +15,7 @@ The only surviving build path is a genuinely cold DB with no row at all.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -91,7 +91,7 @@ def test_stale_cache_is_served_not_regenerated() -> None:
     with Session(engine) as s:
         row = s.get(CachedSitemap, 1)
         row.body = "<urlset>SENTINEL</urlset>"
-        row.generated_at = datetime.utcnow() - timedelta(days=30)
+        row.generated_at = datetime.now(UTC) - timedelta(days=30)
         s.add(row)
         s.commit()
         stale_generated_at = row.generated_at

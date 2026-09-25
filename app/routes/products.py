@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -183,7 +183,7 @@ def product_detail(slug: str, request: Request, session: Session = Depends(get_s
             .where(PriceHistory.listing_id.in_(listing_ids))
             .where(
                 PriceHistory.observed_at
-                >= datetime.utcnow() - timedelta(weeks=_CHART_MAX_WEEKS)
+                >= datetime.now(UTC) - timedelta(weeks=_CHART_MAX_WEEKS)
             )
             .order_by(PriceHistory.observed_at.asc())
         ).all()

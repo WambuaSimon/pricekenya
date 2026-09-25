@@ -123,7 +123,7 @@ def test_second_call_same_title_uses_cache(session, enable_llm, monkeypatch):
 
 
 def test_daily_cap_short_circuits(session, enable_llm, monkeypatch):
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     from app import config
     from matching.llm_extract import extract
@@ -137,7 +137,7 @@ def test_daily_cap_short_circuits(session, enable_llm, monkeypatch):
                 category="phones",
                 latency_ms=10,
                 parsed_ok=True,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
             )
         )
     session.commit()

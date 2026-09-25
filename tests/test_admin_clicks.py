@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -31,7 +31,7 @@ def client(session, monkeypatch):
 
 def _seed(session):
     """Two merchants, two listings each, with clicks spanning the three windows."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     jumia = Merchant(id=1, slug="jumia-ke", name="Jumia Kenya", base_url="https://jumia.co.ke")
     kilimall = Merchant(
         id=2, slug="kilimall-ke", name="Kilimall Kenya", base_url="https://kilimall.co.ke"

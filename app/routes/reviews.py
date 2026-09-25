@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -140,7 +140,7 @@ def create_review(
         existing.pros = pros_norm
         existing.cons = cons_norm
         existing.verified_at = None
-        existing.edited_at = datetime.utcnow()
+        existing.edited_at = datetime.now(UTC)
         # Only elevate the opt-in flag if the user just ticked it. Never
         # silently downgrade — matches the Alert flow.
         if opt_in:
@@ -197,7 +197,7 @@ def verify_review(token: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404)
 
     if review.verified_at is None:
-        review.verified_at = datetime.utcnow()
+        review.verified_at = datetime.now(UTC)
         session.add(review)
         session.commit()
     product = session.get(Product, review.product_id)

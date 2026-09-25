@@ -158,6 +158,7 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
     last_checked_at + serializes the whole thing into 1MB+ of XML. Only
     called from the /sitemap.xml route when the cache is missing or
     stale (see the SITEMAP_CACHE_TTL_HOURS constant)."""
+    from datetime import UTC as _UTC
     from datetime import datetime as _datetime
     from xml.sax.saxutils import escape as xml_escape
 
@@ -226,7 +227,7 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
 
     from app.indexing import FRESHNESS_DAYS, indexable_having
 
-    freshness_cutoff = _datetime.utcnow() - _timedelta(days=FRESHNESS_DAYS)
+    freshness_cutoff = _datetime.now(_UTC) - _timedelta(days=FRESHNESS_DAYS)
 
     product_rows = session.exec(
         select(
@@ -293,6 +294,7 @@ def sitemap(session: Session = Depends(get_session)) -> Response:
     next cron. That path can't stampede: it only exists before the first
     successful build, and it writes the row it just created.
     """
+    from datetime import UTC as _UTC
     from datetime import datetime as _datetime
 
     from db.models import CachedSitemap
@@ -304,7 +306,7 @@ def sitemap(session: Session = Depends(get_session)) -> Response:
     body, url_count = _build_sitemap_xml(session)
     session.add(
         CachedSitemap(
-            id=1, body=body, generated_at=_datetime.utcnow(), url_count=url_count
+            id=1, body=body, generated_at=_datetime.now(_UTC), url_count=url_count
         )
     )
     session.commit()
