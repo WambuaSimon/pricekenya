@@ -301,7 +301,33 @@ Covered the last 4 completed scheduled runs (2026-09-11 04:38 → 2026-09-12 15:
 
 **Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, sollatek-ke's stray row) produced any signal in this window.
 
-## 8s. Twelfth triage — not a merchant break at all (2026-09-25)
+## 8q. Tenth stale-merchant triage (2026-09-19)
+
+Same constraint as §8k-8p — no `DATABASE_URL` in this environment, signal came entirely from the `scrape.yml` matrix (`MIN_PRIOR_LISTINGS_FOR_CHECK` at 5 since §8j, so a zero-yield leg fails red instead of exiting 0 silently). `gh` CLI is not available in this environment either; used the GitHub MCP server's Actions tools instead (`list_workflow_runs` / `list_workflow_jobs` / `get_job_logs`), which cover the same ground.
+
+Covered the last 4 completed scheduled runs at pass start (`35183472409` → `35368132843`, 2026-09-17 04:51 → 2026-09-18 16:22), then widened to a 5th (`35124767013`, 2026-09-16 16:53) once `audiocom-ke` showed up as new breakage, to confirm the boundary where it turned red.
+
+**Housekeeping first, because it changes what "new" means this pass.** Before diagnosing anything, discovered this repo already had **five open, unmerged PRs (#47–#51)** from two prior scheduled runs of this same recurring triage task (sessions `01L7174cXdEGJNo6LVjS8c4a` and `01Bdx6EUKkRTgBCWXWL6uuKd`, 2026-09-13 and 2026-09-15) sitting against the same `main` tip this pass started from (`f906fcb`). Relevant to this pass:
+
+  - **#48** (deprecate smartdevices-ke) and **#49** (deprecate eamobitech-ke) — independently reached, evidence-for-evidence, the exact same diagnosis and action this pass's own CI check below reached before this was discovered. Not re-done; see below.
+  - **#51** — an `OPERATIONS.md` §8p write-up (2026-09-15 triage) that was already sitting on its own branch, unmerged, when this pass started. Since `main`'s copy of this file doesn't have §8p yet, this entry is numbered §8q instead of §8p to avoid a collision whichever PR lands first — see `operations-8p`/`operations-8q` branches. Whoever merges next should merge #51 before this one so the lettering stays chronological.
+  - **#47**/**#50** — two iterations of a diagnostic-logging fix for `all-mybigorder` (see below).
+
+None of these were re-created or duplicated. `audiocom-ke` (this pass's actual new finding) is not mentioned in any of the five, confirming it's genuinely new rather than something already caught.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **audiocom-ke** | `35183472409`, `35249874682`, `35307947575`, `35368132843` — 4/4, green on `35124767013` (2026-09-16 16:53) immediately before | Every leg: `[wc-store] audiocom-ke page1 GET failed: RetryError: RetryError[<Future ... raised Timeout>]`, tripping `ScraperYieldTooLow: audiocom-ke: yielded ZERO listings but had 15 on record`. `fetch_wc_store_catalog`'s default `client_type` is already `cffi` — `audiocom.py` never overrode it — so this `Timeout` with no HTTP response at all is past the TLS-fingerprint stage already. Confirmed `audiocomkenya.co.ke` still resolves cleanly to Cloudflare anycast (`104.21.5.101`, `172.67.154.117`) at both 8.8.8.8 and 1.1.1.1 — not a dead domain. | **Deprecated** (PR #52). Matches the network-layer packet-drop signature already deprecated twice for (zuka-ke §8i, overtech-ke §8k) — GHA IPs dropped before any handshake, residential-proxy-only. Not cost-justified for a 15-listing pro-audio catalog covered by Jumia/Kilimall/Phone Place. Deleted `scrapers/merchants/audiocom.py`, its `ingest.py` runner/TARGETS entry, and its `scrape.yml` leg. |
+| wc-smartdevices-ke, wc-eamobitech-ke | Re-checked independently before discovering #48/#49: both still failing on every run from `34562957686` (2026-09-11 04:38) straight through `35368132843` (2026-09-18 16:22) — **13 consecutive scheduled runs, zero green, confirmed via a full job-by-job check of the gap** between §8o's last-checked run and this pass's window. `wc-smartdevices-ke` still logs the Cloudflare 522/523 origin-unreachable signature; `wc-eamobitech-ke` still raises `PlaywrightPoliteClient`'s challenge-unresolved `RuntimeError`. Neither signature changed from what #48/#49 already documented. | **Already deprecated in open PRs #48/#49** (2026-09-15, unmerged, `mergeable_state: blocked` — waiting on review, not on CI or a merge conflict). This pass's independent re-derivation of the same evidence is corroboration that the diagnosis held for another 4 days, not new information. Not re-fixed here to avoid a duplicate/conflicting PR; recommend #48/#49 get reviewed and merged. |
+| all-mybigorder | `35124767013` (2026-09-16 16:53), `35183472409` (2026-09-17 04:51) — 2 runs, then green on the next 3 (`35249874682`, `35307947575`, `35368132843`) | Same symptom §8p (PR #47/#50) already flagged as inconclusive — `mybigorder.py`'s except-block still only logs `e.__class__.__name__` (always the literal string `"RetryError"` for a tenacity-wrapped failure) on `main`, since #50's diagnostic-logging fix hasn't merged yet. Recovered on its own after 2 runs. | **Noise this pass.** Doesn't reach the persistence bar (green in the 3 most recent runs), and the root-cause question is already being tracked by open PR #50 — not re-investigated here. |
+| wc-hisense-kenya-ke | No signal in this window | — | Continues holding, consistent with §8p. |
+| phonesstore-ke | No cascade observed this pass | — | — |
+
+**Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, sollatek-ke's stray row, and now audiocom-ke from this pass) produced any signal in this window.
+
+**Process note for whoever runs this triage next.** This is the first pass to discover that the previous *scheduled* run of this same task left work sitting unmerged rather than landing it — five PRs, up to 6 days old at discovery time. A recurring triage task whose fixes never get merged just re-diagnoses the same merchants every cycle at increasing cost, and very nearly did here (this pass spent real effort re-deriving smartdevices-ke/eamobitech-ke's diagnosis from CI logs before finding #48/#49 already had it). Checking `gh pr list` / `list_pull_requests` for existing open branches touching the same merchants should be step 0 of every future pass, before diagnosing anything from CI.
+
+## 8r. Eleventh triage — not a merchant break at all (2026-09-25)
 
 Same constraint as §8k-8o — no `DATABASE_URL`, no `curl`/`WebFetch` egress — so signal came entirely from the `scrape.yml` matrix.
 
@@ -324,4 +350,3 @@ Every single ingest write hit this — `scrapers/ingest.py:215` (`now = datetime
 **No merchant-specific action taken this pass** — deliberately. Fixing the shared bug is the only thing that could restore signal; diagnosing individual merchants against a 96%-red matrix would have been noise chasing noise. The next triage pass, once this fix has had a few scheduled runs to prove out, is the first one that can meaningfully re-apply the §8g-8o playbook.
 
 **Cross-check against the deprecation list.** N/A this pass — no merchant-level diagnosis was possible or attempted, so nothing was deprecated and nothing on the existing list (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, sollatek-ke's stray row) needed re-checking.
-
