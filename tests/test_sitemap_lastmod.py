@@ -19,7 +19,7 @@ time.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -68,12 +68,12 @@ def seeded(session):
     session.commit()
     session.refresh(p)
 
-    old = datetime.utcnow() - timedelta(days=30)
+    old = datetime.now(UTC) - timedelta(days=30)
     for mid in (1, 2):
         lst = Listing(product_id=p.id, merchant_id=mid,
                       url=f"https://m{mid}.example/p", title_on_merchant=TITLE,
                       price_kes=Decimal("10000"), in_stock=True,
-                      last_checked_at=datetime.utcnow())  # checked NOW
+                      last_checked_at=datetime.now(UTC))  # checked NOW
         session.add(lst)
         session.commit()
         session.refresh(lst)
@@ -88,7 +88,7 @@ def test_lastmod_follows_the_price_change_not_the_check(session, seeded):
     lastmod = _lastmod_for(session, seeded.slug)
 
     assert lastmod is not None
-    expected = (datetime.utcnow() - timedelta(days=30)).date().isoformat()
+    expected = (datetime.now(UTC) - timedelta(days=30)).date().isoformat()
     assert lastmod.startswith(expected), (
         f"lastmod {lastmod} should reflect the 30-day-old price change, "
         "not today's check"
@@ -123,7 +123,7 @@ def test_a_real_price_change_does_move_lastmod(session, seeded):
 
     after = _lastmod_for(session, seeded.slug)
     assert after != before
-    assert after.startswith(datetime.utcnow().date().isoformat())
+    assert after.startswith(datetime.now(UTC).date().isoformat())
 
 
 def test_stock_flip_is_recorded_as_a_change(session, seeded):
