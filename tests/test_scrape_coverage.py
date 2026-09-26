@@ -21,7 +21,7 @@ from scrapers.coverage import Coverage, classify, needs_attention
 
 
 def test_woocommerce_merchant_is_active():
-    assert classify("smartdevices-ke") is Coverage.ACTIVE
+    assert classify("dixons-ke") is Coverage.ACTIVE
 
 
 def test_custom_module_merchant_is_active():
@@ -45,6 +45,7 @@ def test_merchant_with_no_scraper_is_deprecated():
     """Removed from config entirely. Staleness is the designed end state."""
     assert classify("finetech-ke") is Coverage.DEPRECATED
     assert classify("zuka-ke") is Coverage.DEPRECATED
+    assert classify("smartdevices-ke") is Coverage.DEPRECATED
 
 
 def test_deprecation_is_derived_not_hardcoded():
