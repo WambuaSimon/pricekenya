@@ -239,6 +239,14 @@ def _humanize_ago(ts: datetime | None) -> str:
     beyond the current bucket doesn't matter."""
     if ts is None:
         return "not yet checked"
+    # Normalise before subtracting. Postgres hands back timezone-aware
+    # datetimes; SQLite hands back naive ones for the same column, and
+    # aware - naive raises TypeError. Now that the app's clock is aware
+    # (datetime.now(UTC)), every DB value compared against it has to be
+    # coerced or the homepage 500s under SQLite — which is exactly what
+    # the test suite caught here.
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
     delta = datetime.now(UTC) - ts
     secs = int(delta.total_seconds())
     if secs < 60:
