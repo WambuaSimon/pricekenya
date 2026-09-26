@@ -46,6 +46,7 @@ def test_merchant_with_no_scraper_is_deprecated():
     assert classify("finetech-ke") is Coverage.DEPRECATED
     assert classify("zuka-ke") is Coverage.DEPRECATED
     assert classify("smartdevices-ke") is Coverage.DEPRECATED
+    assert classify("eamobitech-ke") is Coverage.DEPRECATED
 
 
 def test_deprecation_is_derived_not_hardcoded():

@@ -146,7 +146,12 @@ jobs:
           # up automatically by the all-shopify matrix leg below.
           - audiocom-ke         # WC Store API scraper (was wc-*)
           - wc-camerastore-ke   # camera specialist
-          - wc-eamobitech-ke    # cameras + computers — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-09-07/08)
+          # wc-eamobitech-ke deprecated 2026-09-15: escalated past
+          # playwright-stealth (the strongest client_type this codebase
+          # has) to a Cloudflare challenge that survives stealth Chromium
+          # on every leg, every scheduled run, for 8 straight runs with
+          # zero recovery since the escalation landed 2026-09-07. See
+          # wc_merchants.py and OPERATIONS.md §8p.
           - wc-housewife-ke     # kitchen appliances — Playwright-stealth (JS-refresh challenge got past cffi 2026-08-21)
           - wc-armco-ke         # Kenyan brand appliances
           - newmatic-ke         # WC Store API scraper (was wc-*) — built-in kitchen appliances
@@ -179,7 +184,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'wc-eamobitech-ke' || matrix.target == 'solarstore-ke'
+        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
