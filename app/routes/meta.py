@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.templating import templates
-from db.models import Product
+from db.models import PriceHistory, Product
 from db.session import get_session
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -206,8 +206,9 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
     # decided crawling all 7k+ wasn't worth it. Filters:
     #  1. Require >= MIN_DISTINCT_MERCHANTS merchants with an IN-STOCK
     #     offer — the shared rule in app/indexing.py, the same one
-    #     product.html uses to decide `noindex`. A single-offer page is
-    #     functionally a merchant redirect, not a comparison.
+    #     product.html uses to decide `noindex`. That threshold dropped to
+    #     1 on 2026-09-09, so this now means "has a live price"; the
+    #     floor is still a live offer, never zero.
     #  2. Require Product.image_url — no image = thin content = Google
     #     rejects at "Crawled - not indexed".
     #  3. Require max(last_checked_at) within FRESHNESS_DAYS — products
@@ -231,9 +232,10 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
 
     product_rows = session.exec(
         select(
+            Product.id,
             Product.slug,
             Product.image_url,
-            func.max(Listing.last_checked_at).label("lastmod"),
+            func.max(Listing.last_checked_at).label("checked"),
         )
         .join(Listing, Listing.product_id == Product.id)
         .where(Product.image_url.is_not(None))
@@ -243,8 +245,48 @@ def _build_sitemap_xml(session: Session) -> tuple[str, int]:
         .having(func.max(Listing.last_checked_at) >= freshness_cutoff)
         .order_by(func.max(Listing.last_checked_at).desc())
     ).all()
-    for slug, image_url, lastmod in product_rows:
-        entries.append((f"{base}/p/{slug}", fmt(lastmod), image_url))
+
+    # <lastmod> = when the offers last actually CHANGED, not when we last
+    # looked at them.
+    #
+    # It used to be max(last_checked_at), which every scrape bumps on every
+    # listing it sees whether or not anything moved. Measured 2026-09-25:
+    # that put 75% of the sitemap (4,255 of 5,668 products) on a single
+    # lastmod date, so each cron run told Google ~4,300 pages had changed
+    # when ~1,100 had. Google is explicit that it starts ignoring lastmod
+    # when it proves unreliable, and an ignored lastmod means it recrawls on
+    # its own schedule instead of ours — costly with 4,166 URLs sitting in
+    # "Discovered - currently not indexed" waiting for crawl budget.
+    #
+    # PriceHistory is exactly the right source because ingest only writes a
+    # row when the price or the stock state actually moved, and it always
+    # writes one when a listing first appears. Same data, honest signal:
+    # the biggest single day drops from 75% to 20% and distinct dates go
+    # from 29 to 81.
+    #
+    # Fetched as its own query rather than a third join: PriceHistory is
+    # ~700k rows and this runs off the request path (cron-rebuilt cache), so
+    # a keyed lookup is both cheaper and easier to reason about than
+    # aggregating two one-to-many joins in a single GROUP BY.
+    product_ids = [row[0] for row in product_rows]
+    changed_at: dict[int, _datetime] = {}
+    if product_ids:
+        changed_at = dict(
+            session.exec(
+                select(Listing.product_id, func.max(PriceHistory.observed_at))
+                .join(PriceHistory, PriceHistory.listing_id == Listing.id)
+                .where(Listing.product_id.in_(product_ids))
+                .where(Listing.in_stock.is_(True))
+                .group_by(Listing.product_id)
+            ).all()
+        )
+
+    for pid, slug, image_url, checked in product_rows:
+        # Fall back to the check time if a product somehow has no history
+        # row — better a slightly stale lastmod than none at all.
+        entries.append(
+            (f"{base}/p/{slug}", fmt(changed_at.get(pid) or checked), image_url)
+        )
 
     entries.append((f"{base}/privacy", None, None))
     entries.append((f"{base}/terms", None, None))
