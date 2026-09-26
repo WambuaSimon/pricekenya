@@ -209,8 +209,16 @@ async def _fetch_category(
             # `all-mybigorder` matrix job because one subcategory got removed
             # or throttled is a bigger problem than losing that subcategory's
             # data for one cron cycle.
-            print(f"mybigorder: {slug} page {page} failed ({e.__class__.__name__}); "
-                  f"skipping rest of this category")
+            #
+            # `str(e)` matters here, not just the class name: PoliteClient.get
+            # is @retry-wrapped, so failures surface as tenacity's RetryError,
+            # whose __str__ embeds the wrapped Future repr (e.g. "state=
+            # finished raised HTTPStatusError") naming the *actual* underlying
+            # error. Printing only `e.__class__.__name__` (as this used to)
+            # always says "RetryError" and throws that signal away — same
+            # blindness class §8h/§8i fixed for woocommerce.py/shopify.py.
+            print(f"mybigorder: {slug} page {page} failed "
+                  f"({type(e).__name__}: {e}); skipping rest of this category")
             return
         listings = _parse_cards(resp.text, fixed_category_slug=fixed_category_slug)
         new_this_page = 0
