@@ -215,14 +215,26 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     now = datetime.now(UTC)
 
     if listing:
+        # Record an observation when the offer MATERIALLY changed, not on
+        # every sighting. PriceHistory doubles as the "when did this page
+        # last actually change" signal the sitemap's <lastmod> reads, so a
+        # row here is a claim that a shopper would see something different.
+        #
+        # Stock is part of that and used to be missed: a listing flipping
+        # to sold-out removes a whole row from "Where to buy" and can change
+        # the cheapest price, but while this only checked price it left no
+        # trace at all. PriceHistory has always carried an in_stock column;
+        # until now it only ever recorded the stock at the moment of a price
+        # change, which made it unreliable for reconstructing availability.
         price_changed = listing.price_kes != price
+        stock_changed = listing.in_stock != raw.in_stock
         listing.price_kes = price
         listing.url = raw.url
         listing.title_on_merchant = raw.title
         listing.in_stock = raw.in_stock
         listing.last_checked_at = now
         session.add(listing)
-        if price_changed:
+        if price_changed or stock_changed:
             session.add(
                 PriceHistory(
                     listing_id=listing.id,
