@@ -62,7 +62,7 @@ def _seed(session):
     session.commit()
     session.refresh(product)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     session.add(Listing(
         product_id=product.id, merchant_id=1, url="https://dead.example/p",
         title_on_merchant="Samsung Test Phone", price_kes=Decimal("18500"),
@@ -118,7 +118,7 @@ def test_product_with_no_live_offer_is_not_listed(client, session):
         product_id=ghost.id, merchant_id=1, url="https://dead.example/g",
         title_on_merchant="Ghost Phone", price_kes=Decimal("9999"),
         in_stock=False,
-        last_checked_at=datetime.now(UTC).replace(tzinfo=None),
+        last_checked_at=datetime.now(UTC),
     ))
     session.commit()
 

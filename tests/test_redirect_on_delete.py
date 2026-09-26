@@ -43,7 +43,7 @@ def _listing(session, product_id: int, merchant_id: int, title: str = "L") -> Li
         product_id=product_id, merchant_id=merchant_id,
         url=f"https://m{merchant_id}.example/{product_id}",
         title_on_merchant=title, price_kes=Decimal("1000"), in_stock=True,
-        last_checked_at=datetime.now(UTC).replace(tzinfo=None),
+        last_checked_at=datetime.now(UTC),
     )
     session.add(lst)
     session.commit()

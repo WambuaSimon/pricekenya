@@ -1,8 +1,19 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import JSON, Column, Index, LargeBinary, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
+
+
+def _utcnow() -> datetime:
+    """Timezone-aware now(), for use as a Field default_factory.
+
+    sqlmodel now maps `datetime` columns to TIMESTAMP WITH TIME ZONE and
+    rejects naive values at insert time (was a silent DeprecationWarning
+    through 2026-09-21; a later release made it a hard ValueError, which
+    broke every single scrape leg — see OPERATIONS.md).
+    """
+    return datetime.now(UTC)
 
 
 class Category(SQLModel, table=True):
@@ -57,7 +68,7 @@ class Product(SQLModel, table=True):
     embedding: bytes | None = Field(
         default=None, sa_column=Column(LargeBinary, nullable=True)
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
 
     listings: list["Listing"] = Relationship(back_populates="product")
 
@@ -71,7 +82,7 @@ class Listing(SQLModel, table=True):
     title_on_merchant: str
     price_kes: Decimal
     in_stock: bool = True
-    last_checked_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    last_checked_at: datetime = Field(default_factory=_utcnow, index=True)
 
     product: Product | None = Relationship(back_populates="listings")
     merchant: Merchant | None = Relationship(back_populates="listings")
@@ -82,7 +93,7 @@ class PriceHistory(SQLModel, table=True):
     listing_id: int = Field(foreign_key="listing.id", index=True)
     price_kes: Decimal
     in_stock: bool = True
-    observed_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    observed_at: datetime = Field(default_factory=_utcnow, index=True)
 
 
 class Click(SQLModel, table=True):
@@ -96,7 +107,7 @@ class Click(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     listing_id: int = Field(foreign_key="listing.id", index=True)
-    occurred_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    occurred_at: datetime = Field(default_factory=_utcnow, index=True)
 
 
 class LlmExtractionLog(SQLModel, table=True):
@@ -116,7 +127,7 @@ class LlmExtractionLog(SQLModel, table=True):
     parsed_ok: bool = False
     latency_ms: int = 0
     error: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=_utcnow, index=True)
 
     __table_args__ = (Index("ix_llm_cat_created", "category", "created_at"),)
 
@@ -138,7 +149,7 @@ class ProductMergeCandidate(SQLModel, table=True):
     status: str = Field(default="pending", index=True)  # pending | approved | rejected
     reviewed_at: datetime | None = None
     reviewer_note: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=_utcnow, index=True)
 
     __table_args__ = (
         UniqueConstraint("source_product_id", "target_product_id", name="uq_merge_pair"),
@@ -186,7 +197,7 @@ class Review(SQLModel, table=True):
     # consent — cannot be inferred from submitting the review itself.
     # Mirrors Alert.marketing_opt_in.
     marketing_opt_in: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
 
     __table_args__ = (
         UniqueConstraint("product_id", "email", name="uq_review_product_email"),
@@ -207,7 +218,7 @@ class ReviewReport(SQLModel, table=True):
     review_id: int = Field(foreign_key="review.id", index=True)
     reason: str | None = None
     reporter_ip_hash: str = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=_utcnow, index=True)
 
     __table_args__ = (
         UniqueConstraint("review_id", "reporter_ip_hash", name="uq_report_reviewer"),
@@ -233,7 +244,7 @@ class CachedSitemap(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     body: str
-    generated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    generated_at: datetime = Field(default_factory=_utcnow, index=True)
     url_count: int = 0
 
 
@@ -258,7 +269,7 @@ class ProductRedirect(SQLModel, table=True):
 
     old_slug: str = Field(primary_key=True)
     new_slug: str = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
 
 
 class Alert(SQLModel, table=True):
@@ -271,5 +282,5 @@ class Alert(SQLModel, table=True):
     # announcements). Kenya DPA + GDPR require this to be a distinct
     # consent — cannot be inferred from the alert signup itself.
     marketing_opt_in: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
     last_notified_at: datetime | None = None

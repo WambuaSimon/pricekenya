@@ -14,7 +14,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -95,7 +95,7 @@ def seeded(session: Session) -> Session:
         session.add(p)
     session.commit()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     listings = [
         Listing(product_id=products[0].id, merchant_id=jumia.id,
                 url="https://jumia.co.ke/1",

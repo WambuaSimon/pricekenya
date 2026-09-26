@@ -380,7 +380,7 @@ def _lookup_cached_response(
 
 
 def _daily_count(session: Session, *, category: str) -> int:
-    day_start = _utc_day_start().replace(tzinfo=None)
+    day_start = _utc_day_start()
     n = session.exec(
         select(func.count())
         .select_from(LlmExtractionLog)

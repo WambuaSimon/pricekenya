@@ -62,8 +62,10 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["E501", "B008"]
 
 [tool.pytest.ini_options]
-# Silence the sqlmodel/datetime.utcnow() deprecation warnings noise in CI
-# so we notice real warnings when they appear.
+# Silence third-party deprecation noise (uvloop, pydantic, etc.) so we
+# notice real warnings when they appear. Used to also cover sqlmodel's
+# datetime.utcnow() warning — that's fixed at the source now (all call
+# sites use datetime.now(UTC); see OPERATIONS.md) rather than silenced.
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]

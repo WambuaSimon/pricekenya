@@ -19,7 +19,7 @@ import asyncio
 import contextlib
 import io
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query
 
@@ -90,9 +90,9 @@ async def run_scrape(
         return buf.getvalue(), exc
 
     loop = asyncio.get_running_loop()
-    started = datetime.utcnow()
+    started = datetime.now(UTC)
     stdout, exc = await loop.run_in_executor(_SCRAPE_EXECUTOR, _run_capturing)
-    duration = round((datetime.utcnow() - started).total_seconds(), 1)
+    duration = round((datetime.now(UTC) - started).total_seconds(), 1)
     # Last 5KB is enough to see the scrape's diagnostic prints without
     # flooding the response with per-listing chatter.
     output_tail = stdout[-5000:]

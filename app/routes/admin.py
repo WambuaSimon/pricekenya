@@ -207,7 +207,7 @@ def approve(
     target = session.get(Product, cand.target_product_id)
     if not (source and target):
         cand.status = "rejected"
-        cand.reviewed_at = datetime.utcnow()
+        cand.reviewed_at = datetime.now(UTC)
         cand.reviewer_note = "one side deleted before review"
         session.add(cand)
         session.commit()
@@ -223,7 +223,7 @@ def approve(
     _reparent_listings(session, source.id, target.id)
 
     cand.status = "approved"
-    cand.reviewed_at = datetime.utcnow()
+    cand.reviewed_at = datetime.now(UTC)
     session.add(cand)
 
     # Record where the slug went BEFORE deleting the row — /p/<source.slug>
@@ -247,7 +247,7 @@ def reject(
     if not cand or cand.status != "pending":
         raise HTTPException(status_code=404)
     cand.status = "rejected"
-    cand.reviewed_at = datetime.utcnow()
+    cand.reviewed_at = datetime.now(UTC)
     session.add(cand)
     session.commit()
     return RedirectResponse(url="/admin/merge-review", status_code=303)
@@ -288,7 +288,7 @@ def admin_reviews(
             .limit(300)
         )
     elif filter == "recent":
-        cutoff = datetime.utcnow() - timedelta(hours=24)
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
         stmt = (
             select(Review)
             .where(Review.created_at >= cutoff)
@@ -351,7 +351,7 @@ def hide_review(
     r = session.get(Review, review_id)
     if not r:
         raise HTTPException(status_code=404)
-    r.hidden_at = datetime.utcnow()
+    r.hidden_at = datetime.now(UTC)
     r.hidden_reason = reason.strip()[:200] or None
     session.add(r)
     session.commit()
@@ -457,7 +457,7 @@ def delist_stale(
     """
     if days < 1 or days > 90:
         raise HTTPException(status_code=400, detail="days must be 1-90")
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     result = session.exec(
         update(Listing)
         .where(Listing.last_checked_at < cutoff)
@@ -499,13 +499,11 @@ def clicks_dashboard(
     # window keeps the SQL simple and stays under 4 round-trips regardless of
     # merchant count.
     def _counts_since(cutoff: datetime) -> dict[int, int]:
-        # Naive-datetime comparison to match Click.occurred_at (utcnow-based).
-        naive_cutoff = cutoff.replace(tzinfo=None)
         rows = session.exec(
             select(Merchant.id, sa_func.count(Click.id))
             .join(Listing, Listing.merchant_id == Merchant.id)
             .join(Click, Click.listing_id == Listing.id)
-            .where(Click.occurred_at >= naive_cutoff)
+            .where(Click.occurred_at >= cutoff)
             .group_by(Merchant.id)
         ).all()
         return {mid: n for mid, n in rows}
@@ -514,7 +512,6 @@ def clicks_dashboard(
 
     # Top-clicked listing per merchant in the 30d window — the single line
     # you'd quote in an outreach email ("your Redmi 15C page got X clicks").
-    naive_30d = cutoffs["d30"].replace(tzinfo=None)
     top_rows = session.exec(
         select(
             Merchant.id,
@@ -526,7 +523,7 @@ def clicks_dashboard(
         .join(Listing, Listing.merchant_id == Merchant.id)
         .join(Product, Product.id == Listing.product_id)
         .join(Click, Click.listing_id == Listing.id)
-        .where(Click.occurred_at >= naive_30d)
+        .where(Click.occurred_at >= cutoffs["d30"])
         .group_by(Merchant.id, Listing.id, Listing.title_on_merchant, Product.slug)
         .order_by(sa_func.count(Click.id).desc())
     ).all()

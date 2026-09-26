@@ -87,10 +87,7 @@ def rebuild(session: Session, *, if_older_than: float | None = None, dry_run: bo
     if not dry_run:
         _assert_safe_base_url(settings.base_url)
 
-    # `generated_at` is written with utcnow() by the route, so stay in the
-    # same naive-UTC frame — an aware datetime here would raise on the
-    # subtraction below. This is the non-deprecated spelling of utcnow().
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     cached = session.get(CachedSitemap, 1)
 
     if if_older_than is not None and cached is not None:

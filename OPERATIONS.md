@@ -301,3 +301,27 @@ Covered the last 4 completed scheduled runs (2026-09-11 04:38 → 2026-09-12 15:
 
 **Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, sollatek-ke's stray row) produced any signal in this window.
 
+## 8s. Twelfth triage — not a merchant break at all (2026-09-25)
+
+Same constraint as §8k-8o — no `DATABASE_URL`, no `curl`/`WebFetch` egress — so signal came entirely from the `scrape.yml` matrix.
+
+**This pass found something categorically different from §8g-8o.** Every previous triage was a handful of merchants failing against a mostly-green matrix. This time the matrix was **essentially 100% red**: of 68 jobs in each of the last 4 scheduled runs (`35892227618` → `36096459748`, 2026-09-23 16:56 → 2026-09-25 04:56), 65 were `failure`/`cancelled` and only `seed` passed — including merchants that have been rock-solid for months (Jumia, Kilimall, Hotpoint, all the `all-*` category legs). That ratio doesn't match any per-merchant bot-mitigation signature in §8g-8o's playbook, so the read from minute one was "something shared broke," not "N merchants each independently hit a wall."
+
+**Root cause, from the `all-phones` leg's log (run `36096459748`, job `107949762628`):**
+
+```
+sqlalchemy.exc.StatementError: (builtins.ValueError) Datetime values must have timezone information.
+Use datetime.now(timezone.utc), or annotate the field with NaiveDatetime for naive storage.
+[SQL: UPDATE listing SET price_kes=%(price_kes)s, last_checked_at=%(last_checked_at)s::TIMESTAMP WITH TIME ZONE WHERE listing.id = %(listing_id)s::INTEGER]
+```
+
+Every single ingest write hit this — `scrapers/ingest.py:215` (`now = datetime.utcnow()`) produces a naive datetime, and `db/models.py`'s `Listing.last_checked_at` / every other timestamp column map to Postgres `TIMESTAMP WITH TIME ZONE`. `pyproject.toml` pins `sqlmodel>=0.0.22` with no upper bound and there's no lockfile, so every CI run does a fresh `pip install` against whatever's newest on PyPI — confirmed both runs bracketing the regression have the **identical head_sha** (`f906fcbba2893755f9820e09590f60e1defc95f1`, PR #45, no code change), so nothing in this repo triggered it. A newer `sqlmodel` release between run `35636855790` (2026-09-21 18:12, 4 non-success jobs — normal) and `35688618350` (2026-09-22 04:53, 65 non-success jobs) started hard-rejecting naive datetimes it previously silently accepted (or coerced). `pyproject.toml`'s own comment gave the game away in hindsight: *"Silence the sqlmodel/datetime.utcnow() deprecation warnings noise in CI"* — the warning was known, `filterwarnings = ["ignore::DeprecationWarning"]` silenced it instead of fixing the naive-datetime call sites, and the upstream deprecation eventually became a hard error. **Zero listings were written for 8 consecutive scheduled runs / ~4 days** before this triage.
+
+**Fix:** every `datetime.utcnow()` call site in the repo (23 files — `db/models.py`'s 11 `default_factory`s, `scrapers/ingest.py`, `alerts/dispatcher.py`, `seed/load.py`, `scripts/prune_merge_candidates.py`, `scripts/rebuild_sitemap.py`, `matching/llm_extract.py`, five `app/routes/*.py` files, and matching test fixtures) switched to `datetime.now(UTC)`. Two deliberate `.replace(tzinfo=None)` workarounds (`app/routes/admin.py`'s click-dashboard cutoffs, `scripts/rebuild_sitemap.py`'s TTL check, `matching/llm_extract.py`'s daily-cap cutoff) — comments on two of them explicitly say *"stay in the same naive-UTC frame"* — were removed now that the columns they compare against are consistently aware. Verified locally: baseline (before fix) reproduced the exact CI failure, 556 test errors, all `sqlalchemy.exc.StatementError`; after the fix, 555 passed / 1 failed (`test_embeddings.py::test_encode_shape_and_cosine`, an `httpx.ProxyError` from this environment's network policy blocking the MiniLM download — pre-existing, unrelated to this bug, would fail on `main` too). `ruff check` clean. PR: see below.
+
+**What this pass could *not* determine.** §8o left two merchants open — smartdevices-ke and eamobitech-ke, both already on `playwright-stealth` (the top of the escalation ladder) but still failing (Cloudflare 522/523 origin errors and unresolved challenges respectively), flagged "re-check next pass; if still failing with no green run in between, this becomes a deprecation candidate." This pass's CI logs are **useless for that question** — with every leg failing on the shared ingest bug before it could even get far enough to hit those merchants' own failure modes, there's no way to tell from these 4 runs whether smartdevices-ke/eamobitech-ke's Cloudflare-side issues have resolved, persisted, or worsened. That has to wait for the next scheduled runs after this fix merges, once a genuinely clean signal is possible again.
+
+**No merchant-specific action taken this pass** — deliberately. Fixing the shared bug is the only thing that could restore signal; diagnosing individual merchants against a 96%-red matrix would have been noise chasing noise. The next triage pass, once this fix has had a few scheduled runs to prove out, is the first one that can meaningfully re-apply the §8g-8o playbook.
+
+**Cross-check against the deprecation list.** N/A this pass — no merchant-level diagnosis was possible or attempted, so nothing was deprecated and nothing on the existing list (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, sollatek-ke's stray row) needed re-checking.
+

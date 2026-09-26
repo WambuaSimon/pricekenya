@@ -7,7 +7,7 @@ Lets the site render end-to-end before any scraping happens. Run with:
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -84,7 +84,7 @@ def run() -> None:
             slug_to_merchant[m["slug"]] = obj
 
         # Listings
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         for title, image_url, merchant_slug, price in SAMPLE_LISTINGS:
             product = match_or_create_product(
                 session, title=title, image_url=image_url, category="phones"

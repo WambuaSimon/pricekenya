@@ -221,8 +221,9 @@ def test_hidden_review_not_rendered_and_excluded_from_aggregate(product_id: int)
 
     with Session(engine) as s:
         r = s.get(Review, bad)
+        from datetime import UTC as _UTC
         from datetime import datetime as _dt
-        r.hidden_at = _dt.utcnow()
+        r.hidden_at = _dt.now(_UTC)
         r.hidden_reason = "spam"
         s.add(r)
         s.commit()

@@ -1,6 +1,6 @@
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -46,7 +46,7 @@ def _time_bucket(now: datetime | None = None) -> int:
     """Deterministic shuffle seed. Same seed for every request inside the
     same 6h window so a page refresh returns the same order (avoids the
     jarring reshuffle-on-every-visit feel) while still cycling 4× a day."""
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC)
     return now.timetuple().tm_yday * 24 + now.hour // _HOME_ROTATION_HOURS
 
 
@@ -179,7 +179,7 @@ def _fetch_price_drops(session: Session, pool_ids: list[int], limit: int):
     """
     if not pool_ids:
         return []
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     current = (
         select(
             Listing.product_id.label("pid"),
@@ -234,12 +234,20 @@ def _fetch_price_drops(session: Session, pool_ids: list[int], limit: int):
 
 
 def _humanize_ago(ts: datetime | None) -> str:
-    """Short compact ago-string for the homepage stats chip. Naive UTC in,
+    """Short compact ago-string for the homepage stats chip. Aware UTC in,
     "12m ago" / "3h ago" / "2d ago" out. Only used for display — precision
     beyond the current bucket doesn't matter."""
     if ts is None:
         return "not yet checked"
-    delta = datetime.utcnow() - ts
+    # Normalise before subtracting. Postgres hands back timezone-aware
+    # datetimes; SQLite hands back naive ones for the same column, and
+    # aware - naive raises TypeError. Now that the app's clock is aware
+    # (datetime.now(UTC)), every DB value compared against it has to be
+    # coerced or the homepage 500s under SQLite — which is exactly what
+    # the test suite caught here.
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=UTC)
+    delta = datetime.now(UTC) - ts
     secs = int(delta.total_seconds())
     if secs < 60:
         return "just now"
@@ -265,7 +273,7 @@ def home(request: Request, session: Session = Depends(get_session)):
     # enforces category diversity so the grid rotates + reads mixed.
     # Pool filters: multi-offer (>=2) so we don't showcase single-offer
     # noindex'd pages, and image_url present so cards render properly.
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = datetime.now(UTC) - timedelta(days=7)
     clicks_7d = (
         select(func.count(Click.id))
         .join(Listing, Listing.id == Click.listing_id)
