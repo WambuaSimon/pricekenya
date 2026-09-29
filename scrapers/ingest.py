@@ -1003,11 +1003,25 @@ def run_pricepoint() -> None:
     asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
 
 
-def run_audiocom() -> None:
-    from scrapers.merchants.audiocom import MERCHANT_META, fetch_all
-    asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
-
-
+# audiocom-ke deprecated 2026-09-29: escalated past playwright-stealth, the
+# top of this codebase's client_type ladder (grep `client_type ==` in
+# scrapers/common/*.py — nothing stronger exists). PR #54 flipped it cffi ->
+# playwright-stealth on landing after cffi started getting curl_cffi's own
+# RetryError[HTTPError] (2026-09-19/20). Every scheduled run since has
+# logged `[wc-store] audiocom-ke page1 GET failed: RetryError: RetryError
+# [<Future ... raised RuntimeError>]` (runs 36296761229, 36335102161,
+# 36381606232, 36473787803, 2026-09-27 05:17 -> 2026-09-28 19:39) — the same
+# RuntimeError PlaywrightPoliteClient.get raises only when a real navigation
+# response still shows an unresolved JS-refresh or Cloudflare challenge
+# (scrapers/common/base.py:153/166), meaning stealth Chromium is getting a
+# response but the challenge survives it. The merchant's own health-job
+# readout (job 109141241052) shows last successful scrape 2026-09-16 18:21
+# UTC — 291h / 12+ days stale, with zero green runs on any client_type since.
+# Identical failure signature and same top-of-ladder exhaustion as
+# smartdevices-ke and eamobitech-ke (both deprecated 2026-09-15/26, see
+# OPERATIONS.md §8o-8r). 15 listings on record; pro-audio catalog is a niche
+# already thin on this site and not load-bearing for any category page.
+# scrapers/merchants/audiocom.py deleted along with this entry.
 def run_solarstore() -> None:
     from scrapers.merchants.solarstore import MERCHANT_META, fetch_all
     asyncio.run(_consume(fetch_all(), MERCHANT_META, check_yield=True))
@@ -1213,7 +1227,6 @@ TARGETS = {
     "newmatic-ke": run_newmatic,
     "patabay-ke": run_patabay,
     "pricepoint-ke": run_pricepoint,
-    "audiocom-ke": run_audiocom,
     "solarstore-ke": run_solarstore,
     "all": _run_all,
 }
