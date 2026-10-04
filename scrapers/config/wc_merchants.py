@@ -307,7 +307,9 @@ WC_MERCHANTS: dict[str, dict] = {
     # sollatek-ke moved to shopify_merchants.py — their store is Shopify at
     # shop.sollatek.com, not WooCommerce at sollatek.co.ke (which is the
     # corporate marketing site).
-    # audiocom-ke moved to scrapers/merchants/audiocom.py (WC Store API).
+    # audiocom-ke deprecated 2026-09-29 — see scrapers/ingest.py for the
+    # full writeup. Was moved to scrapers/merchants/audiocom.py (WC Store
+    # API), which is now deleted.
     "camerastore-ke": {
         "meta": {"slug": "camerastore-ke", "name": "Camera Store Kenya", "base_url": "https://camerastoreke.co.ke"},
         "leaf_to_urls": {
