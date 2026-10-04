@@ -25,3 +25,11 @@ OPERATIONS.md
 
 # pytest scratch DB (see tests/conftest.py)
 .pytest-pricekenya.db
+
+# Vendored Neon agent skills + their lockfile, installed by
+# `npx neon@latest skills -s neon -s neon-postgres`. Re-installable on
+# demand and updated with `neon skills update`, so they are tooling state
+# rather than source. Drop these two lines if the team decides to vendor
+# them deliberately.
+/skills-lock.json
+/.claude/skills/
