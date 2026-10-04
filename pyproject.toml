@@ -14,7 +14,14 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "httpx>=0.27",
     "curl_cffi>=0.7",
-    "selectolax>=0.3.27",
+    # Ceiling: selectolax 1.0 removed the Modest backend, so the
+    # `selectolax.parser` import every scraper uses raises ImportError
+    # on it. Unpinned, CI and all 65 scrape legs went red on 2026-10-03
+    # the moment 1.0 hit PyPI (no lockfile — every run installs fresh).
+    # Lift this once the call sites move to selectolax.lexbor; that is a
+    # real migration, not a swap — lexbor follows HTML5 where Modest
+    # does not, so each scraper's selectors need validating first.
+    "selectolax>=0.3.27,<1.0",
     "tenacity>=9.0",
     "apscheduler>=3.10",
     "pydantic-settings>=2.6",
