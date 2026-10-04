@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +50,31 @@ class Settings(BaseSettings):
     # copy-link buttons and the floating chat pill silently do not render.
     # wa.me links accept this format directly.
     pricekenya_whatsapp_number: str = ""
+
+    @field_validator("database_url")
+    @classmethod
+    def _pin_psycopg3_driver(cls, v: str) -> str:
+        """Force any Postgres URL onto psycopg3.
+
+        Render (and most managed providers) hand out a bare
+        `postgresql://...` URL. SQLAlchemy maps that scheme to **psycopg2**,
+        which this project does not install — `pyproject.toml` pins
+        `psycopg[binary]`, i.e. psycopg3 — so the engine would die at import
+        with ModuleNotFoundError. Previously the `+psycopg` suffix was
+        carried by hand in every DATABASE_URL, which meant a connection
+        string pasted verbatim from a dashboard booted a broken app.
+
+        Normalising here makes the suffix an invariant of the setting rather
+        than a thing each operator has to remember, and is what lets a
+        Blueprint `fromDatabase` value (always bare) be wired in directly.
+        Idempotent; non-Postgres URLs (sqlite) pass through untouched.
+        """
+        scheme, sep, rest = v.partition("://")
+        if not sep:
+            return v
+        if scheme.split("+", 1)[0] in ("postgres", "postgresql"):
+            return f"postgresql+psycopg{sep}{rest}"
+        return v
 
 
 settings = Settings()
