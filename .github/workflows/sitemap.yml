@@ -32,7 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     # The build is a GROUP BY over ~13.7k listings + ~8.6k products and
     # ~640KB of serialization. Takes well under a minute on a runner; 10
-    # is headroom for a Neon cold start.
+    # is generous headroom. (It used to be sized for a Neon cold start,
+    # which no longer exists — Render compute is always on — but a wide
+    # timeout on a once-daily job costs nothing.)
     timeout-minutes: 10
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}

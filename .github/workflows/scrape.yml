@@ -13,8 +13,11 @@ on:
   schedule:
     # Every 12 hours, at :17 past to avoid the top-of-hour Actions rush.
     # Kenyan merchant prices don't move hourly; 12h is well within the
-    # 24h staleness threshold from CONTEXT.md §10 and halves Neon
-    # compute-hour cost from scrape wakes.
+    # 24h staleness threshold from CONTEXT.md §10, and twice a day is
+    # polite to the merchants we scrape. The original reason was halving
+    # Neon compute-hours per scrape wake; that's moot on Render's flat-rate
+    # compute (OPERATIONS.md §8w), but the staleness and politeness reasons
+    # stand on their own, so the cadence stays.
     - cron: '17 */12 * * *'
   workflow_dispatch:  # allow manual runs from the Actions tab
 
@@ -61,11 +64,16 @@ jobs:
     strategy:
       # One failing merchant shouldn't kill the others.
       fail-fast: false
-      # Cap concurrent legs to keep Neon at 1-2 CU during the write burst.
-      # Unbounded parallelism (~50 jobs opening connections at once) triggers
-      # Neon autoscale up to the ceiling, and every step above 1 CU multiplies
-      # the CU-hour cost of that window. Wall clock rises to ~2h per run but
-      # nobody's watching — the alerts job at the end still runs on completion.
+      # Cap concurrent legs. The original reason was Neon CU-hour cost:
+      # unbounded parallelism (~50 jobs connecting at once) drove Neon
+      # autoscale up and every step above 1 CU multiplied that window's
+      # cost. On Render compute is flat-rate, so cost is no longer the
+      # constraint — but max_connections is a HARD 103 (verified on the
+      # instance), and ~50 simultaneous legs plus the web service's pool
+      # would be uncomfortably close with no autoscale to absorb it.
+      # 5 is likely conservative now; raising it is a deliberate change to
+      # make against that ceiling, not a free win. Wall clock is ~2h per
+      # run but nobody's watching — the alerts job still runs on completion.
       max-parallel: 5
       matrix:
         target:

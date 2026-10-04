@@ -170,10 +170,12 @@ def _has_products_in_subtree(session: Session, root_id: int) -> bool:
 
 # Nav bar renders on every page (twice — base.html + _sidebar_nav.html) and
 # each call fires 8-15 SELECTs (root lookup + BFS + Product existence probe
-# per top-level). At 500 page views/day that's ~15k queries/day burning Neon
-# compute hours for a result that changes only when a category gets its first
-# product. 10-minute TTL is invisible to users and drops nav queries to ~144/day
-# per worker.
+# per top-level). At 500 page views/day that's ~15k queries/day for a result
+# that changes only when a category gets its first product. The original
+# framing was Neon compute-hours; on Render the cost is query load against a
+# 256MB instance with 64MB of shared_buffers, which is a better reason, not a
+# weaker one. 10-minute TTL is invisible to users and drops nav queries to
+# ~144/day per worker.
 _NAV_CACHE_TTL_SECONDS = 600
 _nav_cache: tuple[list[dict], float] | None = None
 

@@ -100,8 +100,11 @@ _SITEMAP_CACHE_TTL_HOURS = 24
 
 # Response headers applied to every /sitemap.xml response, whether it
 # came from cache or was just built. `s-maxage=21600` (6h) at the Cloudflare
-# edge means keep-warm pings + Googlebot polls hit CF instead of Render/Neon
-# for most of the day, so /sitemap.xml stops waking Neon every ~10 min.
+# edge means keep-warm pings + Googlebot polls hit CF instead of Render for
+# most of the day. This was originally about stopping /sitemap.xml waking
+# Neon's suspended compute every ~10 min; that motivation is gone, but
+# serving a ~640KB document from the edge instead of a 256MB database
+# instance is worth keeping on its own.
 _SITEMAP_HEADERS = {"Cache-Control": "public, max-age=21600, s-maxage=21600"}
 
 

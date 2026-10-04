@@ -41,9 +41,11 @@ def _require_admin(
 
 
 # Dedicated single-thread executor for scrape runs. Sizing = 1 because a
-# scrape hits the DB heavily and holding two parallel scrapes on a shared
-# Neon compute would spike CU-hours and defeat the point of the recent
-# max-parallel: 5 cap on GH Actions. Requests queue on this pool.
+# scrape hits the DB heavily and two in parallel would contend for the same
+# 256MB Render instance, on top of whatever the GH Actions matrix is already
+# running (max-parallel: 5). Originally this was about not spiking Neon
+# CU-hours; the concurrency argument outlives the billing one. Requests
+# queue on this pool.
 _SCRAPE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scrape")
 
 
