@@ -58,12 +58,12 @@ We can't copy prisjakt's data model. Kenyan merchants don't publish clean feeds.
 | Backend | **FastAPI** | Async-friendly for scraping; clean DI; quick to ship. |
 | Templates | **Jinja2 + HTMX + Alpine + Tailwind CDN** | Server-rendered HTML is the SEO gold standard (every product page must rank for `<model> price in Kenya`). HTMX gives interactivity without a build step. No JS bundle to babysit. |
 | ORM | **SQLModel** | Pydantic + SQLAlchemy in one. Smooth with FastAPI. |
-| DB | **SQLite (dev) → Postgres on Neon (prod)** | Free tier covers v0; we keep schema portable. |
+| DB | **SQLite (dev) → Render Postgres (prod)** | Schema kept portable, which is what made the 2026-10-04 move off Neon a `pg_dump`/`pg_restore` (OPERATIONS.md §8w). |
 | Scraping | **httpx + selectolax** for static; **Playwright** as an opt-in extra | Selectolax is *fast* — important when scraping a few thousand pages/day on a free-tier VM. Playwright only when needed (JS-only renders, anti-bot checks). |
 | Matching | Deterministic regex + slug canonical key; LLM hook left open | Cheap, debuggable, covers majority of titles. |
 | Scheduling (dev) | APScheduler | Works in-process. |
 | Scheduling (prod) | **GitHub Actions cron** | Free 2000 min/mo, no infra. |
-| Hosting | **Render (web) + Neon (DB) + GitHub Actions (cron)** | All truly free. Render's cold start is acceptable for v0. Oracle Cloud Always Free is the upgrade path if we outgrow Render. |
+| Hosting | **Render (web + DB) + GitHub Actions (cron)** | Co-locating the DB with the web service in Frankfurt keeps app→DB traffic on Render's private network and allows a real connection pool. ~$13.50/mo all-in; Oracle Cloud Always Free is the upgrade path if we outgrow Render. |
 | Frontend framework | Considered **Next.js**, rejected for v0 | Two services / two languages slows solo iteration; SSR is not unique to Next; HTMX covers our interactivity. Reconsider if we want a polished mobile-app shell or want React contributors. |
 
 ## 7. v0 scope (what's in the repo today)

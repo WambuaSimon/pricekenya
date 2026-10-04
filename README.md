@@ -66,15 +66,21 @@ alerts/              price-drop dispatcher
 seed/                merchants + sample products
 ```
 
-## Deploy free-tier
+## Deploy
 
 | Piece | Provider |
 |---|---|
-| Web app | Render free web service (cold starts after 15min idle) |
-| Postgres | Neon free tier |
+| Web app | Render web service (`starter`, Frankfurt) |
+| Postgres | Render Postgres (`basic_256mb`, Frankfurt, PG 18) |
 | Cron / scrapers | GitHub Actions (2000 free min/mo) |
 
-Set `DATABASE_URL` to the Neon connection string. Use a GitHub Action that runs `python -m scrapers.ingest jumia-phones` on a schedule.
+`DATABASE_URL` takes the database's **internal** URL on the web service and
+its **external** URL in GitHub Actions — CI sits outside Render's private
+network. Either can be pasted verbatim; `app/config.py` pins the psycopg3
+driver. Scrapers run from `.github/workflows/scrape.yml` on a 12-hour cron.
+
+See `DEPLOY.md` for the full runbook, and `OPERATIONS.md` §8w for why this
+moved off Neon.
 
 ## What's intentionally not here yet
 - LLM-based product matching for unparseable titles (hook is in `matching/match.py`)

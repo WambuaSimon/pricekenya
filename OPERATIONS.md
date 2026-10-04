@@ -447,3 +447,134 @@ Covered the 4 scheduled runs completed since §8u's window closed (`36821749299`
 **No new merchant breakage and no fix/deprecation PR this pass.** Both legs showing signal were already covered by pre-existing open PRs; this pass's job is to avoid duplicating that work, not re-file it, per the §8r process note. The one actionable item is flagging PR #60's staleness against fresher evidence, done via a PR comment rather than a competing PR.
 
 **Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, sollatek-ke's stray row) produced any signal in this window.
+
+## 8w. selectolax 1.0 outage, and the move off Neon (2026-10-04)
+
+Two unrelated things in one session. The first was an outage; the second was a
+deliberate migration that the outage happened to delay.
+
+### The outage: selectolax 1.0 removed the Modest backend
+
+`selectolax` 1.0 dropped the Modest parser, so `from selectolax.parser import
+HTMLParser` — used by `scrapers/common/woocommerce.py`, `wc_store_api.py`,
+`jumia`, `kilimall`, `phone_place`, `ramtons`, `scripts/fetch_missing_images.py`
+and `tests/test_woocommerce_sale_price.py` — began raising at **import** time:
+
+```
+ImportError: Modest backend is deprecated since selectolax 1.0. It's outdated,
+not maintained, contains bugs and does not follow modern HTML5 standards.
+Please use lexbor backend instead: `from selectolax.lexbor import LexborHTMLParser`.
+```
+
+`pyproject.toml` pinned `selectolax>=0.3.27` with no upper bound and there is no
+lockfile, so every CI run and every scheduled scrape installs whatever is newest
+on PyPI. Nothing in this repo changed; two things broke at once the moment 1.0
+landed:
+
+- **Every scrape leg failed at import.** Runs `37136246720` (2026-10-03 16:16)
+  and `37181039347` (2026-10-04 05:50) were ~100% red — all 65 non-`seed` jobs,
+  one shared cause. **Zero listings written for ~27 hours.**
+- **CI went red on `main` itself** (run `37191060674`), which blocked *every*
+  open PR from merging, not just one.
+
+**This is the third instance of the same failure mode** — an unpinned dependency
+publishing a breaking release straight into CI and prod. §8s was the
+`sqlmodel` naive-datetime hard-error (8 runs / ~4 days of zero writes); before
+that, `pyproject.toml`'s own `filterwarnings = ["ignore::DeprecationWarning"]`
+comment admitted the sqlmodel deprecation was known and silenced rather than
+fixed. The pattern is not "unlucky upstream releases," it is **no lockfile plus
+unbounded version ranges on a project whose only writer is unattended CI.**
+
+**Fixed** in PR #63: `selectolax>=0.3.27,<1.0`, with a comment recording why the
+ceiling exists and what has to happen before it can be lifted. Verified by run
+`37218253177` — **61 of 65 jobs green**, zero occurrences of the ImportError.
+The 3 remaining failures were pre-existing and already documented:
+`wc-armco-ke` (§8u/§8v site rebuild), `solarstore-ke` (§8p Cloudflare 521
+origin errors), `health` (fails *because* those two are stale), plus
+`phonesstore-ke` cancelled — the usual cascade artifact.
+
+**Deliberately not fixed: the lexbor migration.** lexbor follows HTML5 where
+Modest does not, so swapping backends can change selector matching and
+extraction per merchant. That needs validating scraper-by-scraper against live
+markup and must not ride along with an outage fix. **The pin is a stopgap with
+a known ceiling — it will have to be lifted.**
+
+### The migration: Neon → Render Postgres
+
+Prompted by a cost question, but the finding was architectural. `DATABASE_URL`
+now points at Render Postgres (`dpg-db16ucegekts73cgbpt0-a`, Frankfurt, PG 18,
+`basic_256mb`, 5 GB disk).
+
+**Scale-to-zero never fired for this workload, and we measured it** from the
+project's own endpoint operations log over 44.6 days:
+
+| Measurement | Value |
+|---|---|
+| Compute **active** | **99.77%** of the time |
+| Total time suspended | **2.45 hours** in 44.6 days |
+| Suspend→wake cycles | 91, median nap **59 seconds**, 84 of 91 under 5 min |
+| Storage | 0.184 GB → $0.06/mo |
+| Compute at the floor | 1067 active h × 0.25 CU × $0.106 = **$19.29/mo** |
+
+~500 pageviews/day plus Googlebot plus two scrape bursts never left a 5-minute
+idle gap, so the endpoint sat pinned at Neon's **0.25 CU minimum ~24/7**. Launch
+is pay-as-you-go with no minimum fee, so the bill was ~$19.35/mo ≈ 186 NOK — and
+**that is Neon's floor for an endpoint that never suspends.** There was no lever
+left to pull: the only way down was to stop paying for always-on compute by the
+hour.
+
+**The workarounds bought 0.23% and cost real things.** `NullPool` in
+`db/session.py` (no pooling, so a fresh connect + TLS handshake + full Postgres
+backend startup per request), `_neon_cold_start_retry` in `app/main.py`
+(replayed GETs for up to 10.5s, and its own docstring tied it to the 31 "Server
+error (5xx)" pages in Search Console), the Cloudflare `s-maxage` on
+`/sitemap.xml` to stop keep-warm pings waking compute, `max-parallel: 5` to cap
+CU during write bursts, and the 12-hour cron cadence. All of it in service of a
+saving that never materialised. Removed or re-justified in PR #64 and the docs
+pass; the behavioural settings were **kept** where they have reasons that
+outlive the billing one, with the comments rewritten to say which.
+
+**Two traps worth recording for the next provider move:**
+
+1. **`psycopg2` is not installed** (`pyproject` pins `psycopg[binary]`), but
+   SQLAlchemy maps a bare `postgresql://` scheme to psycopg2 — and Render's
+   dashboard and Blueprint `fromDatabase` both emit bare URLs. The `+psycopg`
+   suffix had been carried by hand in every `DATABASE_URL`, so pasting a
+   dashboard string verbatim boots an app that dies at import. Now normalised
+   centrally in `app/config.py` with tests, so it is an invariant of the
+   setting rather than something each operator must remember.
+2. **A Postgres instance created via API/MCP comes up with an empty IP allow
+   list**, which blocks *all* external access — `pg_dump`, `psql`, GUI clients,
+   the Render MCP query tool, and GitHub Actions. The dashboard applies
+   `0.0.0.0/0` by default; the API does not. The web service is unaffected
+   because it uses the internal URL, so this fails in a confusing,
+   CI-only way.
+
+**`DATABASE_URL` now has two distinct values**, which it did not under Neon: the
+**internal** URL on the web service (private network, no TLS overhead) and the
+**external** URL in GitHub Actions and local tooling, which sit outside Render.
+One GH secret covers `scrape.yml`, `sitemap.yml` and `reset-db.yml`.
+
+**Verification.** `pg_dump`/`pg_restore` under `--single-transaction
+--exit-on-error`, both `exit=0`. Row parity exact across all 14 tables including
+`pricehistory` at 1,112,295; 49 indexes both sides. The only delta was `click`
+at −2, the expected live-click drift between snapshot and comparison — worth
+knowing that table takes writes continuously, so any future cutover has a small
+lossy window. Traffic confirmed moved by driving 5 page loads and reading
+`pg_stat_database`: **386,339 tuples returned / 21 commits on Render vs 130 / 2
+on Neon.** QueuePool confirmed live by active connections going `0 → steady 2`
+after PR #64 deployed — under NullPool it was 0 between every request.
+
+**Render specifics verified on the instance:** `max_connections` is a hard
+**103** with no autoscale to absorb a burst, `shared_buffers` 64 MB,
+`idle_in_transaction_session_timeout` **0** (Neon's ~5-min killer, which
+`scrapers/ingest.py` committed early to dodge, does not exist here),
+`statement_timeout` 0. Disk cannot shrink once grown and an over-limit database
+can be suspended, which is why the disk is 5 GB and not 1 GB —
+`pricehistory` grows ~11.6k rows/day with **no pruning or retention policy**,
+and that remains an open liability.
+
+**Cost: ~200 NOK → ~73 NOK/mo** ($6 instance + $1.50 disk). Neon's compute went
+idle immediately after cutover, dropping that project to storage-only (~$0.06/mo),
+so it stays as a near-free rollback until the first Render-backed scrape is
+confirmed, then gets deleted.

@@ -311,10 +311,17 @@ async def _consume(
             select(func.count(Listing.id)).where(Listing.merchant_id == merchant_id)
         ).one() or 0
         # Close the transaction opened by the two SELECTs above. Otherwise it
-        # sits idle across the first HTTP fetch, and Neon (Launch tier default
-        # ~5 min idle_in_transaction_session_timeout) kills the connection on
-        # any merchant whose first listing takes longer than that to yield.
-        # Subsequent iterations start their own transactions via _upsert_one_listing.
+        # sits idle across the first HTTP fetch, holding a connection and a
+        # snapshot for the whole fetch.
+        #
+        # This used to be load-bearing against Neon, whose Launch tier
+        # defaulted idle_in_transaction_session_timeout to ~5 min and killed
+        # the connection on any merchant slow to yield its first listing.
+        # Render sets that timeout to 0 (verified on the instance), so an
+        # idle transaction is no longer severed — but with max_connections
+        # at a hard 103 and no autoscale, not pinning one across network
+        # I/O is still the right shape. Subsequent iterations open their own
+        # transactions via _upsert_one_listing.
         session.commit()
         yielded_count = 0
 
