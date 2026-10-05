@@ -578,3 +578,44 @@ and that remains an open liability.
 idle immediately after cutover, dropping that project to storage-only (~$0.06/mo),
 so it stays as a near-free rollback until the first Render-backed scrape is
 confirmed, then gets deleted.
+
+## 8x. Sixteenth stale-merchant triage (2026-10-05)
+
+No `DATABASE_URL` in this environment; `curl`/`dig` egress is blocked again
+this pass (`CONNECT tunnel failed, response 403` against `armcokenya.com`,
+same as §8u/§8v) but `socket.gethostbyname_ex` DNS resolution works. `gh` CLI
+was available this time, used directly against the `scrape.yml` matrix.
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned `[]` — zero open PRs.
+Everything from §8u/§8v (PR #60 deprecate audiocom-ke, PR #61 §8u write-up,
+PR #62 §8v write-up, PR #63 selectolax pin, PR #64 Neon→Render, PR #65/#66
+Render docs) has merged. Clean start — nothing to corroborate or avoid
+duplicating.
+
+Covered the 4 completed scheduled runs since §8v's window closed
+(`36969590256` → `37218253177`, 2026-10-02 05:35 → 2026-10-04 16:50). Two of
+those four (`37136246720`, `37181039347`) were the ~100%-red `selectolax` 1.0
+`ImportError` outage §8w already root-caused and fixed in PR #63 — every leg
+failed at import in both, which is not per-merchant signal, so they weren't
+re-diagnosed. `37218253177` is the first full run after PR #63 landed and
+confirms the fix held: 61 of 65 jobs green.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-armco-ke** | `36969590256`, `37043573613`, `37099333325`, `37218253177` — 4/4 non-outage runs (also failed in both outage runs, but that failure was the shared `ImportError`, not diagnostic) | Pulled the freshest log directly (job `111483202685`, run `37218253177`): every leaf still logs `[wc] armco-ke/<leaf> page1 zero cards (status 200, body head): '<!doctype html>...<!-- No font preloads: the CSS (with its @font-face rules) is inlined into this document (inlineStyleThre...'` — byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature §8u/§8v already identified (no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403). `kettles` additionally threw `RetryError[HTTPStatusError]` on its second URL, same wrinkle §8v noted. DNS still resolves cleanly (`178.104.144.62`, unchanged since §8u). | **Already covered by merged PR #61.** Fourth consecutive window with the identical signature and no way to dig further from this environment (no browser egress, no DB history). Still doesn't meet either deprecation criterion (DNS fine, real 200 responses) and still isn't a guessable `client_type` fix (matches neither the TLS-fingerprint nor JS-refresh-shell signature those clients fix). No new PR — shipping a `client_type` flip here would be exactly the guess this task's brief warns against. |
+| **audiocom-ke** | `36969590256`, `37099333325` (and both outage runs) | Still appeared failing in the two runs checked from before PR #60 merged. | **Resolved.** PR #60 (deprecate audiocom-ke) merged 2026-10-04 09:27 UTC, before `37218253177`. Confirmed gone from that run's job list and from `scrapers/merchants/` on current `main`. No action needed. |
+| **solarstore-ke** | `37218253177` only — green on the three runs immediately before it (`36969590256`, `37043573613`, `37099333325`) | Pulled the log (job `111483202583`): `[wc-store] solarstore-ke page1 GET failed: RetryError: RetryError[<Future ... raised TimeoutError>]` on `client_type="playwright-stealth"` — no HTTP response reaches the client at all. This is a **different signature class** from the Cloudflare 521/522/523 origin-error pages (real, if useless, HTTP responses with empty bodies) §8o/§8p documented for this same merchant. | **Noise, not re-verified** — one occurrence against three clean runs, per the megatech-ke lesson (§8j). Flagging the signature change rather than acting on it: if a `Timeout`-with-no-response pattern recurs across multiple runs, that reads as a network-layer packet drop (the zuka-ke/overtech-ke/audiocom-ke deprecation class), not the origin-error class already on record for this merchant — don't assume next pass's recurrence is "the same old issue" without re-checking which one it actually is. |
+| wc-phonesstore-ke | Cancelled in the two outage-adjacent runs | Fail-fast cascade from an earlier matrix failure in the same run, per the §8k/§8m/§8o/etc mechanism. | **Noise** (cascade artifact). No action. |
+
+**No new breakage, no fix or deprecation PR this pass.** The one open
+question (armco-ke) still has no fixable signature and still doesn't clear
+either deprecation bar with the egress available here; solarstore-ke's single
+blip isn't persistent enough to act on. `python -m pytest -q` (exit 0, all
+green) and `python -m ruff check scrapers/ tests/` (clean) both verified on
+`main` going into this pass — no code change accompanies this write-up.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
