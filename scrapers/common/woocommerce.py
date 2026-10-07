@@ -216,9 +216,25 @@ async def fetch_woocommerce_category(
                         f"(status {resp.status_code}, body head): {body_head!r}"
                     )
                 return
+            extracted_any = False
             for card in cards:
                 listing = _extract_product(card, site_base_url, merchant_slug, category_slug)
                 if listing:
+                    extracted_any = True
                     yield listing
+            if page == 1 and not extracted_any:
+                # Cards matched the selector but every one failed extraction
+                # (no anchor+price, or no title) — a silent zero-yield with
+                # none of the above prints to explain it, since _extract_product
+                # returns None with no diagnostic of its own. Print what the
+                # first matched card actually looked like so a site that
+                # switched card markup (e.g. block-based product grids) shows
+                # up as a readable signature instead of a bare
+                # ScraperYieldTooLow with no clue why.
+                first_card_head = cards[0].html[:300] if cards[0].html else ""
+                print(
+                    f"[wc] {merchant_slug}/{category_slug} page1 {len(cards)} card(s) "
+                    f"matched but zero extracted (selector drift?): {first_card_head!r}"
+                )
     finally:
         await client.aclose()
