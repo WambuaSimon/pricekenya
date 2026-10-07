@@ -28,8 +28,13 @@ LEAF_TO_URL: dict[str, str] = {
 
 
 async def _one(leaf: str) -> AsyncIterator[RawListing]:
+    # istore.ke started serving a "Bot Verification" challenge shell (HTTP
+    # 200, zero product cards) to plain httpx on GitHub Actions IPs as of
+    # 2026-10-04 — same TLS-fingerprint discrimination pattern already fixed
+    # for zuka-ke/tclke-ke/smartphoneskenya-ke/solarshop-ke etc. (OPERATIONS.md
+    # §8h/§8i/§8l/§8m). Chrome TLS impersonation clears it.
     async for r in fetch_woocommerce_category(
-        LEAF_TO_URL[leaf], 3, MERCHANT_SLUG, leaf, BASE
+        LEAF_TO_URL[leaf], 3, MERCHANT_SLUG, leaf, BASE, client_type="cffi"
     ):
         yield r
 
