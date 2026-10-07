@@ -619,3 +619,65 @@ green) and `python -m ruff check scrapers/ tests/` (clean) both verified on
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8y. Seventeenth stale-merchant triage — istore-ke's silent blind spot (2026-10-07)
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly, falling back to the GitHub MCP server's `get_job_logs` for log
+content (`gh api .../logs` still returns the documented `403 Forbidden` on
+the Azure blob redirect — same as §8v/§8u).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned `[]` — zero open
+PRs. Everything through §8x (PR #67/#68) has merged. Clean start.
+
+Covered the 4 completed scheduled runs since §8x's window closed
+(`37268628105` → `37510575150`, 2026-10-05 05:37 → 2026-10-06 18:20; a 5th,
+`37578911767`, was still queued at triage time and not counted) via per-job
+status, not run conclusion — two of the four showed unusual top-level
+shapes worth explaining before the merchant table:
+
+- `37370444897` (2026-10-05 20:33) — `seed` came back `cancelled` after
+  running 15 minutes against its own 5-minute `timeout-minutes`, which cut
+  the whole run short: `scrape` never started (shows `skipped`, since it
+  `needs: seed`), but `health` and `alerts` still ran against the
+  already-seeded DB. **Noise** — no code on this repo's side changed
+  between this run and the clean ones bracketing it, and `seed`'s own job
+  (`python -m seed.categories`, idempotent category upserts) has no
+  external dependency that would explain a 3x timeout overrun other than a
+  slow runner or a transient Postgres hiccup. Not re-verified as a pattern,
+  per the megatech-ke lesson (§8j) — flagging the mechanism (fail-short via
+  `needs: seed`, not a merchant signal) so it isn't mistaken for 65 merchant
+  breaks if it recurs.
+- `37218253177` (2026-10-04, carried over from §8x's window) — already
+  explained there as the first clean run after the selectolax pin (PR #63);
+  included here only because its `health`/`istore-ke` log is cited below.
+
+**The `health` job's own DB-backed readout is itself a usable CI log line.**
+It runs with `DATABASE_URL` available inside Actions and prints the full
+per-merchant coverage table every run — this pass leaned on that table
+directly (e.g. run `37370444897`'s `health` log) rather than treating "no
+`DATABASE_URL` here" as a hard wall. Worth keeping in mind for future passes
+in this same environment.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **istore-ke** | `37218253177`, `37268628105`, `37423017367`, `37510575150` — 4/4 clean runs checked (plus both selectolax-outage runs, not diagnostic) | Every run: `[wc] istore-ke/phones page1 zero cards (status 200, body head): '<!DOCTYPE html> <html> <head> ... <title>Bot Verification</title> ...'` and the identical line for `istore-ke/laptops`. `charset=windows-1252`, no `setTimeout`/`window.location.reload` (not the JS-refresh shell §8j's playbook already covers) — a different, plain-httpx-discriminated challenge page, same product class as zuka-ke's "Bot Verification" page (§8h) which `cffi` already defeats. The `health` job's own readout (run `37370444897`, 2026-10-05 20:33) confirms genuine DB staleness: `istore-ke — 62.8h, 26 listings`, last successful scrape `2026-10-02 06:31 UTC` (confirmed healthy in run `36969590256`'s health log) — so the break started between 2026-10-02 06:31 and 2026-10-04 17:40, independent of the §8w selectolax outage that happened to fall in the same window. **This never once showed red in the `scrape.yml` matrix** — `run_istore_phones`/`run_istore_laptops` call `_consume(..., check_yield` defaulting to `False`, which is correct by `_consume`'s own docstring (per-category callers legitimately yield 0 for a category a merchant doesn't stock) but means istore's zero-yield guard never engages at all. The only reason this triage caught it is that the `health` job's log happened to get read directly instead of relying solely on matrix leg color. | **Fixed** (PR #74). `client_type="cffi"` on `istore.py`'s `fetch_woocommerce_category` call — same fix, same evidence bar, as zuka-ke/tclke-ke/smartphoneskenya-ke/solarshop-ke (§8h/§8i/§8l/§8m). Not deprecated: DNS/HTTP both fine, real 200 every time, textbook first-rung TLS-fingerprint signature. |
+| **wc-nextbuy-ke** | `37423017367`, `37510575150` — 2/2 most recent, green on `37268628105` (and presumably `37370444897`, though its matrix didn't run — see above) | `ScraperYieldTooLow: nextbuy-ke: yielded ZERO listings but had 78 on record` — but **unlike every other entry in this playbook, zero diagnostic lines preceded it** in either job's log (`112136538196`, `112430606365`). No `page1 GET failed`, no `page1 zero cards`. The ~43s the job spent before raising matches 3 category-URL fetches actually happening, not an immediate crash — so `fetch_woocommerce_category` is getting *some* response and finding *some* cards (otherwise the "zero cards" diagnostic would have printed), but every card is failing extraction in `_extract_product` (missing anchor+price or missing title), a branch that has never had a diagnostic print. Read `scrapers/common/woocommerce.py`'s `_extract_product`/`fetch_woocommerce_category` directly to confirm this gap exists before concluding it was the cause here — it's an inference from "the fetch clearly ran" + "the only silent-return branch left", not a confirmed read of nextbuy.co.ke's actual markup. | **Not fixed — inconclusive, no merchant PR.** This doesn't match any of the known signatures (not a GET failure, not a zero-cards challenge shell, not DNS, not a network-layer timeout) so flipping `client_type` would be a pure guess, which this task's own brief warns against. **Diagnostics fixed instead** (PR #75): added the missing "cards matched but zero extracted" print, mirroring the existing "zero cards" one. Does not change scraper behavior — only what the *next* run's log shows. Root cause (selector drift vs. something else) deferred to whoever reads that log next, same pattern as §8p's `all-mybigorder` diagnostic-only fix. |
+| **wc-armco-ke** | `37268628105`, `37423017367`, `37510575150` — 3/3 (matrix skipped in `37370444897`); also failing in `37218253177` per §8x | Byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature §8u/§8v/§8w/§8x already identified (no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403; a real 200 every time). Pulled the freshest log directly (job for run `37510575150`) to confirm no change from §8x's last read. | **Already covered — still no fixable signature, still no deprecation-criteria match.** Eighth consecutive window (going back to §8u, 2026-09-29) with the identical shell and no new evidence. Not re-filed; this pass's check is corroboration only, per the §8r process note against re-deriving a diagnosis nothing has moved on. |
+| wc-phonesstore-ke | Not observed cancelled this window | — | No fail-fast cascade seen in these 4 runs (the mechanism §8k/§8m/§8o/etc documented didn't trigger — no run in this window had a cascade-eligible early failure ahead of `phonesstore-ke` in matrix order, or it simply didn't queue behind one). No action either way. |
+
+**No new breakage beyond istore-ke and the nextbuy-ke diagnostic gap.**
+`solarstore-ke`'s single-run `Timeout`-with-no-response blip from §8x did not
+recur in this window (green on all 4 non-outage runs checked) — stays
+noise, per §8x's own "don't assume next pass's recurrence is the same
+issue" caveat, now moot since there was no recurrence at all.
+
+`python -m pytest -q` — all tests pass. `python -m ruff check scrapers/
+tests/` — clean. Both verified against the combined istore-ke + diagnostics
+changes before either PR was opened.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
