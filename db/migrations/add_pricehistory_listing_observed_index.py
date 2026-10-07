@@ -13,12 +13,24 @@ inside a transaction (which `engine.begin()` opens), and its failure mode is
 worse here than the lock it avoids: a failed concurrent build leaves an
 INVALID index behind that `IF NOT EXISTS` then happily skips on every
 subsequent boot, so the migration silently stops being idempotent and the
-query silently stops being indexed. The lock this takes is ACCESS EXCLUSIVE
-on pricehistory for the length of the build — seconds against a 56MB heap —
-and it happens in the lifespan hook before the instance starts taking
-traffic. If the table grows to where that stall matters, this should become
-a CONCURRENTLY build run by hand with an explicit pg_index.indisvalid check,
-not a cleverer version of this file.
+query silently stops being indexed.
+
+The lock a plain build takes is SHARE, not ACCESS EXCLUSIVE: it blocks
+writes to pricehistory for the length of the build but still permits
+reads, so the site keeps serving pages throughout. Seconds against a
+56MB heap.
+
+Two consequences of running it from the lifespan hook, both acceptable
+but worth knowing: readiness is delayed until it finishes, so /healthz
+stays down for the build (fine at seconds, not fine if this table grows
+an order of magnitude); and a scrape running concurrently will have its
+PriceHistory inserts blocked until the build completes, since those are
+exactly the writes SHARE excludes. Scheduled scrapes fire at ~06:17 and
+~18:17 UTC, so prefer deploying the first boot outside those windows.
+
+If the table grows to where that stall matters, this should become a
+CONCURRENTLY build run by hand with an explicit pg_index.indisvalid
+check, not a cleverer version of this file.
 """
 
 from __future__ import annotations
