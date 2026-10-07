@@ -104,6 +104,17 @@ class PriceHistory(SQLModel, table=True):
     #     only ix_..._observed_at it scans the whole 13-week slice of a
     #     1.12M-row table to find a handful of listings. The composite
     #     seeks straight to (listing, cutoff) and walks forward.
+    #
+    #     MEASURED 2026-10-08, and the benefit is not here YET: the
+    #     planner still picks ix_..._listing_id for the real 13-week
+    #     query and filters afterwards, because the DB was created
+    #     2026-07-01 so that window covers nearly all history and
+    #     excludes only 12% of rows — the narrower index is genuinely
+    #     cheaper today. The index is correct, not useless: narrow the
+    #     window to 2 days and the planner uses both columns, 312ms ->
+    #     1.1ms. It starts paying off as history ages past 13 weeks,
+    #     which is continuous from now on. Don't "fix" the plan with a
+    #     hint; let the data age.
     #   - app/routes/meta.py — sitemap lastmod, `MAX(observed_at)` per
     #     listing. listing_id leading + observed_at sorted within it lets
     #     the planner take the last entry of each listing's range instead
@@ -114,7 +125,8 @@ class PriceHistory(SQLModel, table=True):
     # the only order a btree can use for both. The reverse order would
     # degenerate to the ix_..._observed_at behaviour above.
     #
-    # Costs ~25MB of index on a 111MB table — material on basic_256mb with
+    # Costs 34MB of index as built (the ~25MB estimate was 36% low) on a
+    # 111MB table — material on basic_256mb with
     # 64MB shared_buffers and disk autoscaling off, but it's the cheapest
     # of the options: the alternative (narrowing the chart query's window
     # or pre-aggregating weekly buckets into a table) is a bigger change

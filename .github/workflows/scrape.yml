@@ -64,16 +64,36 @@ jobs:
     strategy:
       # One failing merchant shouldn't kill the others.
       fail-fast: false
-      # Cap concurrent legs. The original reason was Neon CU-hour cost:
-      # unbounded parallelism (~50 jobs connecting at once) drove Neon
-      # autoscale up and every step above 1 CU multiplied that window's
-      # cost. On Render compute is flat-rate, so cost is no longer the
-      # constraint — but max_connections is a HARD 103 (verified on the
-      # instance), and ~50 simultaneous legs plus the web service's pool
-      # would be uncomfortably close with no autoscale to absorb it.
-      # 5 is likely conservative now; raising it is a deliberate change to
-      # make against that ceiling, not a free win. Wall clock is ~2h per
-      # run but nobody's watching — the alerts job still runs on completion.
+      # Cap concurrent legs. This is a per-MERCHANT rate limiter, not a
+      # database limit — measured 2026-10-07, see issue #72.
+      #
+      # The database is not the constraint. Peak concurrent connections
+      # across two full runs at this cap was 11 of 103 (idle baseline 5),
+      # i.e. ~1.2 connections per leg. Extrapolated with the web pool at
+      # its full 10, the instance would absorb max-parallel 15-20 before
+      # it mattered. The original rationale (Neon CU-hours) died with the
+      # Render migration; an earlier revision of this comment then claimed
+      # ~50 legs would come "uncomfortably close" to 103, which the
+      # measurement contradicts — it lands near 83. Tight, not breaching.
+      #
+      # What actually holds this at 5: matrix legs SHARE merchants. 17 of
+      # the 61 legs are all-<category>, and each hits Jumia AND Kilimall
+      # (see TARGETS in scrapers/ingest.py). SCRAPER_REQUEST_DELAY_SECONDS
+      # is enforced per process (scrapers/common/base.py) with no
+      # cross-process coordination, and because the matrix is declared in
+      # category order the first slots of every run are all Jumia+Kilimall
+      # legs — so Jumia already sees ~2.5 req/s. Doubling this doubles that.
+      # Against 17 stale-merchant triages in 9 weeks and 6 merchants
+      # permanently deprecated to bot mitigation (OPERATIONS.md §8g-§8y),
+      # with nothing left to escalate to past playwright-stealth, that is
+      # the wrong risk to take for wall clock nobody is waiting on.
+      #
+      # Wall clock is ~74 min, not the ~2h previously claimed here (354
+      # leg-minutes, longest single leg 18.3 min). Raising to 10 would
+      # save ~38 unattended minutes. If that ever matters, interleave the
+      # matrix so same-merchant legs can't occupy adjacent slots FIRST —
+      # that decouples parallelism from per-merchant request rate — and
+      # only then raise the cap.
       max-parallel: 5
       matrix:
         target:
