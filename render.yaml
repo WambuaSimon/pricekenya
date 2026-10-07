@@ -28,8 +28,28 @@ services:
         value: PriceKenya Alerts <alerts@pricekenya.co.ke>
       - key: JUMIA_AFFILIATE_ID
         sync: false
+      # Internal connection string, injected by Render on each Blueprint
+      # sync. No credential in this file, in the dashboard field, or in a
+      # transcript. app/config.py normalises the bare `postgresql://` scheme
+      # that fromDatabase emits onto `postgresql+psycopg://` (PR #64), which
+      # is what makes this value usable as-is.
+      #
+      # There is deliberately NO `databases:` block in this file. A
+      # fromDatabase reference does not require one — "You can reference a
+      # service that is not defined in your Blueprint file, but that service
+      # must exist in your workspace" (render.com/docs/blueprint-spec). The
+      # database already exists, was created outside any Blueprint, and
+      # several of its fields are immutable; declaring it would buy nothing
+      # and risk Render reconciling those fields. See
+      # docs/render-blueprint-fromdatabase-assessment.md.
+      #
+      # `connectionString` is the PRIVATE-NETWORK URL. There is no property
+      # that yields the external one, so the GitHub Actions DATABASE_URL
+      # secret must stay a literal external string. Do not delete it.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: pricekenya-postgres
+          property: connectionString
       - key: RESEND_API_KEY
         sync: false
       - key: SECRET_KEY
