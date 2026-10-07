@@ -29,6 +29,7 @@ async def lifespan(_app: FastAPI):
         add_cached_sitemap_table,
         add_click_table,
         add_marketing_opt_in,
+        add_pricehistory_listing_observed_index,
         add_product_description,
         add_product_redirect_table,
         add_review_moderation,
@@ -41,6 +42,10 @@ async def lifespan(_app: FastAPI):
     add_review_moderation.run()
     add_cached_sitemap_table.run()
     add_product_redirect_table.run()
+    # Last in the list: it's the only migration that takes a write lock on a
+    # large existing table, so everything cheap has already landed if the
+    # index build is the thing that trips.
+    add_pricehistory_listing_observed_index.run()
     yield
 
 

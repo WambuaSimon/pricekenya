@@ -95,6 +95,36 @@ class PriceHistory(SQLModel, table=True):
     in_stock: bool = True
     observed_at: datetime = Field(default_factory=_utcnow, index=True)
 
+    # Composite for the two paths that filter on *both* columns, which
+    # neither single-column index can serve on its own:
+    #   - app/routes/products.py — weekly chart, `listing_id IN (...) AND
+    #     observed_at >= now() - 13 weeks`. With only ix_..._listing_id,
+    #     Postgres reads every history row for those listings (25k for the
+    #     worst product today) and discards the out-of-window ones; with
+    #     only ix_..._observed_at it scans the whole 13-week slice of a
+    #     1.12M-row table to find a handful of listings. The composite
+    #     seeks straight to (listing, cutoff) and walks forward.
+    #   - app/routes/meta.py — sitemap lastmod, `MAX(observed_at)` per
+    #     listing. listing_id leading + observed_at sorted within it lets
+    #     the planner take the last entry of each listing's range instead
+    #     of aggregating the group.
+    #
+    # Column order is listing_id first deliberately: it's the equality
+    # predicate in both queries and observed_at is the range/sort, which is
+    # the only order a btree can use for both. The reverse order would
+    # degenerate to the ix_..._observed_at behaviour above.
+    #
+    # Costs ~25MB of index on a 111MB table — material on basic_256mb with
+    # 64MB shared_buffers and disk autoscaling off, but it's the cheapest
+    # of the options: the alternative (narrowing the chart query's window
+    # or pre-aggregating weekly buckets into a table) is a bigger change
+    # for the same read. Not INCLUDE-ing price_kes for an index-only scan —
+    # that's another ~9MB and the heap pages are already hot for a product
+    # page that just read the listings.
+    __table_args__ = (
+        Index("ix_pricehistory_listing_observed", "listing_id", "observed_at"),
+    )
+
 
 class Click(SQLModel, table=True):
     """One row per outbound click at `/out/{listing_id}`.
