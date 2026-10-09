@@ -681,3 +681,47 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8z. Eighteenth stale-merchant triage (2026-10-09)
+
+No `DATABASE_URL` in this environment (confirmed: `scripts.scrape_health`
+not runnable). `gh` CLI was available and used directly against the
+`scrape.yml` matrix; the Azure blob redirect on `gh api .../logs` still
+returns `403 Forbidden` (same as §8u/§8v/§8y), so log content came from the
+GitHub MCP server's `get_job_logs` instead. `curl`/`WebFetch` egress to
+merchant domains is still blocked from this environment (`CONNECT tunnel
+failed, response 403` against `nextbuy.co.ke`; `WebFetch` returned
+`getaddrinfo ENOTFOUND`) — DNS-only reachability, same constraint as every
+prior pass since §8n.
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned `[]` — zero open
+PRs. Everything through §8y (PR #74 istore-ke, #75 nextbuy-ke diagnostics)
+has merged. Clean start — nothing to corroborate or avoid duplicating.
+
+Covered the 4 completed scheduled runs since §8y's window closed
+(`37578911767` → `37827326108`, 2026-10-07 05:57 → 2026-10-08 18:50) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending §8y's 2/2 to 6 consecutive scheduled runs with zero green | PR #75's diagnostic (merged after §8y) fired for the first time with real content: `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ast-full-width ast-article-post ... product type-product post-12595 status-publish first instock product_cat-samsung-galaxy-phones has-post-thumbnail shipping-taxable purchasable product'` (and two more lines, 20 and 13 cards, same shape). This confirms §8y's inference exactly: `li.product` matches (hence no "zero cards" line), every card then fails inside `_extract_product` — genuine selector drift on what reads as an Astra-theme grid, not a bot block, not DNS, not a TLS/JS challenge. None of this task's three fixable signatures apply, and the 300-char snippet PR #75 captured is *only* the opening `<li>` tag's class list — it cuts off before any child markup, so there's no way to tell from it whether the anchor, the price node, or the title node is the one missing. | **Not fixed — still inconclusive, diagnostics widened instead (PR — see below).** Flipping `client_type` would be a pure guess (this isn't a GET failure, a zero-cards challenge shell, a DNS failure, or a timeout). Extended the same diagnostic PR #75 added: the "matched but zero extracted" print now also reports `anchor=`/`price=`/`title=` booleans for the first failing card (reusing `_extract_product`'s own selector chains) and widens the captured snippet 300 → 800 chars, so the *next* run's log shows which piece of the card is actually missing instead of just the class list. No scraping behavior change — verified via `pytest`/`ruff`, both clean. Root cause (which selector to add, or whether this needs a dedicated Astra-theme fallback) deferred to whoever reads that log next, same pattern as §8p's `all-mybigorder` and §8y's own first nextbuy-ke pass. |
+| **wc-armco-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending the run back to §8u (2026-09-29) to 12 consecutive windows | Pulled the freshest log directly (job `113483641459`, run `37827326108`): byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature (`<!doctype html>...<!-- No font pr...`) §8u/§8v/§8w/§8x/§8y already identified — no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403, a real 200 every time. `kettles` again additionally threw `RetryError[HTTPStatusError]` on its second URL, the same wrinkle noted since §8v. | **Already covered — still no fixable signature, still no deprecation-criteria match.** Not re-filed; this pass's log pull is corroboration only, per the §8r process note against re-deriving a diagnosis nothing has moved on. |
+| **istore-ke** (`all-istore`) | Green 4/4 | PR #74 (merged 2026-10-07, before this pass's window) is holding — confirmed green on every run checked. | **Resolved.** No action needed. |
+| pricepoint-ke | `37578911767` only | `failure`, green on the run immediately before (`37510575150`) and both runs after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+| wc-hisense-kenya-ke | `37670651485` only, `cancelled` | Fail-fast cascade — `wc-armco-ke`/`wc-nextbuy-ke` failing earlier in the same matrix run, the same mechanism §8k/§8m/§8o/etc documented. Green on the runs immediately before and after. | **Noise** (cascade artifact). No action. |
+
+**No new breakage this pass.** The one new data point — nextbuy-ke's
+diagnostic finally firing with real card content — confirms §8y's inference
+but still doesn't name the exact missing selector, so this pass shipped a
+second diagnostic-only improvement rather than guess at a fix, the same
+restraint §8p and §8y both exercised on this exact merchant/pattern.
+
+`python3 -m pytest -q` — all tests pass (exit 0). `python3 -m ruff check
+scrapers/ tests/` — clean. Both verified against the diagnostic change
+before opening the PR.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
