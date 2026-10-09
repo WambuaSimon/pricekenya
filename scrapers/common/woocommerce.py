@@ -226,15 +226,36 @@ async def fetch_woocommerce_category(
                 # Cards matched the selector but every one failed extraction
                 # (no anchor+price, or no title) — a silent zero-yield with
                 # none of the above prints to explain it, since _extract_product
-                # returns None with no diagnostic of its own. Print what the
-                # first matched card actually looked like so a site that
-                # switched card markup (e.g. block-based product grids) shows
-                # up as a readable signature instead of a bare
-                # ScraperYieldTooLow with no clue why.
-                first_card_head = cards[0].html[:300] if cards[0].html else ""
+                # returns None with no diagnostic of its own. Report which of
+                # anchor/price/title was missing on the first card, and widen
+                # the snippet past just the opening <li>'s class list — 300
+                # chars wasn't enough to see inside it on nextbuy-ke's Astra
+                # theme (OPERATIONS.md §8z), only the class attribute — so a
+                # site that switched card markup shows up as a readable
+                # signature instead of a bare ScraperYieldTooLow with no clue
+                # why.
+                first_card = cards[0]
+                has_anchor = bool(first_card.css_first("a[href]"))
+                has_price = bool(
+                    first_card.css_first(".price ins bdi")
+                    or first_card.css_first(".price ins .amount")
+                    or first_card.css_first(".price bdi")
+                    or first_card.css_first(".price .amount")
+                    or first_card.css_first(".price")
+                )
+                has_title = bool(
+                    first_card.css_first(".woocommerce-loop-product__title")
+                    or first_card.css_first(".product-name")
+                    or first_card.css_first(".product-title")
+                    or first_card.css_first("h2")
+                    or first_card.css_first("h3")
+                )
+                first_card_head = (first_card.html or "")[:800]
                 print(
                     f"[wc] {merchant_slug}/{category_slug} page1 {len(cards)} card(s) "
-                    f"matched but zero extracted (selector drift?): {first_card_head!r}"
+                    f"matched but zero extracted (selector drift?) "
+                    f"anchor={has_anchor} price={has_price} title={has_title}: "
+                    f"{first_card_head!r}"
                 )
     finally:
         await client.aclose()
