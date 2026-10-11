@@ -392,6 +392,16 @@ WC_MERCHANTS: dict[str, dict] = {
         "leaf_to_urls": {
             "phones": ["https://nextbuy.co.ke/product-category/phones-tablets/smartphones", "https://nextbuy.co.ke/product-category/like-new-electronics/certified-pre-owned-iphones", "https://nextbuy.co.ke/product-category/like-new-electronics/used-samsung-phones"],
         },
+        # Was selector drift (cards matched, zero extracted — OPERATIONS.md
+        # §8z) through 2026-10-08; every scheduled run since 2026-10-09
+        # shows a different signature: `page1 GET failed: RetryError[...
+        # HTTPStatusError]` on plain httpx, with no "zero cards"/"cards
+        # matched" diagnostic at all — the page fetch itself is now
+        # rejected. Same TLS-fingerprint pattern as
+        # tclke-ke/eamobitech-ke/solarshop-ke/istore-ke. Chrome
+        # impersonation via curl_cffi is the standing fix for that
+        # signature; see OPERATIONS.md §8aa.
+        "client_type": "cffi",
     },
     # pricepoint-ke moved to scrapers/merchants/pricepoint.py (WC Store API).
     "phoneshop-ke": {

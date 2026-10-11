@@ -681,3 +681,58 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8aa. Nineteenth triage — nextbuy-ke's signature changed, fixed with cffi (2026-10-11)
+
+Numbered §8aa, not §8z — PR #80 (opened 2026-10-09, still open/unmerged at
+the start of this pass) already claimed §8z for its own write-up, which
+covers an earlier window for the same two merchants below. See the ordering
+note at the end of this section.
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly against the `scrape.yml` matrix, falling back to the GitHub MCP
+server's `get_job_logs` for log content (`gh api .../logs` still returns
+the documented `403 Forbidden` on the Azure blob redirect — same as
+§8u/§8v/§8y).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned exactly one open
+PR: **#80** ("nextbuy-ke: widen selector-drift diagnostic", opened
+2026-10-09, `mergeable_state: blocked` — CI green, waiting on review, not
+on a conflict). It covers a window ending `37827326108` (2026-10-08
+18:50) and diagnoses `wc-nextbuy-ke` as selector drift (cards matched,
+zero extracted) and `wc-armco-ke` as its usual non-WooCommerce shell
+(12th consecutive window at the time). Everything else through §8y (PRs
+#74–#79) has merged.
+
+Covered the 4 completed scheduled runs since PR #80's window closed
+(`37891840111` → `38071296142`, 2026-10-09 06:06 → 2026-10-10 17:20) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `37891840111`, `37972596496`, `38028886414`, `38071296142` — 4/4, all since PR #80's window closed | **The signature changed.** PR #80's evidence (through 2026-10-08) was `39 card(s) matched but zero extracted (selector drift?)` — a real page fetch that failed only at extraction. Every run in this pass's window instead logs, three times per run (one per retry attempt), `[wc] nextbuy-ke/phones page1 GET failed: RetryError: RetryError[<Future ... raised HTTPStatusError>]` — no "zero cards" line, no "cards matched" line, nothing at all from either diagnostic PR #75/#80 added. The page fetch itself is now failing before any markup is inspected. `nextbuy-ke`'s config has never set `client_type` (default `"polite"`, plain httpx), and a real `HTTPStatusError` surfacing only under the default client — never confirmed as a `ConnectTimeout`/`Timeout` with no response at all — is the textbook first-rung TLS-fingerprint signature this playbook has fixed repeatedly (tclke-ke/eamobitech-ke/smartphoneskenya-ke/solarshop-ke §8h/§8i/§8l/§8m, istore-ke §8y). Not a dead domain (unchanged DNS), not a network-layer drop (an HTTP response — just a rejected one — comes back every attempt). | **Fixed.** `client_type: "cffi"` in `wc_merchants.py`. No workflow change needed (cffi doesn't touch the Chromium install gate). This doesn't contradict PR #80 — it supersedes the *symptom* PR #80 observed, which was real for its own window; the underlying selector-drift question PR #80's diagnostic was built to answer is now moot if cffi restores a clean fetch, and still answerable from the same diagnostic if it doesn't. |
+| **wc-armco-ke** | `37891840111`, `37972596496`, `38028886414`, `38071296142` — 4/4, extending PR #80's count to 16 consecutive scheduled runs with zero green since §8u (2026-09-29) | Pulled the freshest log directly (job `114269205851`, run `38071296142`): byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature §8u/§8v/§8w/§8x/§8y/PR #80 already identified (no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403; a real 200 every time). `kettles` again additionally raised `RetryError[HTTPStatusError]` on its second URL, the same recurring wrinkle noted since §8v. | **Already covered — still no fixable signature, still no deprecation-criteria match.** No new evidence this pass; not re-filed, per the §8r process note. Recommend #80 gets reviewed/merged so its corroboration isn't re-derived a further time. |
+
+**No other leg** (of the ~65 non-`seed` jobs per run) showed a persistent
+non-`success` conclusion across the 4-run window — a clean matrix aside
+from the two items above.
+
+`python3 -m pytest -q` — all tests pass (exit 0). `python3 -m ruff check
+scrapers/ tests/` — clean. Both verified against the `nextbuy-ke` config
+change before opening the PR.
+
+**Ordering note for whoever merges next.** This section and PR #80's own
+§8z both append after the current end of this file (§8y). No content
+conflict — PR #80's §8z and this §8aa cover adjacent, non-overlapping
+windows for the same two merchants, and this section's nextbuy-ke fix
+does not touch any file PR #80 touches (`scrapers/common/woocommerce.py`'s
+diagnostic widening). Merge order doesn't matter functionally; whoever
+merges second may want to renumber §8aa to §8ab-style or just leave the
+two-letter jump as a visible marker of the unmerged-PR backlog, per the
+same reasoning §8r/§8u already used for single-letter collisions.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
