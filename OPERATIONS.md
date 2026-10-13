@@ -681,3 +681,99 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8ab. Eighteenth triage — nextbuy-ke's signature flipped back mid-backlog (2026-10-13)
+
+Numbered §8ab, not §8z/§8aa — two open, unmerged PRs from the two prior
+scheduled runs of this task already claim those letters for their own
+write-ups: **#80** ("§8z — nextbuy-ke: widen selector-drift diagnostic",
+opened 2026-10-09) and **#81** ("§8aa — Fix nextbuy-ke: TLS-fingerprint GET
+failure replaced selector-drift signature", opened 2026-10-11). Per the §8r
+process note, checked both before diagnosing anything — neither has merged,
+and `gh api .../pulls?state=open` returned exactly these two, nothing else
+outstanding.
+
+No `DATABASE_URL` in this environment. `curl`/`dig` egress is blocked again
+this pass (`connect_rejected` from the agent proxy against both
+`nextbuy.co.ke` and the GH Actions log-blob redirect — `gh api
+.../actions/jobs/<id>/logs` returns `403 Forbidden` on the Azure SAS URL,
+same as every pass since §8v); `mcp__github__get_job_logs` with `job_id` +
+`return_content: true` worked where the raw blob fetch didn't, same
+workaround as prior passes.
+
+Covered the last 8 scheduled runs (`37891840111` → `38309512726`,
+2026-10-09 06:06 → 2026-10-12 21:15) via per-job status. Exactly two legs
+were red, every run, with no cascade noise and no other merchant showing
+any signal:
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | 8/8 — but **the failure signature flipped mid-window**, see below | See below | **Not re-fixed — flagged a conflict between the two open PRs instead of opening a third.** |
+| **wc-armco-ke** | 8/8, unchanged | Byte-for-byte the same non-WooCommerce JS-build-tooling shell signature §8u–§8y already identified (`<!doctype html>...<!-- No font preloads: the CSS...`, no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403; a real 200 every time — confirmed again this pass from job `115011688329`, run `38309512726`). Ninth-plus consecutive window logged with the identical shell. | **Already covered by open PR #80's corroboration.** Still no fixable signature (matches neither the TLS-fingerprint nor JS-refresh-shell playbook entry) and still doesn't clear either deprecation bar (DNS/HTTP both fine). Not re-filed. |
+
+**wc-nextbuy-ke in detail — two open PRs, two different root causes, and the evidence has moved again.**
+
+PR #81's stated evidence window was runs `37891840111` → `38071296142`
+(2026-10-09 06:06 → 2026-10-10 17:20, 4/4), where every leg logged a plain
+`RetryError[HTTPStatusError]` on the default `polite` client — confirmed by
+pulling job `114269206297` (run `38071296142`) directly: `[wc]
+nextbuy-ke/phones page1 GET failed: RetryError: RetryError[<Future ...
+raised HTTPStatusError>]` ×3, no "zero cards" or "cards matched" diagnostic
+at all. That's a real TLS-fingerprint signature and PR #81's proposed fix
+(`client_type: "cffi"`) matches the established playbook for it.
+
+But the very next scheduled run, `38115770283` (2026-10-11 05:44 — the run
+immediately after PR #81 was opened), reverted to the *other* signature:
+`[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted
+(selector drift?): '<li class="ast-grid-common-col ... product
+type-product post-12619 ...'` — pulled directly from job `114400319697`.
+This is the exact Astra-theme "cards matched, zero extracted" signature PR
+#80 diagnosed from the *prior* pass's window and is still trying to get a
+wider diagnostic landed for. It has now held for 4 consecutive runs since
+(`38115770283`, `38160646782`, `38210082998`, `38309512726` —
+2026-10-11 05:44 through 2026-10-12 21:15), confirmed by pulling each job's
+log directly (`114400319697`, `114532761633`, `114682215555`,
+`115011688762`) rather than trusting the matrix color.
+
+So across the 8 runs checked, the symptom was `HTTPStatusError` for the
+first 4 and "cards matched but zero extracted" for the last 4, with a clean
+split exactly at the run after PR #81 was filed. Two readings are possible:
+
+1. The TLS-fingerprint block (`HTTPStatusError`) was itself transient and
+   has lifted, and the underlying, longer-running problem is the selector
+   drift PR #80 already found — in which case PR #81's `cffi` fix doesn't
+   address what's failing right now, and merging it ships a client-type
+   change that may be harmless but isn't the fix for the current red leg.
+2. Something about the TLS-fingerprint block changes which markup the site
+   serves (e.g. a different bot-mitigation tier serves a different HTML
+   variant to the `polite` client than it does once the block clears) — in
+   which case the two PRs aren't actually about two different bugs, cffi
+   might incidentally also dodge the extraction failure, and only a live
+   run with PR #81's fix applied would tell.
+
+No way to settle which from logs alone — this is exactly the kind of
+"respond to a transient blip" situation this task's own brief warns against
+(the megatech-ke revert, 2026-08-21), except here the risk runs the other
+way: the fix sitting on the stale branch, not a fix about to be shipped on
+fresh evidence. **Not opening a third competing PR.** Instead:
+
+- Posted a comment on **PR #81** with this pass's evidence (the 4-run
+  reversion back to the selector-drift signature, with run IDs and job IDs)
+  recommending the author re-verify against the current matrix before
+  merging, per the same pattern §8v used on stale PR #60.
+- **Recommending PR #80 lands first.** It only widens the diagnostic
+  (anchor/price/title booleans + an 800-char snippet) with no behavior
+  change, it's what directly answers "which piece does `_extract_product`
+  actually fail on," and it's correct regardless of which of the two
+  readings above turns out to be true. PR #81 should be re-evaluated against
+  whatever PR #80's widened diagnostic shows on the next scheduled run after
+  it merges, rather than merged first on now-stale evidence.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
+No code change this pass — `python -m pytest -q` (all tests pass) and
+`python -m ruff check scrapers/ tests/` (clean) verified against unmodified
+`main` before this write-up, since nothing here touches scraper code.
