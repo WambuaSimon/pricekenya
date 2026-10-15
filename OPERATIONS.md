@@ -681,3 +681,40 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8ac. Nineteenth triage — the nextbuy-ke conflict resolves in PR #80's favor (2026-10-15)
+
+No `DATABASE_URL` and no general web egress in this environment (`curl`
+against the Azure blob redirect on `gh api .../logs` still returns `403
+Forbidden`, same as every pass since §8v). `gh` CLI was available for run
+listings; job log content came from `mcp__github__get_job_logs` with
+`return_content=true`.
+
+**Housekeeping first, per the §8r process note.** Three PRs are open and
+unresolved from the prior two passes: **#80** (nextbuy-ke diagnostic
+widening, docs-only behavior change), **#81** (nextbuy-ke `cffi` fix for a
+TLS-fingerprint signature), and **#82** (§8ab write-up flagging that #80
+and #81 disagree on nextbuy-ke's current root cause and recommending #80
+land first while #81 gets re-verified). None have merged.
+
+Covered the 5 scheduled runs since §8ab's window closed (`38358584219` →
+`38682363178`, 2026-10-13 06:46 → 2026-10-15 04:36) via per-job status, log
+content pulled directly for every red leg rather than trusted from matrix
+color.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `38358584219`, `38453447046`, `38513540664`, `38604119619`, `38682363178` — 5/5 | Every run logs the identical selector-drift signature, byte-for-byte: `ScraperYieldTooLow: nextbuy-ke: yielded ZERO listings but had 78 on record`, preceded by three `[wc] nextbuy-ke/phones page1 N card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ast-full-width ast-article-post ... product type-product post-NNNNN ...'` lines (39/20/13-or-14 cards per attempt) — the same Astra-theme extraction failure PR #80 diagnosed, still on PR #75's un-widened diagnostic (no `anchor=`/`price=`/`title=` booleans yet, confirming PR #80 hasn't merged). Zero occurrences of PR #81's `RetryError[HTTPStatusError]` signature in any of the 5 runs. Combined with PR #82's own 4-run window (`38115770283` → `38309512726`), that's **9 consecutive scheduled runs, spanning 2026-10-11 to 2026-10-15,** with the selector-drift signature and zero recurrence of the TLS-fingerprint signature since PR #81 was opened. | **Conflict resolved by evidence, no new PR.** PR #82 flagged this as "wait and re-verify"; it's now re-verified. PR #80's diagnosis matches every run checked across two full passes; PR #81's `client_type: "cffi"` fix targets a signature that hasn't recurred once in 9 runs since it was proposed. Posted a follow-up comment on PR #81 recommending it be closed (or re-opened fresh if the TLS signature ever returns) and that PR #80 merge as-is — its diagnostic widening is still correct and still useful regardless of root cause. Not opening a third nextbuy-ke PR; this section documents the corroboration that makes #80/#81's disposition an easy call for whoever reviews next. |
+| **wc-armco-ke** | `38358584219`, `38453447046`, `38513540664`, `38604119619`, `38682363178` — 5/5 (pulled the freshest log directly, run `38682363178`, job `116249653464`) | Byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature continuously documented since §8u (2026-09-29): `[wc] armco-ke/<leaf> page1 zero cards (status 200, body head): '<!doctype html>...<!-- No font pr...'`, no `wp-content`, no `window.location.reload`. `kettles` again threw `RetryError[HTTPStatusError]` on its second URL, the same recurring wrinkle every pass since §8v has noted. DNS/HTTP both still fine (real 200 every time). | **Already covered — no new evidence, not re-filed.** Still doesn't meet either deprecation criterion and still isn't a guessable `client_type` fix. PR #80's corroboration already covers this; this pass's check only confirms nothing has changed. |
+| `health` | All 5 runs — `failure` | Not an independent break. The job's own DB-backed readout prints `BROKEN: 2 active merchant(s) stale > 30h: armco-ke (370.2h, 29 listings), nextbuy-ke (239.1h, 78 listings)` and exits 1 by design when any active merchant is stale — i.e. it is correctly reporting the two already-known breaks above, not failing for an unrelated reason. Full table cross-checked: no other active merchant shows up as stale, 12 deprecated + 7 parked + 1 never-scraped accounted for, nothing new. | **Noise (by design), no action.** `health`'s `failure` conclusion will keep tracking armco-ke/nextbuy-ke's own status until one of PR #80/#81's outcomes actually restores nextbuy-ke, or armco-ke gets a real fix or deprecation. |
+| wc-hisense-kenya-ke | `38604119619` only | `failure`, green on the runs immediately before and after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+| solarstore-ke | `38513540664` only | `failure`, green on the runs immediately before and after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+
+**No new breakage, no merchant code change this pass.** The only action
+taken is a follow-up GitHub comment on PR #81 (see above) — this write-up
+is the evidence backing it. `python3.13 -m pytest -q` (all green, exit 0)
+and `python3.13 -m ruff check scrapers/ tests/` (`All checks passed!`) both
+verified against unmodified `main` going into this pass.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant produced any signal in this window.
