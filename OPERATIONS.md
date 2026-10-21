@@ -681,3 +681,65 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8ae. Scheduled triage pass — no new breakage, five-PR backlog now unresolved for 12 days (2026-10-21)
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly for the matrix, falling back to `mcp__github__get_job_logs` for log
+content (`gh api .../logs` still 403s on the Azure blob redirect — same as
+every pass since §8v).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **five** open PRs,
+all unmerged:
+
+| PR | Opened | Content |
+|---|---|---|
+| #80 | 2026-10-09 | Widen nextbuy-ke selector-drift diagnostic (no behavior change) |
+| #81 | 2026-10-11 | Fix nextbuy-ke via `client_type: "cffi"` — §8ab/§8ac/§8ad already found this signature has had zero recurrences since 2026-10-11 |
+| #82 | 2026-10-13 | §8ab write-up flagging the #80/#81 conflict |
+| #83 | 2026-10-15 | §8ac write-up resolving the conflict in #80's favor, recommending #80 merge + #81 close |
+| #84 | 2026-10-17 | §8ad write-up — same two legs, backlog named explicitly as the finding |
+
+`main` has not moved past PR #79 (2026-10-17) since §8y. Every one of #80-84
+is still mergeable (`mergeable: true`) but sits at `mergeable_state:
+"blocked"`, and the head commit's combined status is `pending` on all five —
+consistent with these waiting on a required review/approval that nothing in
+this environment can grant, not a CI failure.
+
+Covered the 8 completed scheduled runs since §8ad's window closed
+(`39045520501` → `39545637182`, 2026-10-17 15:32 → 2026-10-21 05:56) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-armco-ke** | 8/8 | Pulled the freshest log directly (job `119043211668`, run `39545637182`): byte-identical non-WooCommerce JS-build-tooling shell (`<!doctype html>...<!-- No font pr...`, real HTTP 200, no `wp-content`, no `window.location.reload`) to every window since §8u (2026-09-29) — now the 17th consecutive window with this exact signature. | **Already covered by PR #80's corroboration.** No fixable `client_type` signature, no deprecation-criteria match (DNS fine, real 200s). Not re-filed — a sixth PR making the same point would just add to the backlog this pass is flagging. |
+| **wc-nextbuy-ke** | 8/8 | Pulled the freshest log directly (job `119043212134`, run `39545637182`): `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ... product_cat-smartphones ...'` — byte-identical to PR #80's Astra-theme extraction-failure signature. Zero occurrences of PR #81's `RetryError[HTTPStatusError]` TLS-fingerprint signature across all 8 runs checked. | **Already covered by PR #80 (diagnostic) / #83 (conflict resolution, recommends merging #80 and closing #81).** This pass's evidence extends PR #83's count from 13 to 21+ consecutive runs with zero recurrence of #81's signature. Not re-filed. |
+| wc-housewife-ke | `39545637182` only (the newest) | `failure`, but green on all 7 runs checked before it. | **Noise.** One-off CI blip, not re-verified as a pattern, per the megatech-ke lesson (§8j). |
+
+**No new breakage.** Both persistently-red legs are fully and correctly
+diagnosed by the existing open PRs; opening a competing PR for either would
+only be a sixth re-derivation of conclusions #80/#83 already reached, the
+exact duplicate-work pattern §8r named. `python3.13 -m pytest -q` (all pass)
+and `python3.13 -m ruff check scrapers/ tests/` (clean) verified on `main`
+going into this pass — no code change accompanies this write-up.
+
+**The backlog, not the merchants, is now the finding.** This is the fourth
+consecutive scheduled pass (§8ab, §8ac, §8ad, now this one) to re-confirm
+the same diagnosis and recommend the same action without anything landing.
+#80 is a pure diagnostic widening with no behavior change and is correct
+regardless of which nextbuy-ke root cause turns out to be live; #81 targets
+a signature that has not recurred in the 10 days since it was opened; #82,
+#83, and #84 are documentation-only. None of the five has a code reason to
+stay open. Recommend an operator merge #80 first, close #81 (or reopen if
+its TLS signature ever genuinely recurs), and merge #82/#83/#84 for the
+record — in that order, since #82/#83/#84 each touch `OPERATIONS.md` and
+merging out of order risks the same lettering collision §8q/§8r already hit
+once. This pass did not merge or close anything itself — doing so from an
+unattended scheduled run without an operator's sign-off would be the wrong
+kind of autonomy for a repo-shared, hard-to-reverse action.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
