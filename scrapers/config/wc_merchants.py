@@ -292,10 +292,18 @@ WC_MERCHANTS: dict[str, dict] = {
         # (and one ConnectError) on plain httpx from GHA IPs — a 403 on every
         # path, homepage included, so the site is fingerprinting TLS rather
         # than blocking by UA or URL. Chrome impersonation via curl_cffi
-        # restores 200 with intact WooCommerce markup (1.0MB, 24 listings on
+        # restored 200 with intact WooCommerce markup (1.0MB, 24 listings on
         # page 1). Same pattern as tclke-ke/eamobitech-ke. See OPERATIONS.md
         # §8m.
-        "client_type": "cffi",
+        #
+        # cffi stopped holding 2026-10-22: every leaf started throwing
+        # curl_cffi's own HTTPError (a real HTTP error status under Chrome
+        # TLS impersonation, not httpx's HTTPStatusError and not a
+        # Timeout/ConnectTimeout) on two consecutive scheduled runs. Same
+        # escalation signature smartdevices-ke/eamobitech-ke (§8n) and
+        # audiocom-ke (§8t) already went through — escalated to
+        # playwright-stealth. See OPERATIONS.md §8af.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "inverters": ["https://solarshop.co.ke/product-category/solar-inverters"],
             "solar-batteries": ["https://solarshop.co.ke/product-category/solar-batteries", "https://solarshop.co.ke/product-category/solar-batteries/lithium-ion-batteries"],
