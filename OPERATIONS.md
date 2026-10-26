@@ -682,7 +682,13 @@ changes before either PR was opened.
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
 
-## 8z. Blank product tiles — first-writer-wins pinned images to dead hosts (2026-10-26)
+<!-- 8aa is intentionally absent: it is PR #81's slot, left unmerged
+     because 8ac/8ad/8ae each found zero recurrence of the signature it
+     fixes. 8ag follows 8af because this section was written on
+     2026-10-26 and merged ahead of the 8z-8af backlog, which was still
+     open at the time. -->
+
+## 8ag. Blank product tiles — first-writer-wins pinned images to dead hosts (2026-10-26)
 
 Reported as "images are missing all over especially phones". Catalog-wide
 coverage looked fine and that is what made it confusing: `image_url` is
