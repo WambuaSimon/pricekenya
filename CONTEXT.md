@@ -86,6 +86,14 @@ Sections 8 through 8j (live-scrape learnings, merchant expansion, and the
 2026-07/08 outage triages) now live in `OPERATIONS.md`, which `.gitignore`
 excludes.
 
+**That exclusion did not actually take effect until 2026-10-26.** The ignore
+rule was added here on 2026-08-24, but `.gitignore` has no effect on a file
+git is already tracking, and `OPERATIONS.md` was. So it kept being committed,
+and every section written since — 8k through 8ag — was published to a public
+repo. The file is untracked for real now. Note that untracking is not
+erasure: every version committed before that date is still readable in this
+repo's git history.
+
 Why: that log records, merchant by merchant, which bot-mitigation each one
 runs and exactly what defeats it — read next to the merchant names and base
 URLs in `scrapers/config/`, it is a step-by-step guide for any merchant who
