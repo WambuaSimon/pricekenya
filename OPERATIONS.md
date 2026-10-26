@@ -681,3 +681,141 @@ changes before either PR was opened.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+## 8z. Blank product tiles — first-writer-wins pinned images to dead hosts (2026-10-26)
+
+Reported as "images are missing all over especially phones". Catalog-wide
+coverage looked fine and that is what made it confusing: `image_url` is
+**100.0% populated for phones** (2200/2200) and 99.7% overall. Nothing was
+missing. The stored URLs just didn't load.
+
+### What the shopper actually saw
+
+Page 1 of `/c/phones`, fetched live: **39 of 48 product images failed**, 37
+of them `www.phoneplacekenya.com` (34x `403`, 3x connection reset). On
+screen that is eight of the nine cards above the fold showing nothing but
+the brand-name fallback tile — "Apple", "Samsung", "Honor" — on the iPhone
+14 Pro Max (13 shops), Samsung S25 Ultra (11 shops), Honor X9D (11 shops)
+and so on. The most valuable pages on the site, blank.
+
+### Why the catalog-wide number hid it
+
+Sampling 12 random live `image_url`s per host with a browser UA and no
+Referer (what `referrerpolicy="no-referrer"` in `_product_grid.html`
+produces) puts the real breakage at **5.4% of the catalog, 8.1% of phones**
+— nowhere near what the page shows. The gap is the default `shops` sort,
+and the correlation is monotonic:
+
+| merchants on the product | phones | with a dead image |
+|---|---|---|
+| 6+ | 63 | **84-100%** |
+| 5 | 37 | 51% |
+| 4 | 42 | 45% |
+| 3 | 58 | 26% |
+| 2 | 113 | 14% |
+| 1 | 456 | **5.7%** |
+
+`scrapers/ingest.py` promoted a listing image only `if not
+product.image_url` — first writer wins, permanently. A phone carried by
+thirteen merchants has thirteen chances for the *first* of them to have
+been a blocking host, and once one was, the twelve working images that
+followed were all discarded. So the breakage concentrates exactly where the
+sort puts products at the top. §8 has the same shape as the 2026-08-05
+single-offer sort bug: a catalog-wide average that says "fine" while every
+page a user opens says otherwise. **Measure at the top of the sort, not
+over the table.**
+
+### The dead hosts
+
+Seven fail wholesale (every sampled URL), now in
+`scrapers/common/image_hosts.py`:
+
+| host | result | note |
+|---|---|---|
+| www.phoneplacekenya.com | 12/12 `403` | 158 phones. Blocks on *any* Referer, including none — not hotlink protection, a blanket block |
+| pricepoint.co.ke | 12/12 `403` | |
+| techonline.co.ke | 12/12 `403` | deprecated merchant |
+| eamobitech.com | 12/12 `403` | deprecated merchant |
+| www.smartdeviceskenya.co.ke | 12/12 `404` | deprecated; uploads deleted |
+| www.budgetcomputers.co.ke | 10/10 conn | host unreachable |
+| finetech.co.ke | 5/5 conn | domain lapsed (§8 ingest note) |
+
+Four are already on the deprecation list. Deprecating a merchant stops its
+scrapes but leaves its images hotlinked on every product it ever claimed —
+**deprecation needs to sweep `image_url` too**, which is now what
+`--repair-broken` is for.
+
+Hosts that rot only *partially* (zurimall.co.ke 3/12, smartphoneskenya.co.ke
+1/12) are deliberately **not** on the list: a host denylist would discard
+their working majority. The repair pass probes per-URL and catches those.
+
+The 2026-08-09 audit's "~7% of merchant image URLs return 4xx" note in
+`_product_grid.html` was right about the rate and wrong about the
+consequence, because it averaged over the catalog instead of over a page.
+
+### Fix
+
+1. `scrapers/common/image_hosts.py` — `is_blocked_image_host()` over the
+   evidence-backed host list above.
+2. `scrapers/ingest.py` — never store a blocked image, and let a working one
+   **replace** a blocked one already stored. The one-way upgrade is the
+   whole fix; among non-blocked hosts first-writer-wins is unchanged, so a
+   product's image doesn't flap with scrape order.
+3. `scripts/fetch_missing_images.py --repair-broken` — widens the target set
+   from `image_url IS NULL` to "NULL or blocked", and skips blocked
+   merchants when hunting the replacement so the repair can't return a URL
+   as dead as the one it replaces.
+
+### Blast radius, from prod
+
+491 products carry a blocked image (175 phones):
+
+- **247 self-heal** (143 phones) on the next scrape — a non-blocked merchant
+  already lists them in stock, so fix 2 overwrites on contact. This covers
+  the multi-merchant products at the top of the sort, i.e. the visible
+  complaint.
+- **175 need the repair pass** — every live listing is on a blocked host, so
+  only og:image off a merchant detail page can help, and for the 403 hosts
+  even that will likely fail. Expect these to stay on the fallback tile.
+- **69 have no live in-stock listing**, so they don't render in a grid
+  anyway.
+
+### Repair run, 2026-10-26
+
+`--repair-broken`, phones first then the rest of the catalog:
+
+| | before | after |
+|---|---|---|
+| products on a blocked host | 491 | **239** |
+| phones on a blocked host | 175 | **29** |
+| `image_url IS NULL` | 30 | **3** |
+| page 1 of /c/phones loading | 9/48 | **48/48** |
+
+276 products repaired (146 phones, 130 the rest), 271 skipped. The skip rate
+splits sharply by category — 17% on phones, 65% elsewhere — because the
+non-phone breakage is concentrated in the *deprecated* merchants
+(techonline, smartdevices, eamobitech), whose products often have no other
+live listing to recover an image from. Of the 239 still blocked, only **10**
+still have a non-blocked merchant live; the other 229 have nothing to
+recover from and will keep the fallback tile until some merchant re-lists
+them.
+
+24 of the written URLs, sampled across replacement hosts, were re-requested
+with a browser UA: 24/24 `200` with real image bytes. Two first-pass
+failures were transient — both `200` on a serial retry. **Probe failures
+need a serial retry before they're believed**: a parallel burst against one
+merchant trips rate limiting and looks exactly like a dead image, which is
+what the 2/48 "failures" in the first post-repair page check turned out to
+be.
+
+Every swap is logged `slug / - old / + new` by the script, so the run is
+reversible from its own output.
+
+### Also worth knowing
+
+`image_url` feeds `og:image` and the JSON-LD `image` on `product.html`, so
+these products were also serving broken WhatsApp/Facebook previews and
+invalid structured-data images to Google. Same fix, no extra work.
+
+`python -m pytest -q` — 584 pass, including
+`tests/test_blocked_image_hosts.py` (15 new).
