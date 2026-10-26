@@ -780,7 +780,36 @@ consequence, because it averaged over the catalog instead of over a page.
 - **69 have no live in-stock listing**, so they don't render in a grid
   anyway.
 
-Not yet run against prod — `--repair-broken --dry-run` first.
+### Repair run, 2026-10-26
+
+`--repair-broken`, phones first then the rest of the catalog:
+
+| | before | after |
+|---|---|---|
+| products on a blocked host | 491 | **239** |
+| phones on a blocked host | 175 | **29** |
+| `image_url IS NULL` | 30 | **3** |
+| page 1 of /c/phones loading | 9/48 | **48/48** |
+
+276 products repaired (146 phones, 130 the rest), 271 skipped. The skip rate
+splits sharply by category — 17% on phones, 65% elsewhere — because the
+non-phone breakage is concentrated in the *deprecated* merchants
+(techonline, smartdevices, eamobitech), whose products often have no other
+live listing to recover an image from. Of the 239 still blocked, only **10**
+still have a non-blocked merchant live; the other 229 have nothing to
+recover from and will keep the fallback tile until some merchant re-lists
+them.
+
+24 of the written URLs, sampled across replacement hosts, were re-requested
+with a browser UA: 24/24 `200` with real image bytes. Two first-pass
+failures were transient — both `200` on a serial retry. **Probe failures
+need a serial retry before they're believed**: a parallel burst against one
+merchant trips rate limiting and looks exactly like a dead image, which is
+what the 2/48 "failures" in the first post-repair page check turned out to
+be.
+
+Every swap is logged `slug / - old / + new` by the script, so the run is
+reversible from its own output.
 
 ### Also worth knowing
 
