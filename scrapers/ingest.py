@@ -162,6 +162,7 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     Extracted from `_consume` so the retry-on-deadlock loop there can call
     the same body twice without duplicating logic.
     """
+    from scrapers.common.image_hosts import is_blocked_image_host
     from scrapers.common.woocommerce import is_placeholder_image
 
     # Validate before matching. A rejected row must not create a Product
@@ -181,10 +182,21 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
         _reject(session, raw, merchant_id, "instalment or deposit pricing")
         return
 
+    # An image we already know the shopper's browser cannot load is worth
+    # less than no image at all: storing one both shows a blank tile *and*
+    # blocks every later merchant from supplying a working one, because the
+    # promotion below only ever fired on a NULL. Treat it as absent from
+    # here on so a sibling listing can win instead.
+    usable_image = (
+        raw.image_url
+        if raw.image_url and not is_blocked_image_host(raw.image_url)
+        else None
+    )
+
     product = match_or_create_product(
         session,
         title=raw.title,
-        image_url=raw.image_url,
+        image_url=usable_image,
         category=raw.category_slug,
         description=raw.description,
     )
@@ -197,12 +209,20 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     # Promote a listing image to the product when the product has none.
     # Same as before: fixes the "first merchant had no image, second one
     # does" gap. Placeholder GIFs are rejected so they don't stick.
+    #
+    # It also now *replaces* an image already stored from a blocked host.
+    # That upgrade matters more than it sounds: first-writer-wins meant the
+    # products with the most merchants — the ones the default `shops` sort
+    # puts at the top of every category page — were the likeliest to have
+    # been claimed early by a blocking host and could never recover. On
+    # 2026-10-26, 84-100% of phones with 6+ merchants carried an unloadable
+    # image against 5.7% of single-merchant ones. See OPERATIONS.md §8z.
     if (
-        raw.image_url
-        and not product.image_url
-        and not is_placeholder_image(raw.image_url)
+        usable_image
+        and not is_placeholder_image(usable_image)
+        and (not product.image_url or is_blocked_image_host(product.image_url))
     ):
-        product.image_url = raw.image_url
+        product.image_url = usable_image
         session.add(product)
 
     listing = session.exec(

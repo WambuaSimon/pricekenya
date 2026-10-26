@@ -16,11 +16,16 @@
       <a href="/p/{{ product.slug }}"
          class="group flex flex-col border border-line rounded-card bg-surface overflow-hidden transition hover:border-[#C3CCC7] hover:shadow-card-hover dark:hover:border-faint dark:hover:shadow-none">
         {# Fallback layer ALWAYS renders behind. When the img loads it covers
-           the fallback; when it 404s it shows through. 2026-08-09 audit: ~7%
-           of merchant image URLs return 4xx (phoneplacekenya.com hotlink-
-           blocks with 403 despite referrerpolicy=no-referrer). The fallback
-           is the brand name rather than an emoji since the revamp — on a
-           blocked image it is the only identifying mark the card has left. #}
+           the fallback; when it 404s it shows through. The fallback is the
+           brand name rather than an emoji since the revamp — on a blocked
+           image it is the only identifying mark the card has left.
+
+           Don't read the catalog-wide failure rate (5.4% on 2026-10-26) as
+           the rate a shopper sees. It isn't: dead images concentrate on
+           multi-merchant products, which the default `shops` sort puts
+           first, so page 1 of /c/phones was 39/48 broken while the table
+           average said 8%. Hosts that block wholesale are now refused at
+           ingest and repairable after the fact — OPERATIONS.md §8z. #}
         <div class="relative aspect-[4/3] bg-tile border-b border-line overflow-hidden">
           <span class="absolute inset-0 flex items-center justify-center px-2 text-center text-sm font-semibold text-faint">
             {{ product_fallback_label(product) }}
