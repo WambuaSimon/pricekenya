@@ -216,7 +216,7 @@ def _upsert_one_listing(session: Session, raw: RawListing, merchant_id: int) -> 
     # puts at the top of every category page — were the likeliest to have
     # been claimed early by a blocking host and could never recover. On
     # 2026-10-26, 84-100% of phones with 6+ merchants carried an unloadable
-    # image against 5.7% of single-merchant ones. See OPERATIONS.md §8z.
+    # image against 5.7% of single-merchant ones. See OPERATIONS.md §8ag.
     if (
         usable_image
         and not is_placeholder_image(usable_image)

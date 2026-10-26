@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #E9EBEA; font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #0F5132; text-decoration: none; transition: color .16s ease; }
+  a:hover { color: #0B3E27; }
+  input, button { font-family: inherit; }
+  * { box-sizing: border-box; }
+  ::placeholder { color: #9AA19D; }
+</style>
+</helmet>
+
+<div style="display:flex; flex-direction:column; gap:60px; padding:52px 40px 100px">
+
+  <div style="display:flex; flex-direction:column; gap:13px">
+    <div style="display:flex; align-items:baseline; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#5C6360">
+      <span style="background:#0F5132; color:#fff; padding:3px 7px; border-radius:3px">2a</span><span>Dark ramp — for review</span>
+    </div>
+    <div id="2a" style="width:1280px; padding:34px; background:#08130D; border:1px solid #1E3A2A; border-radius:12px">
+
+      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px">
+        <h2 style="margin:0; font-size:23px; font-weight:600; letter-spacing:-0.025em; color:#E8F2EB">Green-tinted dark</h2>
+        <span style="font-size:13px; color:#7B968A">Derived from the light ramp, not yet approved</span>
+      </div>
+      <p style="margin:0 0 30px; font-size:14.5px; line-height:1.55; color:#A8BFB1; max-width:70ch; text-wrap:pretty">The accent carries through instead of the interface going neutral charcoal. Elevation is border-only — the light box-shadows are dropped, because on a dark canvas they read as smudge rather than lift.</p>
+
+      <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:10px; margin-bottom:34px">
+        <sc-for list="{{ darkRamp }}" as="t" hint-placeholder-count="14">
+          <div style="display:flex; flex-direction:column; gap:8px">
+            <span style="height:52px; border-radius:7px; border:1px solid #1E3A2A; background:{{ t.hex }}"></span>
+            <span style="font-size:11.5px; font-weight:600; color:#E8F2EB">{{ t.name }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.02em; color:#7B968A">{{ t.hex }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:22px">
+
+        <div style="border:1px solid #1E3A2A; border-radius:11px; background:#0F1F16; overflow:hidden">
+          <div style="display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid #17301F">
+            <span style="font-size:16px; font-weight:700; letter-spacing:-0.025em; color:#E8F2EB">PriceKenya</span>
+            <span style="flex:1; display:flex; align-items:center; gap:9px; height:34px; padding:0 12px; background:#14281C; border:1px solid #1E3A2A; border-radius:8px; font-size:13px; color:#7B968A">
+              <span style="display:flex; color:#7B968A">{{ iconSearch }}</span>Search products, brands or models
+            </span>
+            <span style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid #1E3A2A; border-radius:8px; color:#A8BFB1">{{ iconMoon }}</span>
+          </div>
+          <div style="padding:18px">
+            <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 11px; background:#143026; border-radius:99px; font-size:12.5px; font-weight:600; color:#5CCF94">
+              <span style="width:6px; height:6px; border-radius:99px; background:#5CCF94"></span>43 shops checked in the last 24 hours
+            </div>
+            <div style="margin-top:14px; font-size:26px; font-weight:600; letter-spacing:-0.03em; line-height:1.1; color:#E8F2EB">One product, eleven different prices</div>
+            <div style="margin-top:10px; font-size:14px; line-height:1.55; color:#A8BFB1">Accent tint behind the pill, <span style="color:#5CCF94; font-weight:600">accent</span> for the count, <span style="color:#7B968A">faint</span> for metadata.</div>
+            <div style="display:flex; gap:9px; margin-top:18px">
+              <span style="display:flex; align-items:center; height:42px; padding:0 18px; border-radius:9px; background:#5CCF94; color:#08130D; font-size:14px; font-weight:600">Go to cheapest shop</span>
+              <span style="display:flex; align-items:center; height:42px; padding:0 18px; border:1px solid #2A4A36; border-radius:9px; color:#E8F2EB; font-size:14px; font-weight:600">Watch price</span>
+            </div>
+            <div style="margin-top:11px; font-size:12px; color:#7B968A">Text on the dark accent is <span style="font-family:'IBM Plex Mono',monospace">#08130D</span>, not white — white on <span style="font-family:'IBM Plex Mono',monospace">#5CCF94</span> fails.</div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #1E3A2A; border-radius:11px; background:#0F1F16; overflow:hidden">
+          <div style="display:grid; grid-template-columns:1fr 100px 110px; padding:11px 18px; background:#14281C; border-bottom:1px solid #1E3A2A; font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#7B968A">
+            <span>Shop</span><span style="text-align:right">Price</span><span></span>
+          </div>
+          <sc-for list="{{ darkRows }}" as="o" hint-placeholder-count="4">
+            <div style="display:grid; grid-template-columns:1fr 100px 110px; align-items:center; padding:13px 18px; border-bottom:1px solid #17301F">
+              <span style="display:flex; flex-direction:column; gap:4px; min-width:0; padding-right:16px">
+                <span style="display:flex; align-items:center; gap:8px">
+                  <span style="font-size:14.5px; font-weight:600; color:#E8F2EB">{{ o.shop }}</span>
+                  <sc-if value="{{ o.best }}" hint-placeholder-val="{{ false }}">
+                    <span style="padding:2px 7px; border-radius:4px; background:#143026; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#5CCF94">Cheapest</span>
+                  </sc-if>
+                </span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#7B968A">checked {{ o.at }}</span>
+              </span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; text-align:right; color:#E8F2EB; font-variant-numeric:tabular-nums">{{ o.price }}</span>
+              <span style="display:flex; justify-content:flex-end">
+                <span style="display:flex; align-items:center; height:32px; padding:0 13px; border:1px solid #2A4A36; border-radius:7px; font-size:12.5px; font-weight:600; color:#E8F2EB">Go to shop</span>
+              </span>
+            </div>
+          </sc-for>
+          <div style="padding:16px 18px">
+            <div style="display:flex; align-items:flex-end; gap:5px; height:64px">
+              <sc-for list="{{ darkHistory }}" as="h" hint-placeholder-count="8">
+                <span style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%">
+                  <span style="height:{{ h.height }}; border-radius:3px 3px 0 0; background:{{ h.fill }}"></span>
+                </span>
+              </sc-for>
+            </div>
+            <div style="margin-top:9px; font-size:12px; color:#7B968A">Latest bar <span style="font-family:'IBM Plex Mono',monospace">accent</span>, rest <span style="font-family:'IBM Plex Mono',monospace">bar-idle #264934</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:26px; margin-top:22px; padding:18px 20px; border:1px solid #1E3A2A; border-radius:11px; background:#0F1F16">
+        <span style="font-size:13px; font-weight:600; color:#E8F2EB; flex:none">Focus ring</span>
+        <span style="display:flex; align-items:center; height:40px; padding:0 17px; border-radius:9px; background:#5CCF94; color:#08130D; font-size:14px; font-weight:600; outline:2px solid #7FE3B0; outline-offset:2px">Accent button</span>
+        <span style="display:flex; align-items:center; height:40px; padding:0 17px; border:1px solid #2A4A36; border-radius:9px; color:#E8F2EB; font-size:14px; font-weight:600; outline:2px solid #7FE3B0; outline-offset:2px">Outlined button</span>
+        <span style="font-size:13px; line-height:1.5; color:#A8BFB1; text-wrap:pretty"><span style="font-family:'IBM Plex Mono',monospace; color:#7FE3B0">#7FE3B0</span> at 2px with 2px offset, on <span style="font-family:'IBM Plex Mono',monospace">:focus-visible</span> only. Light mode uses the accent at the same geometry.</span>
+      </div>
+
+      <div style="display:flex; gap:18px; margin-top:22px">
+        <div style="flex:1; padding:18px 20px; border:1px solid #1E3A2A; border-radius:11px; background:#0F1F16">
+          <div style="font-size:13px; font-weight:600; color:#E8F2EB">Images sit on tile, never on surface</div>
+          <div style="display:flex; gap:10px; margin-top:12px">
+            <span style="display:flex; align-items:center; justify-content:center; width:62px; height:62px; border:1px solid #1E3A2A; border-radius:8px; background:#142A1E; font-size:17px; font-weight:600; color:#7B968A">S</span>
+            <span style="display:flex; align-items:center; justify-content:center; width:62px; height:62px; border:1px solid #1E3A2A; border-radius:8px; background:#142A1E; font-size:12px; font-weight:600; color:#7B968A">Xiaomi</span>
+            <span style="flex:1; font-size:12.5px; line-height:1.5; color:#A8BFB1; text-wrap:pretty">Merchant cutouts are mostly white, so they read as bright rectangles either way. The darker tile contains them. Do not filter or dim.</span>
+          </div>
+        </div>
+        <div style="flex:1; padding:18px 20px; border:1px solid #1E3A2A; border-radius:11px; background:#0F1F16">
+          <div style="font-size:13px; font-weight:600; color:#E8F2EB">Hover in dark brightens the border</div>
+          <div style="display:flex; gap:10px; margin-top:12px">
+            <span style="flex:1; padding:13px; border:1px solid #1E3A2A; border-radius:9px; font-size:12.5px; color:#A8BFB1">Rest — <span style="font-family:'IBM Plex Mono',monospace">line</span></span>
+            <span style="flex:1; padding:13px; border:1px solid #3D6B4E; border-radius:9px; font-size:12.5px; color:#E8F2EB">Hover — <span style="font-family:'IBM Plex Mono',monospace">#3D6B4E</span></span>
+          </div>
+          <div style="margin-top:11px; font-size:12px; color:#7B968A">No shadow, no lift. Same .16s ease.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:13px">
+    <div style="display:flex; align-items:baseline; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#5C6360">
+      <span style="background:#0F5132; color:#fff; padding:3px 7px; border-radius:3px">1a</span><span>Home</span>
+    </div>
+    <div id="1a" style="position:relative; width:1280px; background:#fff; border:1px solid #DCE0DE; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(16,20,19,.04)">
+
+      <header style="display:flex; align-items:center; gap:20px; padding:14px 32px; border-bottom:1px solid #EDEFEE">
+        <a href="#1a" style="display:flex; align-items:center; gap:9px; color:#101413">
+          <img src="logo.svg" alt="" width="26" height="26" style="display:block; width:26px; height:26px; border-radius:7px">
+
+          <span style="font-size:17.5px; font-weight:700; letter-spacing:-0.025em">PriceKenya</span>
+        </a>
+        <div style="flex:1; display:flex; align-items:center; gap:9px; height:40px; padding:0 14px; background:#F4F6F5; border:1px solid #E4E7E5; border-radius:8px; transition:border-color .16s ease" style-hover="border-color:#0F5132; background:#fff">
+          <span style="display:flex; color:#5C6360">{{ iconSearch }}</span>
+          <input type="text" placeholder="Search products, brands or models" style="flex:1; border:0; background:transparent; outline:none; font-size:14.5px; color:#101413">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px">
+          <a href="#1a" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:8px; color:#3D4441; font-size:13.5px; font-weight:500" style-hover="background:#F4F6F5; color:#0F5132">
+            <span style="display:flex">{{ iconStar }}</span><span>Watchlist</span>
+          </a>
+          <button aria-label="Switch to dark mode" style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; border:1px solid #E4E7E5; border-radius:8px; background:#fff; color:#3D4441; cursor:pointer; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132">{{ iconMoon }}</button>
+          <a href="#1a" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:8px; color:#3D4441; font-size:13.5px; font-weight:500" style-hover="background:#F4F6F5; color:#0F5132">
+            <span style="display:flex">{{ iconBell }}</span><span>Alerts</span>
+          </a>
+        </div>
+      </header>
+
+      <nav style="display:flex; align-items:center; gap:4px; padding:8px 32px; border-bottom:1px solid #EDEFEE; background:#FCFDFC">
+        <sc-for list="{{ categories }}" as="cat" hint-placeholder-count="9">
+          <a href="#1b" style="display:flex; align-items:center; gap:7px; padding:7px 11px; border-radius:7px; font-size:13.5px; font-weight:500; color:#3D4441; white-space:nowrap" style-hover="background:#EAF1EC; color:#0F5132">
+            <span style="display:flex; color:#7C8480">{{ cat.icon }}</span><span>{{ cat.short }}</span>
+          </a>
+        </sc-for>
+      </nav>
+
+      <section style="display:grid; grid-template-columns:1fr 468px; gap:44px; padding:56px 32px 52px">
+        <div style="display:flex; flex-direction:column; justify-content:center">
+          <div style="display:inline-flex; align-self:flex-start; align-items:center; gap:8px; padding:5px 11px; background:#EAF1EC; border-radius:99px; font-size:12.5px; font-weight:600; color:#0F5132">
+            <span style="width:6px; height:6px; border-radius:99px; background:#0F5132"></span>
+            <span>43 shops checked in the last 24 hours</span>
+          </div>
+          <h1 style="margin:20px 0 0; font-size:50px; line-height:1.04; letter-spacing:-0.035em; font-weight:600; color:#101413; max-width:16ch; text-wrap:balance">One product, eleven different prices.</h1>
+          <p style="margin:18px 0 0; font-size:17px; line-height:1.55; color:#5C6360; max-width:46ch; text-wrap:pretty">We track what 43 Kenyan shops charge, several times a day, and show you the gap before you pay it. Free, no account, no markup on anything.</p>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:30px">
+            <div style="flex:1; display:flex; align-items:center; gap:10px; height:52px; padding:0 16px; background:#fff; border:1.5px solid #D6DBD8; border-radius:10px" style-hover="border-color:#0F5132">
+              <span style="display:flex; color:#5C6360">{{ iconSearch }}</span>
+              <input type="text" placeholder="Try Hisense 50 inch, or Samsung A17" style="flex:1; border:0; background:transparent; outline:none; font-size:15.5px; color:#101413">
+            </div>
+            <button style="height:52px; padding:0 24px; border:0; border-radius:10px; background:#0F5132; color:#fff; font-size:15px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#0B3E27">Compare</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; color:#5C6360">
+            <span>Popular:</span>
+            <a href="#1c" style="color:#5C6360; border-bottom:1px solid #DCE0DE" style-hover="color:#0F5132; border-color:#0F5132">iPhone 17</a>
+            <a href="#1c" style="color:#5C6360; border-bottom:1px solid #DCE0DE" style-hover="color:#0F5132; border-color:#0F5132">Hisense TV</a>
+            <a href="#1c" style="color:#5C6360; border-bottom:1px solid #DCE0DE" style-hover="color:#0F5132; border-color:#0F5132">Gas cooker</a>
+            <a href="#1c" style="color:#5C6360; border-bottom:1px solid #DCE0DE" style-hover="color:#0F5132; border-color:#0F5132">Solar inverter</a>
+          </div>
+        </div>
+
+        <div style="border:1px solid #E4E7E5; border-radius:12px; overflow:hidden; background:#fff">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 18px; border-bottom:1px solid #EDEFEE; background:#F8FAF9">
+            <span style="font-size:11.5px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#5C6360">Widest gap today</span>
+            <a href="#1c" style="display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600">All 11 offers <span style="display:flex">{{ iconArrow }}</span></a>
+          </div>
+          <div style="display:flex; gap:14px; padding:18px">
+            <div style="position:relative; width:76px; height:76px; flex:none; border:1px solid #EDEFEE; border-radius:9px; background:#F1F4F2; overflow:hidden">
+              <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:600; color:#5C6360">S</span>
+              <img src="https://www.phoneplacekenya.com/wp-content/uploads/2025/09/Samsung-Galaxy-A17-4G.jpg" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative; display:block; width:100%; height:100%; object-fit:contain">
+            </div>
+            <div style="flex:1">
+              <a href="#1c" style="font-size:18px; font-weight:600; letter-spacing:-0.015em; color:#101413" style-hover="color:#0F5132">Samsung Galaxy A17</a>
+              <div style="margin-top:5px; font-size:13px; color:#5C6360">11 shops list this phone</div>
+              <div style="display:flex; align-items:baseline; gap:8px; margin-top:9px">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; color:#101413">KSh 19,500</span>
+                <span style="font-size:13px; color:#AEB4B1">to</span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:15px; color:#5C6360">KSh 30,500</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:0 18px">
+            <sc-for list="{{ featuredOffers }}" as="o" hint-placeholder-count="4">
+              <div style="display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid #F1F3F2">
+                <span style="flex:1; font-size:14.5px; color:#3D4441">{{ o.shop }}</span>
+                <sc-if value="{{ o.best }}" hint-placeholder-val="{{ false }}">
+                  <span style="padding:2px 7px; border-radius:4px; background:#EAF1EC; font-size:10.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#0F5132">Cheapest</span>
+                </sc-if>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:500; color:#101413; font-variant-numeric:tabular-nums">{{ o.price }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin:16px 18px 18px; padding:14px; border-radius:9px; background:#EAF1EC">
+            <div style="font-size:14.5px; line-height:1.5; color:#0B3E27">Buying from Patabay instead of NextBuy keeps <strong style="font-family:'IBM Plex Mono',monospace; font-weight:600">KSh 11,000</strong> in your pocket. That is 36 percent of the price.</div>
+          </div>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 52px">
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px">
+          <div>
+            <h2 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-0.025em; color:#101413">Where the gap is biggest</h2>
+            <p style="margin:6px 0 0; font-size:14.5px; color:#5C6360">The difference between the cheapest and dearest shop, on things people actually buy.</p>
+          </div>
+          <a href="#1b" style="display:flex; align-items:center; gap:5px; font-size:14px; font-weight:600">See all <span style="display:flex">{{ iconArrow }}</span></a>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:14px">
+          <sc-for list="{{ gaps }}" as="g" hint-placeholder-count="4">
+            <a href="#1c" style="display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid #E4E7E5; border-radius:11px; background:#fff; transition:border-color .16s ease, box-shadow .16s ease" style-hover="border-color:#C3CCC7; box-shadow:0 4px 14px rgba(16,20,19,.06)">
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:#6B7370">{{ g.cat }}</span>
+              <span style="font-size:15px; font-weight:500; line-height:1.35; color:#101413; min-height:40px; text-wrap:pretty">{{ g.name }}</span>
+              <span style="display:flex; align-items:baseline; gap:6px">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:600; color:#0F5132">{{ g.save }}</span>
+                <span style="font-size:12.5px; color:#5C6360">to save</span>
+              </span>
+              <span style="display:flex; height:4px; border-radius:99px; background:#EDEFEE; overflow:hidden">
+                <span style="width:{{ g.pctWidth }}; background:#0F5132"></span>
+              </span>
+              <span style="display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#5C6360">
+                <span>{{ g.low }}</span><span>{{ g.high }}</span>
+              </span>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 52px">
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px">
+          <div>
+            <h2 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-0.025em; color:#101413">Dropped this week</h2>
+            <p style="margin:6px 0 0; font-size:14.5px; color:#5C6360">Cheapest price is lower than it was seven days ago.</p>
+          </div>
+          <a href="#1b" style="display:flex; align-items:center; gap:5px; font-size:14px; font-weight:600">See all <span style="display:flex">{{ iconArrow }}</span></a>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px">
+          <sc-for list="{{ drops }}" as="d" hint-placeholder-count="6">
+            <a href="#1c" style="display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid #E4E7E5; border-radius:11px; background:#fff; transition:border-color .16s ease" style-hover="border-color:#C3CCC7">
+              <span style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; flex:none; border:1px solid #EDEFEE; border-radius:8px; background:#F1F4F2; font-size:16px; font-weight:600; color:#5C6360">{{ d.initial }}</span>
+              <span style="flex:1; min-width:0">
+                <span style="display:block; font-size:14.5px; font-weight:500; color:#101413; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ d.name }}</span>
+                <span style="display:flex; align-items:baseline; gap:8px; margin-top:4px">
+                  <span style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; color:#101413">{{ d.price }}</span>
+                  <span style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#6B7370; text-decoration:line-through">{{ d.was }}</span>
+                </span>
+              </span>
+              <span style="display:flex; align-items:center; gap:4px; padding:4px 8px; border-radius:6px; background:#EAF1EC; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:#0F5132; white-space:nowrap">
+                <span style="display:flex">{{ iconDown }}</span>{{ d.pct }}
+              </span>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 52px">
+        <h2 style="margin:0 0 18px; font-size:24px; font-weight:600; letter-spacing:-0.025em; color:#101413">Browse every category</h2>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px">
+          <sc-for list="{{ categories }}" as="cat" hint-placeholder-count="9">
+            <a href="#1b" style="display:flex; align-items:center; gap:14px; padding:18px; border:1px solid #E4E7E5; border-radius:11px; background:#fff; transition:border-color .16s ease, background .16s ease" style-hover="border-color:#C3CCC7; background:#FCFDFC">
+              <span style="display:flex; align-items:center; justify-content:center; width:42px; height:42px; flex:none; border-radius:9px; background:#EAF1EC; color:#0F5132">{{ cat.iconLg }}</span>
+              <span style="flex:1">
+                <span style="display:block; font-size:15.5px; font-weight:600; color:#101413">{{ cat.name }}</span>
+                <span style="display:block; margin-top:3px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#5C6360">{{ cat.count }} products</span>
+              </span>
+              <span style="display:flex; color:#C3CCC7">{{ iconArrow }}</span>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="margin:0 32px 52px; padding:36px 40px; border-radius:12px; background:#101413; display:flex; align-items:center; justify-content:space-between; gap:40px">
+        <div>
+          <h2 style="margin:0; font-size:26px; font-weight:600; letter-spacing:-0.025em; color:#fff">Never pay yesterday's price</h2>
+          <p style="margin:8px 0 0; font-size:15.5px; line-height:1.5; color:#A8AFAB; max-width:48ch; text-wrap:pretty">Pick a product, set the price you want, and we email you once when a shop goes below it. Nothing else.</p>
+        </div>
+        <div style="display:flex; gap:9px; flex:none">
+          <input type="text" placeholder="you@example.com" style="width:250px; height:48px; padding:0 15px; border:1px solid #333A37; border-radius:9px; background:#1A1F1D; color:#fff; font-size:14.5px; outline:none">
+          <button style="height:48px; padding:0 22px; border:0; border-radius:9px; background:#fff; color:#101413; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#EAF1EC">Set an alert</button>
+        </div>
+      </section>
+
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; padding:0 32px 26px">
+        <a href="#1a" style="display:flex; align-items:center; gap:8px; height:42px; padding:0 17px; border-radius:99px; background:#0F5132; color:#fff; font-size:14px; font-weight:600; box-shadow:0 6px 18px rgba(15,81,50,.24)" style-hover="background:#0B3E27; color:#fff">
+          <span style="display:flex">{{ iconChat }}</span>Chat on WhatsApp
+        </a>
+        <button aria-label="Dismiss chat" style="display:flex; align-items:center; justify-content:center; width:22px; height:22px; border:0; border-radius:99px; background:#3D4441; color:#fff; font-size:13px; line-height:1; cursor:pointer">×</button>
+      </div>
+
+      <footer style="padding:32px; border-top:1px solid #EDEFEE; background:#FCFDFC">
+        <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:32px">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; color:#101413">
+              <img src="logo.svg" alt="" width="22" height="22" style="display:block; width:22px; height:22px; border-radius:6px">
+
+              <span style="font-size:15px; font-weight:700; letter-spacing:-0.02em">PriceKenya</span>
+            </div>
+            <p style="margin:12px 0 0; font-size:13.5px; line-height:1.6; color:#5C6360; max-width:40ch; text-wrap:pretty">Prices come from public merchant listings and can change at any time. Always check the price on the shop's own site before you pay.</p>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:9px">
+            <span style="font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Shop</span>
+            <a href="#1b" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Phones</a>
+            <a href="#1b" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">TVs</a>
+            <a href="#1b" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Appliances</a>
+            <a href="#1b" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Solar and power</a>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:9px">
+            <span style="font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Tools</span>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Price alerts</a>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Watchlist</a>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">All merchants</a>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:9px">
+            <span style="font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">About</span>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">How it works</a>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">WhatsApp</a>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Privacy</a>
+            <a href="#1a" style="font-size:13.5px; color:#5C6360" style-hover="color:#0F5132">Terms</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:13px">
+    <div style="display:flex; align-items:baseline; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#5C6360">
+      <span style="background:#0F5132; color:#fff; padding:3px 7px; border-radius:3px">1b</span><span>Category</span>
+    </div>
+    <div id="1b" style="position:relative; width:1280px; background:#fff; border:1px solid #DCE0DE; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(16,20,19,.04)">
+
+      <header style="display:flex; align-items:center; gap:20px; padding:14px 32px; border-bottom:1px solid #EDEFEE">
+        <a href="#1a" style="display:flex; align-items:center; gap:9px; color:#101413">
+          <img src="logo.svg" alt="" width="26" height="26" style="display:block; width:26px; height:26px; border-radius:7px">
+
+          <span style="font-size:17.5px; font-weight:700; letter-spacing:-0.025em">PriceKenya</span>
+        </a>
+        <div style="flex:1; display:flex; align-items:center; gap:9px; height:40px; padding:0 14px; background:#F4F6F5; border:1px solid #E4E7E5; border-radius:8px" style-hover="border-color:#0F5132; background:#fff">
+          <span style="display:flex; color:#5C6360">{{ iconSearch }}</span>
+          <input type="text" placeholder="Search products, brands or models" style="flex:1; border:0; background:transparent; outline:none; font-size:14.5px; color:#101413">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px">
+          <a href="#1a" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:8px; color:#3D4441; font-size:13.5px; font-weight:500" style-hover="background:#F4F6F5; color:#0F5132">
+            <span style="display:flex">{{ iconStar }}</span><span>Watchlist</span>
+          </a>
+          <button aria-label="Switch to dark mode" style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; border:1px solid #E4E7E5; border-radius:8px; background:#fff; color:#3D4441; cursor:pointer; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132">{{ iconMoon }}</button>
+        </div>
+      </header>
+
+      <div style="display:flex; align-items:center; gap:7px; padding:13px 32px; border-bottom:1px solid #EDEFEE; font-size:13px; color:#5C6360">
+        <a href="#1a">Home</a><span style="display:flex; color:#C3CCC7">{{ iconArrow }}</span>
+        <a href="#1b">Electronics</a><span style="display:flex; color:#C3CCC7">{{ iconArrow }}</span>
+        <span style="color:#3D4441">Phones, Tablets and Accessories</span>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:40px; padding:32px">
+        <div>
+          <h1 style="margin:0; font-size:34px; font-weight:600; letter-spacing:-0.03em; color:#101413">Phones, Tablets and Accessories</h1>
+          <p style="margin:9px 0 0; font-size:15.5px; line-height:1.55; color:#5C6360; max-width:58ch; text-wrap:pretty">2,140 products from 31 shops. 1,486 of them are listed by two or more shops, which means you can genuinely cross-shop them.</p>
+        </div>
+        <div style="display:flex; gap:28px; flex:none; padding-top:6px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:#101413">2,140</div>
+            <div style="margin-top:3px; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Products</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:#101413">31</div>
+            <div style="margin-top:3px; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Shops</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:#0F5132">1,486</div>
+            <div style="margin-top:3px; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Comparable</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; padding:0 32px 24px">
+        <sc-for list="{{ children }}" as="c" hint-placeholder-count="4">
+          <a href="#1b" style="padding:7px 14px; border:1px solid #E4E7E5; border-radius:99px; font-size:13.5px; font-weight:500; color:#3D4441; background:#fff; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132; background:#EAF1EC">{{ c }}</a>
+        </sc-for>
+      </div>
+
+      <div style="display:grid; grid-template-columns:252px 1fr; gap:28px; padding:0 32px 44px">
+        <aside style="display:flex; flex-direction:column; gap:24px; padding:20px; border:1px solid #E4E7E5; border-radius:11px; background:#FCFDFC; align-self:start">
+          <div style="display:flex; align-items:center; justify-content:space-between">
+            <span style="display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:600; color:#101413">
+              <span style="display:flex; color:#0F5132">{{ iconFilter }}</span>Filters
+            </span>
+            <a href="#1b" style="font-size:12.5px; font-weight:500">Clear all</a>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px">
+            <span style="font-size:13px; font-weight:600; color:#101413">Max price</span>
+            <input type="text" placeholder="e.g. 30000" style="height:38px; padding:0 12px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:14px; color:#101413; outline:none">
+          </div>
+          <sc-for list="{{ facets }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex; flex-direction:column; gap:9px">
+              <span style="font-size:13px; font-weight:600; color:#101413">{{ f.label }}</span>
+              <sc-for list="{{ f.values }}" as="v" hint-placeholder-count="4">
+                <label style="display:flex; align-items:center; gap:9px; font-size:13.5px; color:#3D4441; cursor:pointer">
+                  <span style="width:16px; height:16px; flex:none; border:1.5px solid #C3CCC7; border-radius:4px; background:#fff"></span>
+                  <span style="flex:1">{{ v.name }}</span>
+                  <span style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#6B7370">{{ v.n }}</span>
+                </label>
+              </sc-for>
+            </div>
+          </sc-for>
+          <label style="display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:500; color:#3D4441; cursor:pointer; padding-top:4px; border-top:1px solid #EDEFEE">
+            <span style="width:16px; height:16px; flex:none; border:1.5px solid #0F5132; border-radius:4px; background:#0F5132; display:flex; align-items:center; justify-content:center; color:#fff">{{ iconCheck }}</span>
+            <span>Only comparable products</span>
+          </label>
+          <button style="height:42px; border:0; border-radius:9px; background:#0F5132; color:#fff; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#0B3E27">Apply filters</button>
+        </aside>
+
+        <div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px">
+            <span style="font-size:14px; color:#5C6360">Showing <strong style="color:#101413; font-weight:600">1 to 12</strong> of 2,140</span>
+            <div style="display:flex; align-items:center; gap:8px">
+              <span style="font-size:13.5px; color:#5C6360">Sort</span>
+              <button style="display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:13.5px; font-weight:500; color:#101413; cursor:pointer" style-hover="border-color:#0F5132">
+                Biggest gap <span style="display:flex; color:#5C6360">{{ iconChevron }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px">
+            <sc-for list="{{ grid }}" as="p" hint-placeholder-count="12">
+              <a href="#1c" style="display:flex; flex-direction:column; border:1px solid #E4E7E5; border-radius:11px; background:#fff; overflow:hidden; transition:border-color .16s ease, box-shadow .16s ease" style-hover="border-color:#C3CCC7; box-shadow:0 4px 14px rgba(16,20,19,.06)">
+                <span style="position:relative; display:block; aspect-ratio:4/3; background:#F1F4F2; border-bottom:1px solid #EDEFEE; overflow:hidden">
+                  <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; letter-spacing:0.01em; color:#5C6360">{{ p.brand }}</span>
+                  <sc-if value="{{ p.image }}" hint-placeholder-val="{{ false }}">
+                    <img src="{{ p.image }}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative; display:block; width:100%; height:100%; object-fit:contain">
+                  </sc-if>
+                </span>
+                <span style="display:flex; flex-direction:column; gap:7px; padding:14px">
+                  <span style="font-size:14.5px; font-weight:500; line-height:1.35; color:#101413; min-height:39px; text-wrap:pretty">{{ p.name }}</span>
+                  <span style="display:flex; align-items:baseline; justify-content:space-between; gap:10px">
+                    <span style="font-family:'IBM Plex Mono',monospace; font-size:17px; font-weight:600; color:#101413">{{ p.price }}</span>
+                    <span style="font-size:12.5px; color:#5C6360">{{ p.offers }}</span>
+                  </span>
+                  <sc-if value="{{ p.save }}" hint-placeholder-val="{{ true }}">
+                    <span style="font-size:12.5px; font-weight:600; color:#0F5132">Save up to {{ p.save }}</span>
+                  </sc-if>
+                </span>
+              </a>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:28px">
+            <button style="height:38px; padding:0 14px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:13.5px; color:#6B7370; cursor:default">Previous</button>
+            <button style="width:38px; height:38px; border:1px solid #0F5132; border-radius:8px; background:#0F5132; color:#fff; font-family:'IBM Plex Mono',monospace; font-size:13.5px; font-weight:600; cursor:pointer">1</button>
+            <button style="width:38px; height:38px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:#3D4441; cursor:pointer" style-hover="border-color:#0F5132; color:#0F5132">2</button>
+            <button style="width:38px; height:38px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:#3D4441; cursor:pointer" style-hover="border-color:#0F5132; color:#0F5132">3</button>
+            <span style="padding:0 6px; color:#6B7370">…</span>
+            <button style="width:38px; height:38px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:#3D4441; cursor:pointer" style-hover="border-color:#0F5132; color:#0F5132">179</button>
+            <button style="height:38px; padding:0 14px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:13.5px; font-weight:500; color:#101413; cursor:pointer" style-hover="border-color:#0F5132; color:#0F5132">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; padding:0 32px 26px">
+        <a href="#1a" style="display:flex; align-items:center; gap:8px; height:42px; padding:0 17px; border-radius:99px; background:#0F5132; color:#fff; font-size:14px; font-weight:600; box-shadow:0 6px 18px rgba(15,81,50,.24)" style-hover="background:#0B3E27; color:#fff">
+          <span style="display:flex">{{ iconChat }}</span>Chat on WhatsApp
+        </a>
+        <button aria-label="Dismiss chat" style="display:flex; align-items:center; justify-content:center; width:22px; height:22px; border:0; border-radius:99px; background:#3D4441; color:#fff; font-size:13px; line-height:1; cursor:pointer">×</button>
+      </div>
+
+      <footer style="padding:22px 32px; border-top:1px solid #EDEFEE; background:#FCFDFC; display:flex; align-items:center; justify-content:space-between; gap:32px">
+        <span style="font-size:13px; color:#5C6360">Prices come from public merchant listings. Always check on the shop's own site before you pay.</span>
+        <div style="display:flex; gap:18px; font-size:13px">
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">WhatsApp</a>
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">Privacy</a>
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">Terms</a>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:13px">
+    <div style="display:flex; align-items:baseline; gap:12px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#5C6360">
+      <span style="background:#0F5132; color:#fff; padding:3px 7px; border-radius:3px">1c</span><span>Product</span>
+    </div>
+    <div id="1c" style="position:relative; width:1280px; background:#fff; border:1px solid #DCE0DE; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(16,20,19,.04)">
+
+      <header style="display:flex; align-items:center; gap:20px; padding:14px 32px; border-bottom:1px solid #EDEFEE">
+        <a href="#1a" style="display:flex; align-items:center; gap:9px; color:#101413">
+          <img src="logo.svg" alt="" width="26" height="26" style="display:block; width:26px; height:26px; border-radius:7px">
+
+          <span style="font-size:17.5px; font-weight:700; letter-spacing:-0.025em">PriceKenya</span>
+        </a>
+        <div style="flex:1; display:flex; align-items:center; gap:9px; height:40px; padding:0 14px; background:#F4F6F5; border:1px solid #E4E7E5; border-radius:8px" style-hover="border-color:#0F5132; background:#fff">
+          <span style="display:flex; color:#5C6360">{{ iconSearch }}</span>
+          <input type="text" placeholder="Search products, brands or models" style="flex:1; border:0; background:transparent; outline:none; font-size:14.5px; color:#101413">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px">
+          <a href="#1a" style="display:flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:8px; color:#3D4441; font-size:13.5px; font-weight:500" style-hover="background:#F4F6F5; color:#0F5132">
+            <span style="display:flex">{{ iconStar }}</span><span>Watchlist</span>
+          </a>
+          <button aria-label="Switch to dark mode" style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; border:1px solid #E4E7E5; border-radius:8px; background:#fff; color:#3D4441; cursor:pointer; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132">{{ iconMoon }}</button>
+        </div>
+      </header>
+
+      <div style="display:flex; align-items:center; gap:7px; padding:13px 32px; border-bottom:1px solid #EDEFEE; font-size:13px; color:#5C6360">
+        <a href="#1a">Home</a><span style="display:flex; color:#C3CCC7">{{ iconArrow }}</span>
+        <a href="#1b">Phones, Tablets and Accessories</a><span style="display:flex; color:#C3CCC7">{{ iconArrow }}</span>
+        <span style="color:#3D4441">Samsung Galaxy A17</span>
+      </div>
+
+      <section style="display:grid; grid-template-columns:392px 1fr; gap:36px; padding:32px">
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <div style="position:relative; aspect-ratio:1; border:1px solid #E4E7E5; border-radius:11px; background:#F1F4F2; overflow:hidden">
+            <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:#5C6360">Samsung</span>
+            <img src="https://www.phoneplacekenya.com/wp-content/uploads/2025/09/Samsung-Galaxy-A17-4G.jpg" alt="" referrerpolicy="no-referrer" style="position:relative; display:block; width:100%; height:100%; object-fit:contain; padding:28px">
+          </div>
+          <div style="display:flex; align-items:center; gap:9px; padding:12px 14px; border:1px solid #E4E7E5; border-radius:10px; background:#FCFDFC">
+            <span style="display:flex; color:#0F5132">{{ iconTag }}</span>
+            <span style="font-size:13px; line-height:1.45; color:#5C6360">Image from Phone Place Kenya, one of the 11 shops listing this phone.</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; font-size:13px; color:#5C6360">
+            <a href="#1b" style="font-weight:600">Samsung</a><span>·</span><span>Released 2026</span><span>·</span><span>4G and 5G</span>
+          </div>
+          <h1 style="margin:9px 0 0; font-size:36px; font-weight:600; letter-spacing:-0.03em; color:#101413">Samsung Galaxy A17</h1>
+
+          <div style="display:flex; align-items:stretch; gap:0; margin-top:24px; border:1px solid #E4E7E5; border-radius:11px; overflow:hidden">
+            <div style="flex:1; padding:18px 20px; background:#EAF1EC">
+              <div style="font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#0F5132">Cheapest today</div>
+              <div style="display:flex; align-items:baseline; gap:10px; margin-top:7px">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:32px; font-weight:600; line-height:1; color:#0F5132">KSh 19,500</span>
+                <span style="font-size:14px; color:#3F6E56">at Patabay Kenya</span>
+              </div>
+            </div>
+            <div style="width:190px; flex:none; padding:18px 20px; border-left:1px solid #E4E7E5">
+              <div style="font-size:12px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#5C6360">Dearest</div>
+              <div style="display:flex; align-items:baseline; gap:8px; margin-top:7px">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:500; line-height:1.3; color:#5C6360">KSh 30,500</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px; margin-top:16px; padding:14px 18px; border-radius:10px; background:#F4F6F5">
+            <span style="display:flex; align-items:center; justify-content:center; width:34px; height:34px; flex:none; border-radius:8px; background:#fff; color:#0F5132">{{ iconTag }}</span>
+            <span style="font-size:15px; line-height:1.45; color:#3D4441">Same phone, <strong style="font-weight:600; color:#101413">KSh 11,000</strong> apart. Buying at the cheapest shop saves 36 percent against the dearest.</span>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:20px">
+            <button style="flex:1; height:48px; border:0; border-radius:9px; background:#0F5132; color:#fff; font-size:15px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#0B3E27">Go to cheapest shop</button>
+            <button style="display:flex; align-items:center; justify-content:center; gap:8px; height:48px; padding:0 18px; border:1px solid #DCE0DE; border-radius:9px; background:#fff; font-size:14.5px; font-weight:500; color:#101413; cursor:pointer; transition:border-color .16s ease" style-hover="border-color:#0F5132; color:#0F5132">
+              <span style="display:flex">{{ iconBell }}</span>Watch price
+            </button>
+            <button style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #DCE0DE; border-radius:9px; background:#fff; color:#3D4441; cursor:pointer; transition:border-color .16s ease" style-hover="border-color:#0F5132; color:#0F5132">{{ iconStar }}</button>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:9px; margin-top:14px">
+            <span style="font-size:13px; color:#5C6360">Send this to someone</span>
+            <a href="#1c" style="display:flex; align-items:center; gap:7px; height:34px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; font-size:13px; font-weight:500; color:#3D4441; background:#fff; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132">
+              <span style="display:flex">{{ iconChat }}</span>Share on WhatsApp
+            </a>
+            <button style="display:flex; align-items:center; gap:7px; height:34px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; font-size:13px; font-weight:500; color:#3D4441; background:#fff; cursor:pointer; transition:all .16s ease" style-hover="border-color:#0F5132; color:#0F5132">
+              <span style="display:flex">{{ iconCopy }}</span>Copy link
+            </button>
+          </div>
+
+          <div style="display:flex; gap:24px; margin-top:22px; padding-top:20px; border-top:1px solid #EDEFEE">
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#6B7370">Display</span>
+              <span style="font-size:14.5px; color:#101413">6.7 inch AMOLED</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#6B7370">Storage</span>
+              <span style="font-size:14.5px; color:#101413">128GB and 256GB</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#6B7370">Battery</span>
+              <span style="font-size:14.5px; color:#101413">5000mAh</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <span style="font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#6B7370">Checked</span>
+              <span style="font-size:14.5px; color:#101413">22 Aug 2026</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 44px">
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:14px">
+          <h2 style="margin:0; font-size:22px; font-weight:600; letter-spacing:-0.025em; color:#101413">Where to buy</h2>
+          <span style="font-size:13.5px; color:#5C6360">11 shops, cheapest first</span>
+        </div>
+
+        <div style="border:1px solid #E4E7E5; border-radius:11px; overflow:hidden">
+          <div style="display:grid; grid-template-columns:1fr 140px 120px 150px; align-items:center; padding:11px 18px; background:#F8FAF9; border-bottom:1px solid #E4E7E5; font-size:12px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:#5C6360">
+            <span>Shop</span>
+            <span style="text-align:right">Price</span>
+            <sc-if value="{{ showPriceGap }}" hint-placeholder-val="{{ true }}"><span style="text-align:right">Extra cost</span></sc-if>
+            <span></span>
+          </div>
+          <sc-for list="{{ offers }}" as="o" hint-placeholder-count="7">
+            <div style="display:grid; grid-template-columns:1fr 140px 120px 150px; align-items:center; padding:14px 18px; border-bottom:1px solid #F1F3F2; transition:background .14s ease" style-hover="background:#FCFDFC">
+              <span style="display:flex; flex-direction:column; gap:4px; padding-right:24px; min-width:0">
+                <span style="display:flex; align-items:center; gap:9px">
+                  <a href="#1c" style="font-size:15.5px; font-weight:600; color:#101413" style-hover="color:#0F5132">{{ o.shop }}</a>
+                  <sc-if value="{{ o.best }}" hint-placeholder-val="{{ false }}">
+                    <span style="padding:2px 7px; border-radius:4px; background:#EAF1EC; font-size:10.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#0F5132">Cheapest</span>
+                  </sc-if>
+                </span>
+                <span style="display:flex; align-items:center; gap:9px; min-width:0; font-size:13px; color:#5C6360">
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ o.listing }}</span>
+                  <span style="flex:none; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:#6B7370">checked {{ o.checked }}</span>
+                </span>
+              </span>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:17px; font-weight:600; text-align:right; color:#101413; font-variant-numeric:tabular-nums">{{ o.price }}</span>
+              <sc-if value="{{ showPriceGap }}" hint-placeholder-val="{{ true }}">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; text-align:right; color:#5C6360; font-variant-numeric:tabular-nums">{{ o.gap }}</span>
+              </sc-if>
+              <span style="display:flex; justify-content:flex-end">
+                <a href="#1c" style="display:flex; align-items:center; gap:7px; height:38px; padding:0 15px; border:1px solid #DCE0DE; border-radius:8px; font-size:13.5px; font-weight:600; color:#101413; background:#fff; transition:all .16s ease" style-hover="border-color:#0F5132; background:#0F5132; color:#fff">
+                  Go to shop <span style="display:flex">{{ iconExternal }}</span>
+                </a>
+              </span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ hasMore }}" hint-placeholder-val="{{ true }}">
+            <a href="#1c" style="display:flex; align-items:center; justify-content:center; gap:7px; padding:14px; background:#FCFDFC; font-size:14px; font-weight:600" style-hover="background:#EAF1EC">
+              {{ moreLabel }} <span style="display:flex">{{ iconChevron }}</span>
+            </a>
+          </sc-if>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 44px">
+        <div style="display:grid; grid-template-columns:1fr 372px; gap:28px">
+          <div style="padding:24px; border:1px solid #E4E7E5; border-radius:11px">
+            <div style="display:flex; align-items:baseline; justify-content:space-between">
+              <h2 style="margin:0; font-size:20px; font-weight:600; letter-spacing:-0.02em; color:#101413">Price over 8 weeks</h2>
+              <span style="font-size:13px; color:#5C6360">Cheapest listed price, weekly</span>
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:6px; height:132px; margin-top:22px">
+              <sc-for list="{{ history }}" as="h" hint-placeholder-count="8">
+                <span style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%">
+                  <span style="height:{{ h.height }}; border-radius:3px 3px 0 0; background:{{ h.fill }}"></span>
+                </span>
+              </sc-for>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #EDEFEE; font-size:12px; color:#5C6360">
+              <span>2 July</span><span>Late July</span><span>Mid August</span><span>25 August</span>
+            </div>
+          </div>
+
+          <div style="padding:24px; border:1px solid #E4E7E5; border-radius:11px; background:#FCFDFC">
+            <h2 style="margin:0; font-size:20px; font-weight:600; letter-spacing:-0.02em; color:#101413">Tell me when it drops</h2>
+            <p style="margin:9px 0 18px; font-size:14px; line-height:1.55; color:#5C6360; text-wrap:pretty">One email when any shop lists it below your target price. Unsubscribe in a single click.</p>
+            <input type="text" placeholder="you@example.com" style="width:100%; height:44px; padding:0 14px; border:1px solid #DCE0DE; border-radius:9px; background:#fff; font-size:14.5px; color:#101413; outline:none" style-hover="border-color:#0F5132">
+            <div style="display:flex; align-items:center; gap:10px; margin-top:9px; height:44px; padding:0 14px; border:1px solid #DCE0DE; border-radius:9px; background:#fff" style-hover="border-color:#0F5132">
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:#5C6360">KSh</span>
+              <input type="text" placeholder="18,000" style="flex:1; border:0; background:transparent; outline:none; font-family:'IBM Plex Mono',monospace; font-size:14.5px; color:#101413">
+            </div>
+            <button style="width:100%; height:46px; margin-top:11px; border:0; border-radius:9px; background:#0F5132; color:#fff; font-size:15px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#0B3E27">Watch this price</button>
+            <p style="margin:12px 0 0; font-size:12px; line-height:1.5; color:#6B7370">By watching you agree to the <a href="#1c">privacy policy</a> and <a href="#1c">terms</a>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 44px">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px">
+          <h2 style="margin:0; font-size:22px; font-weight:600; letter-spacing:-0.025em; color:#101413">Reviews</h2>
+          <span style="font-size:13.5px; color:#5C6360">Every review is confirmed by email before it appears</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 372px; gap:28px; align-items:start">
+          <div style="display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:36px 28px; border:1px dashed #DCE0DE; border-radius:11px; background:#FCFDFC">
+            <span style="display:flex; gap:3px; color:#D3DED7">
+              {{ iconStarSm }}{{ iconStarSm }}{{ iconStarSm }}{{ iconStarSm }}{{ iconStarSm }}
+            </span>
+            <span style="font-size:15.5px; font-weight:600; color:#101413">No reviews yet</span>
+            <span style="font-size:14px; line-height:1.55; color:#5C6360; max-width:44ch; text-wrap:pretty">Be the first to say whether this phone was worth the money. Reviews here come from buyers who confirmed their email, not from the shops.</span>
+          </div>
+          <div style="padding:22px; border:1px solid #E4E7E5; border-radius:11px">
+            <div style="font-size:16px; font-weight:600; color:#101413">Write a review</div>
+            <div style="margin-top:16px; font-size:12px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#6B7370">Your rating</div>
+            <div style="display:flex; gap:5px; margin-top:8px">
+              <span style="display:flex; color:#C9962B">{{ iconStarLg }}</span>
+              <span style="display:flex; color:#C9962B">{{ iconStarLg }}</span>
+              <span style="display:flex; color:#C9962B">{{ iconStarLg }}</span>
+              <span style="display:flex; color:#D9DEDB">{{ iconStarLg }}</span>
+              <span style="display:flex; color:#D9DEDB">{{ iconStarLg }}</span>
+            </div>
+            <input type="text" placeholder="Your name" style="width:100%; height:40px; margin-top:14px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:14px; color:#101413; outline:none" style-hover="border-color:#0F5132">
+            <input type="text" placeholder="you@example.com" style="width:100%; height:40px; margin-top:8px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:14px; color:#101413; outline:none" style-hover="border-color:#0F5132">
+            <textarea rows="3" placeholder="What did you think? Minimum 30 characters." style="width:100%; margin-top:8px; padding:11px 13px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-family:inherit; font-size:14px; line-height:1.5; color:#101413; outline:none; resize:none" style-hover="border-color:#0F5132"></textarea>
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-top:8px">
+              <input type="text" placeholder="Pros" style="height:40px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:14px; color:#101413; outline:none" style-hover="border-color:#0F5132">
+              <input type="text" placeholder="Cons" style="height:40px; padding:0 13px; border:1px solid #DCE0DE; border-radius:8px; background:#fff; font-size:14px; color:#101413; outline:none" style-hover="border-color:#0F5132">
+            </div>
+            <button style="width:100%; height:44px; margin-top:12px; border:0; border-radius:9px; background:#0F5132; color:#fff; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .16s ease" style-hover="background:#0B3E27">Submit review</button>
+            <p style="margin:11px 0 0; font-size:12px; line-height:1.5; color:#6B7370">We email you a link to confirm your review before it is published. By submitting you agree to the <a href="#1c">review guidelines</a>, <a href="#1c">privacy policy</a> and <a href="#1c">terms</a>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section style="padding:0 32px 44px">
+        <h2 style="margin:0 0 14px; font-size:22px; font-weight:600; letter-spacing:-0.025em; color:#101413">Phones around this price</h2>
+        <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:12px">
+          <sc-for list="{{ related }}" as="r" hint-placeholder-count="6">
+            <a href="#1c" style="display:flex; flex-direction:column; border:1px solid #E4E7E5; border-radius:10px; background:#fff; overflow:hidden; transition:border-color .16s ease" style-hover="border-color:#C3CCC7">
+              <span style="display:flex; align-items:center; justify-content:center; aspect-ratio:1; background:#F1F4F2; border-bottom:1px solid #EDEFEE; font-size:13px; font-weight:600; color:#5C6360">{{ r.initial }}</span>
+              <span style="display:flex; flex-direction:column; gap:5px; padding:11px">
+                <span style="font-size:13px; font-weight:500; line-height:1.3; color:#101413; min-height:34px">{{ r.name }}</span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; color:#101413">{{ r.price }}</span>
+              </span>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; padding:0 32px 26px">
+        <a href="#1a" style="display:flex; align-items:center; gap:8px; height:42px; padding:0 17px; border-radius:99px; background:#0F5132; color:#fff; font-size:14px; font-weight:600; box-shadow:0 6px 18px rgba(15,81,50,.24)" style-hover="background:#0B3E27; color:#fff">
+          <span style="display:flex">{{ iconChat }}</span>Chat on WhatsApp
+        </a>
+        <button aria-label="Dismiss chat" style="display:flex; align-items:center; justify-content:center; width:22px; height:22px; border:0; border-radius:99px; background:#3D4441; color:#fff; font-size:13px; line-height:1; cursor:pointer">×</button>
+      </div>
+
+      <footer style="padding:22px 32px; border-top:1px solid #EDEFEE; background:#FCFDFC; display:flex; align-items:center; justify-content:space-between; gap:32px">
+        <span style="font-size:13px; color:#5C6360">Prices come from public merchant listings. Always check on the shop's own site before you pay.</span>
+        <div style="display:flex; gap:18px; font-size:13px">
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">WhatsApp</a>
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">Privacy</a>
+          <a href="#1a" style="color:#5C6360" style-hover="color:#0F5132">Terms</a>
+        </div>
+      </footer>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showPriceGap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Product page&quot;},&quot;showAllOffers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Product page&quot;}}">
+const h = React.createElement;
+const KSH = n => "KSh " + n.toLocaleString("en-US");
+
+function icon(paths, size) {
+  return h("svg", {
+    width: size || 17, height: size || 17, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round"
+  }, paths.map((d, i) => d.c
+    ? h("circle", { key: i, cx: d.c[0], cy: d.c[1], r: d.c[2] })
+    : d.r
+    ? h("rect", { key: i, x: d.r[0], y: d.r[1], width: d.r[2], height: d.r[3], rx: d.r[4] || 0 })
+    : h("path", { key: i, d })));
+}
+
+const I = {
+  search: [{ c: [11, 11, 7] }, "M16.5 16.5 21 21"],
+  bell: ["M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6", "M10.5 20a2 2 0 0 0 3 0"],
+  star: ["M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9-5.3-3-5.3 3 1.1-5.9L3.5 9.7l5.9-.8z"],
+  arrow: ["M5 12h13", "M13 6.5 18.5 12 13 17.5"],
+  chevron: ["M6 9.5 12 15.5 18 9.5"],
+  down: ["M12 5v13", "M6.5 12.5 12 18 17.5 12.5"],
+  filter: ["M4 6h16", "M7 12h10", "M10 18h4"],
+  check: ["M5 12.5 9.5 17 19 7"],
+  tag: ["M13.5 3.5H20V10l-9.5 9.5a2 2 0 0 1-2.8 0l-4.2-4.2a2 2 0 0 1 0-2.8z", { c: [16.5, 7, 1.2] }],
+  external: ["M8 16 16 8", "M10 8h6v6"],
+  moon: ["M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5"],
+  copy: [{ r: [9, 9, 11, 11, 2] }, "M15 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"],
+  chat: ["M20 12.5c0 3.9-3.6 7-8 7-1.1 0-2.2-.2-3.1-.6L4 20l1.2-3.4A6.6 6.6 0 0 1 4 12.5c0-3.9 3.6-7 8-7s8 3.1 8 7"],
+  phones: [{ r: [7, 2.5, 10, 19, 2.5] }, "M10.5 18.5h3"],
+  computing: [{ r: [3.5, 5, 17, 11, 1.5] }, "M2 19h20"],
+  tv: [{ r: [3, 4.5, 18, 12, 1.5] }, "M8.5 20h7"],
+  audio: [{ r: [6, 3, 12, 18, 2] }, { c: [12, 14, 3.2] }, { c: [12, 7, 1] }],
+  camera: ["M4 8.5h3l1.5-2.5h7L17 8.5h3v10H4z", { c: [12, 13, 3.2] }],
+  appliances: [{ r: [4, 3, 16, 18, 2] }, { c: [12, 13, 4.2] }, "M8 6.5h3"],
+  gaming: ["M7.5 8.5h9a4.5 4.5 0 0 1 0 9h-9a4.5 4.5 0 0 1 0-9", "M8 13h2.5", "M9.25 11.75v2.5", { c: [15.5, 13, 1] }],
+  power: ["M13.5 2.5 5.5 13.5h5l-1 8 8-11h-5z"],
+  home: ["M4 10.5 12 4l8 6.5V20H4z", "M10 20v-5h4v5"]
+};
+
+const CATEGORIES = [
+  ["phones-tablets-accessories", "Phones, Tablets and Accessories", "Phones", "phones", 2140],
+  ["computing", "Computing", "Computing", "computing", 1385],
+  ["tvs", "TVs", "TVs", "tv", 612],
+  ["audio", "Audio", "Audio", "audio", 743],
+  ["cameras", "Cameras", "Cameras", "camera", 268],
+  ["appliances", "Appliances", "Appliances", "appliances", 1904],
+  ["gaming", "Gaming", "Gaming", "gaming", 397],
+  ["power-energy", "Solar and Power", "Solar", "power", 1163],
+  ["home-kitchen", "Home and Kitchen", "Home", "home", 486]
+];
+
+const ALL_OFFERS = [
+  ["Patabay Kenya", 19500, "Samsung A17, 6.6 inch display, long battery life", "03:07"],
+  ["Kilimall Kenya", 21300, "Samsung Galaxy A17 128GB + 4GB, 6.7 inch Super AMOLED", "02:01"],
+  ["Phones Store Kenya", 22000, "Samsung Galaxy A17 4G", "02:36"],
+  ["Housewife's Paradise", 24900, "Samsung Galaxy A17 5G", "03:03"],
+  ["Avechi", 24999, "Samsung Galaxy A17 4G 4GB 128GB", "02:31"],
+  ["Price Point Kenya", 25000, "Samsung Galaxy A17 4G", "03:07"],
+  ["Pixels Electronics", 25844, "Samsung Galaxy A17 5G, 128GB, AMOLED display", "02:50"],
+  ["Phone Place Kenya", 27000, "Samsung Galaxy A17 5G", "02:34"],
+  ["Quickmart Kenya", 29000, "Samsung A17 (4/128GB)", "02:35"],
+  ["Jumia Kenya", 29499, "Samsung Galaxy A17, 8GB RAM, 256GB, 4G, Blue", "01:56"],
+  ["NextBuy Kenya", 30500, "Samsung Galaxy A17 5G", "03:04"]
+];
+
+const GAPS = [
+  ["TVs", "Hisense 50 inch 4K Smart TV", 34999, 52000],
+  ["Appliances", "Von 3-Burner Gas Cooker", 24000, 36500],
+  ["Phones", "Samsung Galaxy A17", 19500, 30500],
+  ["Audio", "Sony Soundbar S700RF 5.1CH", 54399, 71000]
+];
+
+const DROPS = [
+  ["Hisense 75 inch 4K Smart TV", 89999, 96500],
+  ["Ramtons 20L Microwave", 9500, 10800],
+  ["Infinix Smart 20", 13200, 14500],
+  ["Vitron Soundbar V61SB", 6750, 7400],
+  ["Philips Dry Iron", 1900, 2150],
+  ["Ramtons Kettle 1.7L", 1770, 1990]
+];
+
+const A17_IMG = "https://www.phoneplacekenya.com/wp-content/uploads/2025/09/Samsung-Galaxy-A17-4G.jpg";
+
+const GRID = [
+  ["Samsung", "Samsung Galaxy A17", 19500, 11, 11000, A17_IMG],
+  ["Apple", "Apple iPhone 17", 52000, 7, 8400, null],
+  ["Infinix", "Infinix Smart 20", 13200, 8, 1300, null],
+  ["Xiaomi", "Xiaomi A7 3/64GB", 12399, 7, 2100, null],
+  ["Samsung", "Samsung Galaxy S26", 92500, 6, 14500, null],
+  ["Xiaomi", "Xiaomi Redmi 17 6/256GB", 19499, 4, 3200, null],
+  ["Oppo", "Oppo A17", 19499, 3, 1800, null],
+  ["Vivo", "Vivo Y17S", 19500, 1, 0, null],
+  ["Samsung", "Samsung Galaxy A15 4/128GB", 19499, 1, 0, null],
+  ["Realme", "Realme C25Y", 19399, 1, 0, null],
+  ["Oppo", "Oppo A16K", 19499, 1, 0, null],
+  ["Apple", "Apple iPad 11 inch 128GB", 68500, 5, 7900, null]
+];
+
+const FACETS = [
+  ["Brand", [["Samsung", 214], ["Apple", 168], ["Xiaomi", 141], ["Infinix", 96], ["Oppo", 88], ["Tecno", 74]]],
+  ["Storage", [["64GB", 122], ["128GB", 388], ["256GB", 241], ["512GB", 63]]],
+  ["Network", [["4G", 512], ["5G", 297]]]
+];
+
+const HISTORY = [26400, 25900, 24500, 23800, 22900, 21400, 20900, 19500];
+
+class Component extends DCLogic {
+  renderVals() {
+    const showAll = this.props.showAllOffers ?? false;
+    const shown = showAll ? ALL_OFFERS : ALL_OFFERS.slice(0, 7);
+    const low = ALL_OFFERS[0][1];
+    const hMax = Math.max.apply(null, HISTORY);
+
+    return {
+      iconSearch: icon(I.search), iconBell: icon(I.bell), iconStar: icon(I.star),
+      iconArrow: icon(I.arrow, 15), iconChevron: icon(I.chevron, 15), iconDown: icon(I.down, 13),
+      iconFilter: icon(I.filter, 16), iconCheck: icon(I.check, 11), iconTag: icon(I.tag, 18),
+      iconExternal: icon(I.external, 14),
+      iconMoon: icon(I.moon, 16), iconCopy: icon(I.copy, 15), iconChat: icon(I.chat, 18),
+      iconStarSm: icon(I.star, 15), iconStarLg: icon(I.star, 24),
+
+      categories: CATEGORIES.map(([slug, name, short, ic, count]) => ({
+        slug, name, short, count: count.toLocaleString("en-US"),
+        icon: icon(I[ic], 16), iconLg: icon(I[ic], 21)
+      })),
+
+      featuredOffers: [ALL_OFFERS[0], ALL_OFFERS[1], ALL_OFFERS[2], ALL_OFFERS[10]]
+        .map(([shop, price], i) => ({ shop, price: KSH(price), best: i === 0 })),
+
+      gaps: GAPS.map(([cat, name, lo, hi]) => ({
+        cat, name, low: KSH(lo), high: KSH(hi), save: KSH(hi - lo),
+        pctWidth: Math.round(((hi - lo) / hi) * 100) + "%"
+      })),
+
+      drops: DROPS.map(([name, price, was]) => ({
+        name, price: KSH(price), was: KSH(was), initial: name.charAt(0),
+        pct: Math.round(((was - price) / was) * 100) + "%"
+      })),
+
+      children: ["Phones", "Tablets", "Accessories", "Smartwatches"],
+
+      facets: FACETS.map(([label, values]) => ({
+        label, values: values.map(([name, n]) => ({ name, n: n.toLocaleString("en-US") }))
+      })),
+
+      grid: GRID.slice(0, 12).map(([brand, name, price, offers, save, image]) => ({
+        brand, name, image, price: KSH(price),
+        offers: offers === 1 ? "1 shop" : offers + " shops",
+        save: save > 0 ? KSH(save) : null
+      })),
+
+      offers: shown.map(([shop, price, listing, checked], i) => ({
+        shop, listing, checked, price: KSH(price), best: i === 0,
+        gap: i === 0 ? "cheapest" : "+" + (price - low).toLocaleString("en-US")
+      })),
+      showPriceGap: this.props.showPriceGap ?? true,
+      hasMore: !showAll,
+      moreLabel: "Show " + (ALL_OFFERS.length - shown.length) + " more shops",
+
+      darkRamp: [
+        ["canvas", "#08130D"], ["surface", "#0F1F16"], ["surface-2", "#14281C"],
+        ["tile", "#142A1E"], ["line", "#1E3A2A"], ["line-soft", "#17301F"],
+        ["accent", "#5CCF94"], ["accent-tint", "#143026"], ["accent-ink", "#08130D"],
+        ["ink", "#E8F2EB"], ["ink-2", "#A8BFB1"], ["faint", "#7B968A"],
+        ["bar-idle", "#264934"], ["focus", "#7FE3B0"]
+      ].map(([name, hex]) => ({ name, hex })),
+
+      darkRows: ALL_OFFERS.slice(0, 4).map(([shop, price, , at], i) => ({
+        shop, price: KSH(price), at: at, best: i === 0
+      })),
+
+      darkHistory: HISTORY.map((v, i) => ({
+        height: Math.round((v / hMax) * 100) + "%",
+        fill: i === HISTORY.length - 1 ? "#5CCF94" : "#264934"
+      })),
+
+      history: HISTORY.map((v, i) => ({
+        height: Math.round((v / hMax) * 100) + "%",
+        fill: i === HISTORY.length - 1 ? "#0F5132" : "#D3DED7"
+      })),
+
+      related: [["Vivo Y17S", 19500], ["Oppo A16K", 19499], ["Xiaomi Redmi 17", 19499],
+        ["Samsung A15 4/128GB", 19499], ["Oppo A17", 19499], ["Realme C25Y", 19399]]
+        .map(([name, price]) => ({ name, price: KSH(price), initial: name.split(" ")[0] }))
+    };
+  }
+}
+</script>
+</body>
+</html>
