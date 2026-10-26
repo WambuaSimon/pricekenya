@@ -682,6 +682,50 @@ changes before either PR was opened.
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
 
+## 8z. Eighteenth stale-merchant triage (2026-10-09)
+
+No `DATABASE_URL` in this environment (confirmed: `scripts.scrape_health`
+not runnable). `gh` CLI was available and used directly against the
+`scrape.yml` matrix; the Azure blob redirect on `gh api .../logs` still
+returns `403 Forbidden` (same as §8u/§8v/§8y), so log content came from the
+GitHub MCP server's `get_job_logs` instead. `curl`/`WebFetch` egress to
+merchant domains is still blocked from this environment (`CONNECT tunnel
+failed, response 403` against `nextbuy.co.ke`; `WebFetch` returned
+`getaddrinfo ENOTFOUND`) — DNS-only reachability, same constraint as every
+prior pass since §8n.
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned `[]` — zero open
+PRs. Everything through §8y (PR #74 istore-ke, #75 nextbuy-ke diagnostics)
+has merged. Clean start — nothing to corroborate or avoid duplicating.
+
+Covered the 4 completed scheduled runs since §8y's window closed
+(`37578911767` → `37827326108`, 2026-10-07 05:57 → 2026-10-08 18:50) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending §8y's 2/2 to 6 consecutive scheduled runs with zero green | PR #75's diagnostic (merged after §8y) fired for the first time with real content: `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ast-full-width ast-article-post ... product type-product post-12595 status-publish first instock product_cat-samsung-galaxy-phones has-post-thumbnail shipping-taxable purchasable product'` (and two more lines, 20 and 13 cards, same shape). This confirms §8y's inference exactly: `li.product` matches (hence no "zero cards" line), every card then fails inside `_extract_product` — genuine selector drift on what reads as an Astra-theme grid, not a bot block, not DNS, not a TLS/JS challenge. None of this task's three fixable signatures apply, and the 300-char snippet PR #75 captured is *only* the opening `<li>` tag's class list — it cuts off before any child markup, so there's no way to tell from it whether the anchor, the price node, or the title node is the one missing. | **Not fixed — still inconclusive, diagnostics widened instead (PR — see below).** Flipping `client_type` would be a pure guess (this isn't a GET failure, a zero-cards challenge shell, a DNS failure, or a timeout). Extended the same diagnostic PR #75 added: the "matched but zero extracted" print now also reports `anchor=`/`price=`/`title=` booleans for the first failing card (reusing `_extract_product`'s own selector chains) and widens the captured snippet 300 → 800 chars, so the *next* run's log shows which piece of the card is actually missing instead of just the class list. No scraping behavior change — verified via `pytest`/`ruff`, both clean. Root cause (which selector to add, or whether this needs a dedicated Astra-theme fallback) deferred to whoever reads that log next, same pattern as §8p's `all-mybigorder` and §8y's own first nextbuy-ke pass. |
+| **wc-armco-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending the run back to §8u (2026-09-29) to 12 consecutive windows | Pulled the freshest log directly (job `113483641459`, run `37827326108`): byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature (`<!doctype html>...<!-- No font pr...`) §8u/§8v/§8w/§8x/§8y already identified — no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403, a real 200 every time. `kettles` again additionally threw `RetryError[HTTPStatusError]` on its second URL, the same wrinkle noted since §8v. | **Already covered — still no fixable signature, still no deprecation-criteria match.** Not re-filed; this pass's log pull is corroboration only, per the §8r process note against re-deriving a diagnosis nothing has moved on. |
+| **istore-ke** (`all-istore`) | Green 4/4 | PR #74 (merged 2026-10-07, before this pass's window) is holding — confirmed green on every run checked. | **Resolved.** No action needed. |
+| pricepoint-ke | `37578911767` only | `failure`, green on the run immediately before (`37510575150`) and both runs after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+| wc-hisense-kenya-ke | `37670651485` only, `cancelled` | Fail-fast cascade — `wc-armco-ke`/`wc-nextbuy-ke` failing earlier in the same matrix run, the same mechanism §8k/§8m/§8o/etc documented. Green on the runs immediately before and after. | **Noise** (cascade artifact). No action. |
+
+**No new breakage this pass.** The one new data point — nextbuy-ke's
+diagnostic finally firing with real card content — confirms §8y's inference
+but still doesn't name the exact missing selector, so this pass shipped a
+second diagnostic-only improvement rather than guess at a fix, the same
+restraint §8p and §8y both exercised on this exact merchant/pattern.
+
+`python3 -m pytest -q` — all tests pass (exit 0). `python3 -m ruff check
+scrapers/ tests/` — clean. Both verified against the diagnostic change
+before opening the PR.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
 ## 8ab. Eighteenth triage — nextbuy-ke's signature flipped back mid-backlog (2026-10-13)
 
 Numbered §8ab, not §8z/§8aa — two open, unmerged PRs from the two prior
@@ -777,3 +821,147 @@ sollatek-ke's stray row) produced any signal in this window.
 No code change this pass — `python -m pytest -q` (all tests pass) and
 `python -m ruff check scrapers/ tests/` (clean) verified against unmodified
 `main` before this write-up, since nothing here touches scraper code.
+
+<!-- 8aa is intentionally absent: it is PR #81's slot, left unmerged
+     because 8ac/8ad/8ae each found zero recurrence of the signature it
+     fixes. 8ag follows 8af because this section was written on
+     2026-10-26 and merged ahead of the 8z-8af backlog, which was still
+     open at the time. -->
+
+## 8ag. Blank product tiles — first-writer-wins pinned images to dead hosts (2026-10-26)
+
+Reported as "images are missing all over especially phones". Catalog-wide
+coverage looked fine and that is what made it confusing: `image_url` is
+**100.0% populated for phones** (2200/2200) and 99.7% overall. Nothing was
+missing. The stored URLs just didn't load.
+
+### What the shopper actually saw
+
+Page 1 of `/c/phones`, fetched live: **39 of 48 product images failed**, 37
+of them `www.phoneplacekenya.com` (34x `403`, 3x connection reset). On
+screen that is eight of the nine cards above the fold showing nothing but
+the brand-name fallback tile — "Apple", "Samsung", "Honor" — on the iPhone
+14 Pro Max (13 shops), Samsung S25 Ultra (11 shops), Honor X9D (11 shops)
+and so on. The most valuable pages on the site, blank.
+
+### Why the catalog-wide number hid it
+
+Sampling 12 random live `image_url`s per host with a browser UA and no
+Referer (what `referrerpolicy="no-referrer"` in `_product_grid.html`
+produces) puts the real breakage at **5.4% of the catalog, 8.1% of phones**
+— nowhere near what the page shows. The gap is the default `shops` sort,
+and the correlation is monotonic:
+
+| merchants on the product | phones | with a dead image |
+|---|---|---|
+| 6+ | 63 | **84-100%** |
+| 5 | 37 | 51% |
+| 4 | 42 | 45% |
+| 3 | 58 | 26% |
+| 2 | 113 | 14% |
+| 1 | 456 | **5.7%** |
+
+`scrapers/ingest.py` promoted a listing image only `if not
+product.image_url` — first writer wins, permanently. A phone carried by
+thirteen merchants has thirteen chances for the *first* of them to have
+been a blocking host, and once one was, the twelve working images that
+followed were all discarded. So the breakage concentrates exactly where the
+sort puts products at the top. §8 has the same shape as the 2026-08-05
+single-offer sort bug: a catalog-wide average that says "fine" while every
+page a user opens says otherwise. **Measure at the top of the sort, not
+over the table.**
+
+### The dead hosts
+
+Seven fail wholesale (every sampled URL), now in
+`scrapers/common/image_hosts.py`:
+
+| host | result | note |
+|---|---|---|
+| www.phoneplacekenya.com | 12/12 `403` | 158 phones. Blocks on *any* Referer, including none — not hotlink protection, a blanket block |
+| pricepoint.co.ke | 12/12 `403` | |
+| techonline.co.ke | 12/12 `403` | deprecated merchant |
+| eamobitech.com | 12/12 `403` | deprecated merchant |
+| www.smartdeviceskenya.co.ke | 12/12 `404` | deprecated; uploads deleted |
+| www.budgetcomputers.co.ke | 10/10 conn | host unreachable |
+| finetech.co.ke | 5/5 conn | domain lapsed (§8 ingest note) |
+
+Four are already on the deprecation list. Deprecating a merchant stops its
+scrapes but leaves its images hotlinked on every product it ever claimed —
+**deprecation needs to sweep `image_url` too**, which is now what
+`--repair-broken` is for.
+
+Hosts that rot only *partially* (zurimall.co.ke 3/12, smartphoneskenya.co.ke
+1/12) are deliberately **not** on the list: a host denylist would discard
+their working majority. The repair pass probes per-URL and catches those.
+
+The 2026-08-09 audit's "~7% of merchant image URLs return 4xx" note in
+`_product_grid.html` was right about the rate and wrong about the
+consequence, because it averaged over the catalog instead of over a page.
+
+### Fix
+
+1. `scrapers/common/image_hosts.py` — `is_blocked_image_host()` over the
+   evidence-backed host list above.
+2. `scrapers/ingest.py` — never store a blocked image, and let a working one
+   **replace** a blocked one already stored. The one-way upgrade is the
+   whole fix; among non-blocked hosts first-writer-wins is unchanged, so a
+   product's image doesn't flap with scrape order.
+3. `scripts/fetch_missing_images.py --repair-broken` — widens the target set
+   from `image_url IS NULL` to "NULL or blocked", and skips blocked
+   merchants when hunting the replacement so the repair can't return a URL
+   as dead as the one it replaces.
+
+### Blast radius, from prod
+
+491 products carry a blocked image (175 phones):
+
+- **247 self-heal** (143 phones) on the next scrape — a non-blocked merchant
+  already lists them in stock, so fix 2 overwrites on contact. This covers
+  the multi-merchant products at the top of the sort, i.e. the visible
+  complaint.
+- **175 need the repair pass** — every live listing is on a blocked host, so
+  only og:image off a merchant detail page can help, and for the 403 hosts
+  even that will likely fail. Expect these to stay on the fallback tile.
+- **69 have no live in-stock listing**, so they don't render in a grid
+  anyway.
+
+### Repair run, 2026-10-26
+
+`--repair-broken`, phones first then the rest of the catalog:
+
+| | before | after |
+|---|---|---|
+| products on a blocked host | 491 | **239** |
+| phones on a blocked host | 175 | **29** |
+| `image_url IS NULL` | 30 | **3** |
+| page 1 of /c/phones loading | 9/48 | **48/48** |
+
+276 products repaired (146 phones, 130 the rest), 271 skipped. The skip rate
+splits sharply by category — 17% on phones, 65% elsewhere — because the
+non-phone breakage is concentrated in the *deprecated* merchants
+(techonline, smartdevices, eamobitech), whose products often have no other
+live listing to recover an image from. Of the 239 still blocked, only **10**
+still have a non-blocked merchant live; the other 229 have nothing to
+recover from and will keep the fallback tile until some merchant re-lists
+them.
+
+24 of the written URLs, sampled across replacement hosts, were re-requested
+with a browser UA: 24/24 `200` with real image bytes. Two first-pass
+failures were transient — both `200` on a serial retry. **Probe failures
+need a serial retry before they're believed**: a parallel burst against one
+merchant trips rate limiting and looks exactly like a dead image, which is
+what the 2/48 "failures" in the first post-repair page check turned out to
+be.
+
+Every swap is logged `slug / - old / + new` by the script, so the run is
+reversible from its own output.
+
+### Also worth knowing
+
+`image_url` feeds `og:image` and the JSON-LD `image` on `product.html`, so
+these products were also serving broken WhatsApp/Facebook previews and
+invalid structured-data images to Google. Same fix, no extra work.
+
+`python -m pytest -q` — 584 pass, including
+`tests/test_blocked_image_hosts.py` (15 new).
