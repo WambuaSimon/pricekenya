@@ -191,6 +191,11 @@ async def _run(
             skipped += 1
         else:
             filled += 1
+            # Printed on real runs as well as previews, not just because a
+            # preview that only prints a count can't be checked, but because
+            # on a real run this is the only record of the URL being
+            # overwritten. Tee it to a file and it's the undo script.
+            print(f"    {product.slug}\n      - {product.image_url}\n      + {found}")
             if not dry:
                 product.image_url = found
                 session.add(product)
