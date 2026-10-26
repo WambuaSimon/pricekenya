@@ -980,6 +980,60 @@ kind of autonomy for a repo-shared, hard-to-reverse action.
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
 
+## 8af. Twenty-second triage — solarshop-ke's cffi escalates, and the PR backlog is now six deep (2026-10-23)
+
+Numbered §8af, not §8z — the open-PR backlog already claims every letter from
+§8z through §8ae (see below); jumping straight to the next free letter avoids
+yet another lettering collision like §8q/§8r already hit once.
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly against the `scrape.yml` matrix, with `mcp__github__get_job_logs`
+for log content (`gh api .../logs` still 403s on the Azure blob redirect —
+same as every pass since §8v).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **six** open PRs,
+none merged since #74/#75 (§8y, 2026-10-07):
+
+| PR | Opened | Content |
+|---|---|---|
+| #80 | 2026-10-09 | Widen nextbuy-ke selector-drift diagnostic (no behavior change) |
+| #81 | 2026-10-11 | Fix nextbuy-ke via `client_type: "cffi"` — targets a signature with zero occurrences since 2026-10-11 |
+| #82 | 2026-10-13 | §8ab write-up flagging the #80/#81 conflict |
+| #83 | 2026-10-15 | §8ac write-up resolving the conflict in #80's favor, recommending #80 merge + #81 close |
+| #84 | 2026-10-17 | §8ad write-up — same two legs, backlog named explicitly as the finding |
+| #85 | 2026-10-21 | §8ae write-up — backlog now five deep, 12 days old |
+
+Covered the 4 completed scheduled runs since §8ae's window closed
+(`39641434956` → `39902147687`, 2026-10-21 17:10 → 2026-10-23 04:46) via
+per-job status (`gh run view --json jobs`).
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-armco-ke** | `39641434956`, `39723839299`, `39820110737`, `39902147687` — 4/4 | Unchanged non-WooCommerce JS-build-tooling shell signature, 20th+ consecutive window since §8u (2026-09-29). | **Already covered by open PR #80's corroboration chain.** No fixable signature, no deprecation-criteria match. Not re-filed. |
+| **wc-nextbuy-ke** | `39641434956`, `39723839299`, `39820110737`, `39902147687` — 4/4 | Selector-drift signature (`N card(s) matched but zero extracted`) unchanged. Zero recurrence of PR #81's TLS-fingerprint signature since 2026-10-11. | **Already covered by PR #80 (diagnostic)/#83 (conflict resolution, recommends #80 merge + #81 close).** Not re-filed. |
+| **wc-solarshop-ke** | `39820110737` (2026-10-22 17:08), `39902147687` (2026-10-23 04:46) — 2/2 most recent; green through `39723839299`, `39641434956`, `39545637182`, `39462527799` (back to 2026-10-21 04:43) | Pulled both failing jobs' logs directly (`120246058535` / run `39902147687`, `119969168366` / run `39820110737`): byte-identical in both — `ScraperYieldTooLow: solarshop-ke: yielded ZERO listings but had 31 on record`, with every leaf logging `[wc] solarshop-ke/<leaf> page1 GET failed: RetryError: RetryError[<Future ... state=finished raised HTTPError>]` on `client_type: "cffi"` (set since §8m, 2026-09-05, and stable for ~6.5 weeks). `HTTPError` is curl_cffi's own exception for a real HTTP error status returned *despite* Chrome TLS impersonation — not httpx's `HTTPStatusError` (already past that stage) and not a `Timeout`/`ConnectTimeout` (rules out a network-layer drop). This is the exact escalation signature smartdevices-ke/eamobitech-ke (§8n) and audiocom-ke (§8t) each hit on cffi before needing `playwright-stealth`, and in every one of those cases the signature never once resolved on its own — it only ever got worse. Only 2 runs of evidence (not the usual 4/4), but the signature itself is diagnostic rather than generic flakiness, and this codebase has zero recorded cases of `RetryError[HTTPError]`-on-cffi turning out to be transient. | **Fixed** (this PR). `client_type: "playwright-stealth"` in `scrapers/config/wc_merchants.py` + added `wc-solarshop-ke` to the Chromium install gate in `.github/workflows/scrape.yml`. Flagging explicitly as based on 2 runs, not 4 — worth a second look next pass to confirm the escalation holds, same caution §8v applied to a 1-run audiocom-ke recovery. |
+| wc-nairobilaptops-ke, patabay-ke, wc-hisense-kenya-ke, wc-housewife-ke | Each failed exactly one run in its respective window, green immediately before and after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+
+**The backlog itself, again.** This is the fifth consecutive pass (§8ab/#82 →
+§8ac/#83 → §8ad/#84 → §8ae/#85 → this one) to find the same #80/#81/#82/#83/#84/#85
+chain still open and unmerged, now 14 days old. Nothing in this pass's own
+evidence changes any of #83's conclusions — it just adds a sixth
+corroboration. Repeating the standing recommendation rather than opening a
+seventh near-duplicate write-up: **merge #80 first, close #81 (unless its
+TLS-fingerprint signature genuinely recurs), then merge #82/#83/#84/#85 for
+the record, in that order**, plus this pass's solarshop-ke fix and this
+write-up. An operator sign-off is what's missing, not more diagnosis.
+
+`python3.13 -m pytest -q` — all 592 tests pass. `python3.13 -m ruff check
+scrapers/ tests/` — clean. Both verified with the solarshop-ke change
+applied, before opening the PR.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
 <!-- 8aa is intentionally absent: it is PR #81's slot, left unmerged
      because 8ac/8ad/8ae each found zero recurrence of the signature it
      fixes. 8ag follows 8af because this section was written on
