@@ -682,6 +682,304 @@ changes before either PR was opened.
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
 
+## 8z. Eighteenth stale-merchant triage (2026-10-09)
+
+No `DATABASE_URL` in this environment (confirmed: `scripts.scrape_health`
+not runnable). `gh` CLI was available and used directly against the
+`scrape.yml` matrix; the Azure blob redirect on `gh api .../logs` still
+returns `403 Forbidden` (same as §8u/§8v/§8y), so log content came from the
+GitHub MCP server's `get_job_logs` instead. `curl`/`WebFetch` egress to
+merchant domains is still blocked from this environment (`CONNECT tunnel
+failed, response 403` against `nextbuy.co.ke`; `WebFetch` returned
+`getaddrinfo ENOTFOUND`) — DNS-only reachability, same constraint as every
+prior pass since §8n.
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned `[]` — zero open
+PRs. Everything through §8y (PR #74 istore-ke, #75 nextbuy-ke diagnostics)
+has merged. Clean start — nothing to corroborate or avoid duplicating.
+
+Covered the 4 completed scheduled runs since §8y's window closed
+(`37578911767` → `37827326108`, 2026-10-07 05:57 → 2026-10-08 18:50) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending §8y's 2/2 to 6 consecutive scheduled runs with zero green | PR #75's diagnostic (merged after §8y) fired for the first time with real content: `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ast-full-width ast-article-post ... product type-product post-12595 status-publish first instock product_cat-samsung-galaxy-phones has-post-thumbnail shipping-taxable purchasable product'` (and two more lines, 20 and 13 cards, same shape). This confirms §8y's inference exactly: `li.product` matches (hence no "zero cards" line), every card then fails inside `_extract_product` — genuine selector drift on what reads as an Astra-theme grid, not a bot block, not DNS, not a TLS/JS challenge. None of this task's three fixable signatures apply, and the 300-char snippet PR #75 captured is *only* the opening `<li>` tag's class list — it cuts off before any child markup, so there's no way to tell from it whether the anchor, the price node, or the title node is the one missing. | **Not fixed — still inconclusive, diagnostics widened instead (PR — see below).** Flipping `client_type` would be a pure guess (this isn't a GET failure, a zero-cards challenge shell, a DNS failure, or a timeout). Extended the same diagnostic PR #75 added: the "matched but zero extracted" print now also reports `anchor=`/`price=`/`title=` booleans for the first failing card (reusing `_extract_product`'s own selector chains) and widens the captured snippet 300 → 800 chars, so the *next* run's log shows which piece of the card is actually missing instead of just the class list. No scraping behavior change — verified via `pytest`/`ruff`, both clean. Root cause (which selector to add, or whether this needs a dedicated Astra-theme fallback) deferred to whoever reads that log next, same pattern as §8p's `all-mybigorder` and §8y's own first nextbuy-ke pass. |
+| **wc-armco-ke** | `37578911767`, `37670651485`, `37735400632`, `37827326108` — 4/4, extending the run back to §8u (2026-09-29) to 12 consecutive windows | Pulled the freshest log directly (job `113483641459`, run `37827326108`): byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature (`<!doctype html>...<!-- No font pr...`) §8u/§8v/§8w/§8x/§8y already identified — no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403, a real 200 every time. `kettles` again additionally threw `RetryError[HTTPStatusError]` on its second URL, the same wrinkle noted since §8v. | **Already covered — still no fixable signature, still no deprecation-criteria match.** Not re-filed; this pass's log pull is corroboration only, per the §8r process note against re-deriving a diagnosis nothing has moved on. |
+| **istore-ke** (`all-istore`) | Green 4/4 | PR #74 (merged 2026-10-07, before this pass's window) is holding — confirmed green on every run checked. | **Resolved.** No action needed. |
+| pricepoint-ke | `37578911767` only | `failure`, green on the run immediately before (`37510575150`) and both runs after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+| wc-hisense-kenya-ke | `37670651485` only, `cancelled` | Fail-fast cascade — `wc-armco-ke`/`wc-nextbuy-ke` failing earlier in the same matrix run, the same mechanism §8k/§8m/§8o/etc documented. Green on the runs immediately before and after. | **Noise** (cascade artifact). No action. |
+
+**No new breakage this pass.** The one new data point — nextbuy-ke's
+diagnostic finally firing with real card content — confirms §8y's inference
+but still doesn't name the exact missing selector, so this pass shipped a
+second diagnostic-only improvement rather than guess at a fix, the same
+restraint §8p and §8y both exercised on this exact merchant/pattern.
+
+`python3 -m pytest -q` — all tests pass (exit 0). `python3 -m ruff check
+scrapers/ tests/` — clean. Both verified against the diagnostic change
+before opening the PR.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
+## 8ab. Eighteenth triage — nextbuy-ke's signature flipped back mid-backlog (2026-10-13)
+
+Numbered §8ab, not §8z/§8aa — two open, unmerged PRs from the two prior
+scheduled runs of this task already claim those letters for their own
+write-ups: **#80** ("§8z — nextbuy-ke: widen selector-drift diagnostic",
+opened 2026-10-09) and **#81** ("§8aa — Fix nextbuy-ke: TLS-fingerprint GET
+failure replaced selector-drift signature", opened 2026-10-11). Per the §8r
+process note, checked both before diagnosing anything — neither has merged,
+and `gh api .../pulls?state=open` returned exactly these two, nothing else
+outstanding.
+
+No `DATABASE_URL` in this environment. `curl`/`dig` egress is blocked again
+this pass (`connect_rejected` from the agent proxy against both
+`nextbuy.co.ke` and the GH Actions log-blob redirect — `gh api
+.../actions/jobs/<id>/logs` returns `403 Forbidden` on the Azure SAS URL,
+same as every pass since §8v); `mcp__github__get_job_logs` with `job_id` +
+`return_content: true` worked where the raw blob fetch didn't, same
+workaround as prior passes.
+
+Covered the last 8 scheduled runs (`37891840111` → `38309512726`,
+2026-10-09 06:06 → 2026-10-12 21:15) via per-job status. Exactly two legs
+were red, every run, with no cascade noise and no other merchant showing
+any signal:
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | 8/8 — but **the failure signature flipped mid-window**, see below | See below | **Not re-fixed — flagged a conflict between the two open PRs instead of opening a third.** |
+| **wc-armco-ke** | 8/8, unchanged | Byte-for-byte the same non-WooCommerce JS-build-tooling shell signature §8u–§8y already identified (`<!doctype html>...<!-- No font preloads: the CSS...`, no `wp-content`, no `window.location.reload`, no TLS-fingerprint 403; a real 200 every time — confirmed again this pass from job `115011688329`, run `38309512726`). Ninth-plus consecutive window logged with the identical shell. | **Already covered by open PR #80's corroboration.** Still no fixable signature (matches neither the TLS-fingerprint nor JS-refresh-shell playbook entry) and still doesn't clear either deprecation bar (DNS/HTTP both fine). Not re-filed. |
+
+**wc-nextbuy-ke in detail — two open PRs, two different root causes, and the evidence has moved again.**
+
+PR #81's stated evidence window was runs `37891840111` → `38071296142`
+(2026-10-09 06:06 → 2026-10-10 17:20, 4/4), where every leg logged a plain
+`RetryError[HTTPStatusError]` on the default `polite` client — confirmed by
+pulling job `114269206297` (run `38071296142`) directly: `[wc]
+nextbuy-ke/phones page1 GET failed: RetryError: RetryError[<Future ...
+raised HTTPStatusError>]` ×3, no "zero cards" or "cards matched" diagnostic
+at all. That's a real TLS-fingerprint signature and PR #81's proposed fix
+(`client_type: "cffi"`) matches the established playbook for it.
+
+But the very next scheduled run, `38115770283` (2026-10-11 05:44 — the run
+immediately after PR #81 was opened), reverted to the *other* signature:
+`[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted
+(selector drift?): '<li class="ast-grid-common-col ... product
+type-product post-12619 ...'` — pulled directly from job `114400319697`.
+This is the exact Astra-theme "cards matched, zero extracted" signature PR
+#80 diagnosed from the *prior* pass's window and is still trying to get a
+wider diagnostic landed for. It has now held for 4 consecutive runs since
+(`38115770283`, `38160646782`, `38210082998`, `38309512726` —
+2026-10-11 05:44 through 2026-10-12 21:15), confirmed by pulling each job's
+log directly (`114400319697`, `114532761633`, `114682215555`,
+`115011688762`) rather than trusting the matrix color.
+
+So across the 8 runs checked, the symptom was `HTTPStatusError` for the
+first 4 and "cards matched but zero extracted" for the last 4, with a clean
+split exactly at the run after PR #81 was filed. Two readings are possible:
+
+1. The TLS-fingerprint block (`HTTPStatusError`) was itself transient and
+   has lifted, and the underlying, longer-running problem is the selector
+   drift PR #80 already found — in which case PR #81's `cffi` fix doesn't
+   address what's failing right now, and merging it ships a client-type
+   change that may be harmless but isn't the fix for the current red leg.
+2. Something about the TLS-fingerprint block changes which markup the site
+   serves (e.g. a different bot-mitigation tier serves a different HTML
+   variant to the `polite` client than it does once the block clears) — in
+   which case the two PRs aren't actually about two different bugs, cffi
+   might incidentally also dodge the extraction failure, and only a live
+   run with PR #81's fix applied would tell.
+
+No way to settle which from logs alone — this is exactly the kind of
+"respond to a transient blip" situation this task's own brief warns against
+(the megatech-ke revert, 2026-08-21), except here the risk runs the other
+way: the fix sitting on the stale branch, not a fix about to be shipped on
+fresh evidence. **Not opening a third competing PR.** Instead:
+
+- Posted a comment on **PR #81** with this pass's evidence (the 4-run
+  reversion back to the selector-drift signature, with run IDs and job IDs)
+  recommending the author re-verify against the current matrix before
+  merging, per the same pattern §8v used on stale PR #60.
+- **Recommending PR #80 lands first.** It only widens the diagnostic
+  (anchor/price/title booleans + an 800-char snippet) with no behavior
+  change, it's what directly answers "which piece does `_extract_product`
+  actually fail on," and it's correct regardless of which of the two
+  readings above turns out to be true. PR #81 should be re-evaluated against
+  whatever PR #80's widened diagnostic shows on the next scheduled run after
+  it merges, rather than merged first on now-stale evidence.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
+No code change this pass — `python -m pytest -q` (all tests pass) and
+`python -m ruff check scrapers/ tests/` (clean) verified against unmodified
+`main` before this write-up, since nothing here touches scraper code.
+
+## 8ac. Nineteenth triage — the nextbuy-ke conflict resolves in PR #80's favor (2026-10-15)
+
+No `DATABASE_URL` and no general web egress in this environment (`curl`
+against the Azure blob redirect on `gh api .../logs` still returns `403
+Forbidden`, same as every pass since §8v). `gh` CLI was available for run
+listings; job log content came from `mcp__github__get_job_logs` with
+`return_content=true`.
+
+**Housekeeping first, per the §8r process note.** Three PRs are open and
+unresolved from the prior two passes: **#80** (nextbuy-ke diagnostic
+widening, docs-only behavior change), **#81** (nextbuy-ke `cffi` fix for a
+TLS-fingerprint signature), and **#82** (§8ab write-up flagging that #80
+and #81 disagree on nextbuy-ke's current root cause and recommending #80
+land first while #81 gets re-verified). None have merged.
+
+Covered the 5 scheduled runs since §8ab's window closed (`38358584219` →
+`38682363178`, 2026-10-13 06:46 → 2026-10-15 04:36) via per-job status, log
+content pulled directly for every red leg rather than trusted from matrix
+color.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `38358584219`, `38453447046`, `38513540664`, `38604119619`, `38682363178` — 5/5 | Every run logs the identical selector-drift signature, byte-for-byte: `ScraperYieldTooLow: nextbuy-ke: yielded ZERO listings but had 78 on record`, preceded by three `[wc] nextbuy-ke/phones page1 N card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ast-full-width ast-article-post ... product type-product post-NNNNN ...'` lines (39/20/13-or-14 cards per attempt) — the same Astra-theme extraction failure PR #80 diagnosed, still on PR #75's un-widened diagnostic (no `anchor=`/`price=`/`title=` booleans yet, confirming PR #80 hasn't merged). Zero occurrences of PR #81's `RetryError[HTTPStatusError]` signature in any of the 5 runs. Combined with PR #82's own 4-run window (`38115770283` → `38309512726`), that's **9 consecutive scheduled runs, spanning 2026-10-11 to 2026-10-15,** with the selector-drift signature and zero recurrence of the TLS-fingerprint signature since PR #81 was opened. | **Conflict resolved by evidence, no new PR.** PR #82 flagged this as "wait and re-verify"; it's now re-verified. PR #80's diagnosis matches every run checked across two full passes; PR #81's `client_type: "cffi"` fix targets a signature that hasn't recurred once in 9 runs since it was proposed. Posted a follow-up comment on PR #81 recommending it be closed (or re-opened fresh if the TLS signature ever returns) and that PR #80 merge as-is — its diagnostic widening is still correct and still useful regardless of root cause. Not opening a third nextbuy-ke PR; this section documents the corroboration that makes #80/#81's disposition an easy call for whoever reviews next. |
+| **wc-armco-ke** | `38358584219`, `38453447046`, `38513540664`, `38604119619`, `38682363178` — 5/5 (pulled the freshest log directly, run `38682363178`, job `116249653464`) | Byte-for-byte the same non-WooCommerce, JS-build-tooling shell signature continuously documented since §8u (2026-09-29): `[wc] armco-ke/<leaf> page1 zero cards (status 200, body head): '<!doctype html>...<!-- No font pr...'`, no `wp-content`, no `window.location.reload`. `kettles` again threw `RetryError[HTTPStatusError]` on its second URL, the same recurring wrinkle every pass since §8v has noted. DNS/HTTP both still fine (real 200 every time). | **Already covered — no new evidence, not re-filed.** Still doesn't meet either deprecation criterion and still isn't a guessable `client_type` fix. PR #80's corroboration already covers this; this pass's check only confirms nothing has changed. |
+| `health` | All 5 runs — `failure` | Not an independent break. The job's own DB-backed readout prints `BROKEN: 2 active merchant(s) stale > 30h: armco-ke (370.2h, 29 listings), nextbuy-ke (239.1h, 78 listings)` and exits 1 by design when any active merchant is stale — i.e. it is correctly reporting the two already-known breaks above, not failing for an unrelated reason. Full table cross-checked: no other active merchant shows up as stale, 12 deprecated + 7 parked + 1 never-scraped accounted for, nothing new. | **Noise (by design), no action.** `health`'s `failure` conclusion will keep tracking armco-ke/nextbuy-ke's own status until one of PR #80/#81's outcomes actually restores nextbuy-ke, or armco-ke gets a real fix or deprecation. |
+| wc-hisense-kenya-ke | `38604119619` only | `failure`, green on the runs immediately before and after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+| solarstore-ke | `38513540664` only | `failure`, green on the runs immediately before and after. | **Noise**, per the megatech-ke lesson (§8j). No action. |
+
+**No new breakage, no merchant code change this pass.** The only action
+taken is a follow-up GitHub comment on PR #81 (see above) — this write-up
+is the evidence backing it. `python3.13 -m pytest -q` (all green, exit 0)
+and `python3.13 -m ruff check scrapers/ tests/` (`All checks passed!`) both
+verified against unmodified `main` going into this pass.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant produced any signal in this window.
+
+## 8ad. Twentieth triage — same two legs, no new signal, and the PR backlog is now four deep (2026-10-17)
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly, falling back to `mcp__github__get_job_logs` for log content since
+`gh api .../logs` still 403s on the Azure blob redirect (same as every pass
+since §8v).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **four** open PRs,
+none merged since §8ac:
+
+| PR | Opened | Content | State |
+|---|---|---|---|
+| #80 | 2026-10-09 | Widen nextbuy-ke selector-drift diagnostic (anchor/price/title + 800-char snippet) | Open, unmerged, `mergeable: true` |
+| #81 | 2026-10-11 | Fix nextbuy-ke: `client_type: "cffi"` for a TLS-fingerprint signature | Open, unmerged, `mergeable: true` |
+| #82 | 2026-10-13 | OPERATIONS.md §8ab — flags #80/#81 now disagree on nextbuy-ke's root cause | Open, unmerged |
+| #83 | 2026-10-15 | OPERATIONS.md §8ac — resolves the conflict: 9 consecutive runs all show #80's selector-drift signature, zero recurrence of #81's TLS signature; recommends merging #80 and closing #81 | Open, unmerged |
+
+This pass's own evidence (below) extends #83's count rather than changing its
+conclusion, so nothing new was filed — doing so would just be a fifth PR
+re-deriving what #80/#83 already have in hand.
+
+Covered the 4 completed scheduled runs since §8ac's window closed
+(`38773524559` → `39002380164`, 2026-10-15 16:59 → 2026-10-17 04:23). All four
+are red at the top level on exactly the same two legs, no cascade noise:
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `38773524559`, `38850936534`, `38933441230`, `39002380164` — 4/4 | Pulled the freshest log directly (job `117307941730`, run `39002380164`): `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ... product_cat-smartphones ...'` — byte-for-byte the same Astra-theme extraction failure PR #80 diagnosed and PR #83 confirmed held for 9 straight runs. Zero occurrences of PR #81's `RetryError[HTTPStatusError]` TLS-fingerprint signature anywhere in this window, extending PR #83's count to **13 consecutive scheduled runs** (2026-10-11 → 2026-10-17) on the selector-drift signature with no recurrence of the signature #81 targets. | **Already covered by open PR #80; PR #81 still targets a signature that stopped recurring six days ago.** Not re-filed. Corroboration only. |
+| **wc-armco-ke** | `38773524559`, `38850936534`, `38933441230`, `39002380164` — 4/4 | Pulled the freshest log directly (job `117307941598`, run `39002380164`): every leaf still logs the identical non-WooCommerce, JS-build-tooling shell (`<!doctype html>...<!-- No font preloads...`) §8u first identified. `kettles` again additionally threw `RetryError[HTTPStatusError]` on its second URL, the same wrinkle §8v/§8x noted. | **Already covered by PR #80's corroboration, per §8ac.** 13th consecutive window (back to §8u, 2026-09-29) with the identical shell, still no fixable `client_type` signature, still no DNS/network-layer deprecation match. Not re-filed. |
+
+No other leg showed a non-`success` conclusion in any of the 4 runs — no
+`phonesstore-ke` fail-fast cascade this window (consistent with only two
+legs, both already red at matrix-queue time, triggering it).
+
+**The actual finding this pass is the backlog, not the merchants.** Four PRs
+spanning 2026-10-09 → 2026-10-15 are sitting open and unmerged, exactly the
+failure mode §8r named and warned would repeat: diagnostic work is correct
+and landing on schedule, but with nothing merging, every pass spends a cycle
+re-confirming conclusions that are already settled rather than making
+progress. The evidence has been unambiguous for six days now — #83 already
+recommended merging #80 (diagnostic widening, correct regardless of root
+cause) and closing #81 (its fix targets a signature with zero occurrences
+since 2026-10-11) — and this pass's fresh logs confirm that recommendation
+still holds with no new wrinkles. **Recommend an operator merge #80, close
+#81, and merge #82/#83 for the record**, before the backlog grows past four.
+armco-ke still has no actionable next step pending real browser egress or DB
+history (unchanged since §8u) and does not need any of the four PRs to
+unblock it — it simply has no fix available in this codebase.
+
+`python3 -m pytest -q` — all tests pass. `python3 -m ruff check scrapers/
+tests/` — clean. Both verified against unmodified `main` before this
+write-up; no scraper code touched this pass.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
+## 8ae. Scheduled triage pass — no new breakage, five-PR backlog now unresolved for 12 days (2026-10-21)
+
+No `DATABASE_URL` in this environment; `gh` CLI was available and used
+directly for the matrix, falling back to `mcp__github__get_job_logs` for log
+content (`gh api .../logs` still 403s on the Azure blob redirect — same as
+every pass since §8v).
+
+**Housekeeping first, per the §8r process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **five** open PRs,
+all unmerged:
+
+| PR | Opened | Content |
+|---|---|---|
+| #80 | 2026-10-09 | Widen nextbuy-ke selector-drift diagnostic (no behavior change) |
+| #81 | 2026-10-11 | Fix nextbuy-ke via `client_type: "cffi"` — §8ab/§8ac/§8ad already found this signature has had zero recurrences since 2026-10-11 |
+| #82 | 2026-10-13 | §8ab write-up flagging the #80/#81 conflict |
+| #83 | 2026-10-15 | §8ac write-up resolving the conflict in #80's favor, recommending #80 merge + #81 close |
+| #84 | 2026-10-17 | §8ad write-up — same two legs, backlog named explicitly as the finding |
+
+`main` has not moved past PR #79 (2026-10-17) since §8y. Every one of #80-84
+is still mergeable (`mergeable: true`) but sits at `mergeable_state:
+"blocked"`, and the head commit's combined status is `pending` on all five —
+consistent with these waiting on a required review/approval that nothing in
+this environment can grant, not a CI failure.
+
+Covered the 8 completed scheduled runs since §8ad's window closed
+(`39045520501` → `39545637182`, 2026-10-17 15:32 → 2026-10-21 05:56) via
+per-job status, not run conclusion.
+
+| Merchant | Run(s) | Symptom | Verdict |
+|---|---|---|---|
+| **wc-armco-ke** | 8/8 | Pulled the freshest log directly (job `119043211668`, run `39545637182`): byte-identical non-WooCommerce JS-build-tooling shell (`<!doctype html>...<!-- No font pr...`, real HTTP 200, no `wp-content`, no `window.location.reload`) to every window since §8u (2026-09-29) — now the 17th consecutive window with this exact signature. | **Already covered by PR #80's corroboration.** No fixable `client_type` signature, no deprecation-criteria match (DNS fine, real 200s). Not re-filed — a sixth PR making the same point would just add to the backlog this pass is flagging. |
+| **wc-nextbuy-ke** | 8/8 | Pulled the freshest log directly (job `119043212134`, run `39545637182`): `[wc] nextbuy-ke/phones page1 39 card(s) matched but zero extracted (selector drift?): '<li class="ast-grid-common-col ... product_cat-smartphones ...'` — byte-identical to PR #80's Astra-theme extraction-failure signature. Zero occurrences of PR #81's `RetryError[HTTPStatusError]` TLS-fingerprint signature across all 8 runs checked. | **Already covered by PR #80 (diagnostic) / #83 (conflict resolution, recommends merging #80 and closing #81).** This pass's evidence extends PR #83's count from 13 to 21+ consecutive runs with zero recurrence of #81's signature. Not re-filed. |
+| wc-housewife-ke | `39545637182` only (the newest) | `failure`, but green on all 7 runs checked before it. | **Noise.** One-off CI blip, not re-verified as a pattern, per the megatech-ke lesson (§8j). |
+
+**No new breakage.** Both persistently-red legs are fully and correctly
+diagnosed by the existing open PRs; opening a competing PR for either would
+only be a sixth re-derivation of conclusions #80/#83 already reached, the
+exact duplicate-work pattern §8r named. `python3.13 -m pytest -q` (all pass)
+and `python3.13 -m ruff check scrapers/ tests/` (clean) verified on `main`
+going into this pass — no code change accompanies this write-up.
+
+**The backlog, not the merchants, is now the finding.** This is the fourth
+consecutive scheduled pass (§8ab, §8ac, §8ad, now this one) to re-confirm
+the same diagnosis and recommend the same action without anything landing.
+#80 is a pure diagnostic widening with no behavior change and is correct
+regardless of which nextbuy-ke root cause turns out to be live; #81 targets
+a signature that has not recurred in the 10 days since it was opened; #82,
+#83, and #84 are documentation-only. None of the five has a code reason to
+stay open. Recommend an operator merge #80 first, close #81 (or reopen if
+its TLS signature ever genuinely recurs), and merge #82/#83/#84 for the
+record — in that order, since #82/#83/#84 each touch `OPERATIONS.md` and
+merging out of order risks the same lettering collision §8q/§8r already hit
+once. This pass did not merge or close anything itself — doing so from an
+unattended scheduled run without an operator's sign-off would be the wrong
+kind of autonomy for a repo-shared, hard-to-reverse action.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant
+(7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+sollatek-ke's stray row) produced any signal in this window.
+
 ## 8af. Twenty-second triage — solarshop-ke's cffi escalates, and the PR backlog is now six deep (2026-10-23)
 
 Numbered §8af, not §8z — the open-PR backlog already claims every letter from
@@ -735,3 +1033,147 @@ applied, before opening the PR.
 (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
 nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
 sollatek-ke's stray row) produced any signal in this window.
+
+<!-- 8aa is intentionally absent: it is PR #81's slot, left unmerged
+     because 8ac/8ad/8ae each found zero recurrence of the signature it
+     fixes. 8ag follows 8af because this section was written on
+     2026-10-26 and merged ahead of the 8z-8af backlog, which was still
+     open at the time. -->
+
+## 8ag. Blank product tiles — first-writer-wins pinned images to dead hosts (2026-10-26)
+
+Reported as "images are missing all over especially phones". Catalog-wide
+coverage looked fine and that is what made it confusing: `image_url` is
+**100.0% populated for phones** (2200/2200) and 99.7% overall. Nothing was
+missing. The stored URLs just didn't load.
+
+### What the shopper actually saw
+
+Page 1 of `/c/phones`, fetched live: **39 of 48 product images failed**, 37
+of them `www.phoneplacekenya.com` (34x `403`, 3x connection reset). On
+screen that is eight of the nine cards above the fold showing nothing but
+the brand-name fallback tile — "Apple", "Samsung", "Honor" — on the iPhone
+14 Pro Max (13 shops), Samsung S25 Ultra (11 shops), Honor X9D (11 shops)
+and so on. The most valuable pages on the site, blank.
+
+### Why the catalog-wide number hid it
+
+Sampling 12 random live `image_url`s per host with a browser UA and no
+Referer (what `referrerpolicy="no-referrer"` in `_product_grid.html`
+produces) puts the real breakage at **5.4% of the catalog, 8.1% of phones**
+— nowhere near what the page shows. The gap is the default `shops` sort,
+and the correlation is monotonic:
+
+| merchants on the product | phones | with a dead image |
+|---|---|---|
+| 6+ | 63 | **84-100%** |
+| 5 | 37 | 51% |
+| 4 | 42 | 45% |
+| 3 | 58 | 26% |
+| 2 | 113 | 14% |
+| 1 | 456 | **5.7%** |
+
+`scrapers/ingest.py` promoted a listing image only `if not
+product.image_url` — first writer wins, permanently. A phone carried by
+thirteen merchants has thirteen chances for the *first* of them to have
+been a blocking host, and once one was, the twelve working images that
+followed were all discarded. So the breakage concentrates exactly where the
+sort puts products at the top. §8 has the same shape as the 2026-08-05
+single-offer sort bug: a catalog-wide average that says "fine" while every
+page a user opens says otherwise. **Measure at the top of the sort, not
+over the table.**
+
+### The dead hosts
+
+Seven fail wholesale (every sampled URL), now in
+`scrapers/common/image_hosts.py`:
+
+| host | result | note |
+|---|---|---|
+| www.phoneplacekenya.com | 12/12 `403` | 158 phones. Blocks on *any* Referer, including none — not hotlink protection, a blanket block |
+| pricepoint.co.ke | 12/12 `403` | |
+| techonline.co.ke | 12/12 `403` | deprecated merchant |
+| eamobitech.com | 12/12 `403` | deprecated merchant |
+| www.smartdeviceskenya.co.ke | 12/12 `404` | deprecated; uploads deleted |
+| www.budgetcomputers.co.ke | 10/10 conn | host unreachable |
+| finetech.co.ke | 5/5 conn | domain lapsed (§8 ingest note) |
+
+Four are already on the deprecation list. Deprecating a merchant stops its
+scrapes but leaves its images hotlinked on every product it ever claimed —
+**deprecation needs to sweep `image_url` too**, which is now what
+`--repair-broken` is for.
+
+Hosts that rot only *partially* (zurimall.co.ke 3/12, smartphoneskenya.co.ke
+1/12) are deliberately **not** on the list: a host denylist would discard
+their working majority. The repair pass probes per-URL and catches those.
+
+The 2026-08-09 audit's "~7% of merchant image URLs return 4xx" note in
+`_product_grid.html` was right about the rate and wrong about the
+consequence, because it averaged over the catalog instead of over a page.
+
+### Fix
+
+1. `scrapers/common/image_hosts.py` — `is_blocked_image_host()` over the
+   evidence-backed host list above.
+2. `scrapers/ingest.py` — never store a blocked image, and let a working one
+   **replace** a blocked one already stored. The one-way upgrade is the
+   whole fix; among non-blocked hosts first-writer-wins is unchanged, so a
+   product's image doesn't flap with scrape order.
+3. `scripts/fetch_missing_images.py --repair-broken` — widens the target set
+   from `image_url IS NULL` to "NULL or blocked", and skips blocked
+   merchants when hunting the replacement so the repair can't return a URL
+   as dead as the one it replaces.
+
+### Blast radius, from prod
+
+491 products carry a blocked image (175 phones):
+
+- **247 self-heal** (143 phones) on the next scrape — a non-blocked merchant
+  already lists them in stock, so fix 2 overwrites on contact. This covers
+  the multi-merchant products at the top of the sort, i.e. the visible
+  complaint.
+- **175 need the repair pass** — every live listing is on a blocked host, so
+  only og:image off a merchant detail page can help, and for the 403 hosts
+  even that will likely fail. Expect these to stay on the fallback tile.
+- **69 have no live in-stock listing**, so they don't render in a grid
+  anyway.
+
+### Repair run, 2026-10-26
+
+`--repair-broken`, phones first then the rest of the catalog:
+
+| | before | after |
+|---|---|---|
+| products on a blocked host | 491 | **239** |
+| phones on a blocked host | 175 | **29** |
+| `image_url IS NULL` | 30 | **3** |
+| page 1 of /c/phones loading | 9/48 | **48/48** |
+
+276 products repaired (146 phones, 130 the rest), 271 skipped. The skip rate
+splits sharply by category — 17% on phones, 65% elsewhere — because the
+non-phone breakage is concentrated in the *deprecated* merchants
+(techonline, smartdevices, eamobitech), whose products often have no other
+live listing to recover an image from. Of the 239 still blocked, only **10**
+still have a non-blocked merchant live; the other 229 have nothing to
+recover from and will keep the fallback tile until some merchant re-lists
+them.
+
+24 of the written URLs, sampled across replacement hosts, were re-requested
+with a browser UA: 24/24 `200` with real image bytes. Two first-pass
+failures were transient — both `200` on a serial retry. **Probe failures
+need a serial retry before they're believed**: a parallel burst against one
+merchant trips rate limiting and looks exactly like a dead image, which is
+what the 2/48 "failures" in the first post-repair page check turned out to
+be.
+
+Every swap is logged `slug / - old / + new` by the script, so the run is
+reversible from its own output.
+
+### Also worth knowing
+
+`image_url` feeds `og:image` and the JSON-LD `image` on `product.html`, so
+these products were also serving broken WhatsApp/Facebook previews and
+invalid structured-data images to Google. Same fix, no extra work.
+
+`python -m pytest -q` — 584 pass, including
+`tests/test_blocked_image_hosts.py` (15 new).

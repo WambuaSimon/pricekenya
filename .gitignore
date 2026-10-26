@@ -33,3 +33,9 @@ OPERATIONS.md
 # them deliberately.
 /skills-lock.json
 /.claude/skills/
+
+# Design handoff drop (rsync'd from Downloads, ~3.4MB of PNGs + a vendored
+# support.js). Working material, not source. Untracked once already in #66's
+# cleanup and committed again by accident in #88 because nothing stopped a
+# `git add -A` from sweeping it up — hence the ignore rule this time.
+handoff/
