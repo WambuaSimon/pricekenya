@@ -4,6 +4,12 @@ The category the listing came from is the source of truth — it tells the
 matcher which category-specific parser to use and gets denormalized onto the
 Product row so category landing pages can filter cheaply.
 
+One exception, and only for the denormalized copy: a merchant's "phones" page
+also carries tablets and smartwatches, so `_refine_category` reroutes those to
+the leaf a shopper would look under. Parsing, specs and `canonical_key` still
+follow the listing's own category, so the override can never re-bucket or
+split a product.
+
 Behavior gated by settings:
 - LLM_FALLBACK_ENABLED: on regex-parser failure, call Gemini via
   `matching.llm_extract.extract`. Off by default.
@@ -17,6 +23,7 @@ Behavior gated by settings:
 from __future__ import annotations
 
 import logging
+import re
 
 from slugify import slugify
 from sqlalchemy.exc import IntegrityError
@@ -34,11 +41,71 @@ def _category_id_for(session: Session, slug: str) -> int | None:
     return row.id if row else None
 
 
+def _strip_leading_brand(brand: str, model: str) -> str:
+    """Drop a brand that the parser left on the front of the model.
+
+    Merchant titles are clean ("Nokia 105"), but the parser hands back
+    brand="nokia" AND model="nokia 105" for a slice of the catalog, so the
+    naive brand + model join rendered "Nokia Nokia 105". Measured on prod
+    2026-10-27: 209 products, 195 of them phones, each one showing the
+    doubled brand on its card, its product page and its <title>.
+
+    Display only. `canonical_key` carries the same doubling
+    ("nokia|nokia-105") and is deliberately left alone — it is the matching
+    identity, so rewriting it would re-bucket live products and split them
+    from their own listings. Fixing what the shopper reads is the whole win;
+    the key is internal and already consistent with itself.
+    """
+    first, _, rest = model.strip().partition(" ")
+    if rest and first.casefold() == brand.strip().casefold():
+        return rest
+    return model
+
+
 def _pretty_title_for_phone(brand: str, model: str, specs: dict) -> str:
     storage = specs.get("storage_gb")
     ram = specs.get("ram_gb")
     suffix = f"{ram}/{storage}GB" if storage and ram else (f"{storage}GB" if storage else "")
+    model = _strip_leading_brand(brand, model)
     return " ".join(x for x in [brand.title(), model.title(), suffix] if x).strip()
+
+
+# Device classes that merchants file under their "phones" pages but which are
+# not phones. The listing category is still the source of truth for *parsing*
+# (see the module docstring) — this only overrides the denormalized
+# `category_slug`, i.e. which landing page the product appears on. The parse,
+# the specs and above all `canonical_key` are untouched, so nothing re-buckets
+# and no product is split from its own listings.
+#
+# Needed because the source of truth is a merchant's *page*, not a device
+# class: Jumia-style "phones" category pages carry tablets and smartwatches,
+# and on 2026-10-27 that put 24 tablets and 8 watches on /c/phones — including
+# "Xiaomi Pad 8" and "Samsung Watch 9".
+#
+# Word-boundary matched, so "Padfone" or "Watchdog" would not trip it. Anchored
+# to the brand-agnostic product word, which is how every one of these is named.
+_DEVICE_CLASS_OVERRIDES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\b(?:pad|tab|tablet)\b", re.I), "tablets"),
+    # No wearables leaf exists, and 8 products is too thin to justify one as a
+    # landing page. Accessories is the closest honest home — a companion
+    # device, filed next to the cases and chargers — and is a single UPDATE
+    # away from a real "wearables" category if the catalog ever earns one.
+    (re.compile(r"\b(?:watch|band|fit)\b", re.I), "phone-tablet-accessories"),
+)
+
+# Only phones pages have shown this contamination, and keeping the override
+# narrow means a mis-parse elsewhere can't silently relocate a product.
+_DEVICE_CLASS_SOURCE = "phones"
+
+
+def _refine_category(category: str, title: str) -> str:
+    """Return the landing-page category for `title`, usually `category`."""
+    if category != _DEVICE_CLASS_SOURCE:
+        return category
+    for pattern, target in _DEVICE_CLASS_OVERRIDES:
+        if pattern.search(title):
+            return target
+    return category
 
 
 # Categories where a 2-segment canonical_key (brand|type) is a red flag —
@@ -144,6 +211,10 @@ def match_or_create_product(
         if existing_from_similarity is not None:
             return existing_from_similarity
 
+    # Parsed with `category`; filed under `landing_category`. Usually the same
+    # — they diverge only for the device classes in _DEVICE_CLASS_OVERRIDES.
+    landing_category = _refine_category(category, pretty_title)
+
     product = Product(
         slug=slugify(parsed.canonical_key.replace("|", "-")),
         canonical_key=parsed.canonical_key,
@@ -151,8 +222,8 @@ def match_or_create_product(
         model=parsed.model or "unknown",
         title=pretty_title,
         image_url=image_url,
-        category_slug=category,
-        category_id=_category_id_for(session, category),
+        category_slug=landing_category,
+        category_id=_category_id_for(session, landing_category),
         specs=parsed.specs or None,
         embedding=embed_bytes,
     )
