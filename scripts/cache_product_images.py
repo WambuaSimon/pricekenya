@@ -29,7 +29,7 @@ from sqlmodel import Session, select
 
 from db.models import Product
 from db.session import engine
-from scrapers.common.image_cache import cache_enabled, cache_image
+from scrapers.common.image_cache import cache_enabled, cache_image, preflight
 
 # Merchant servers, not a CDN we own. Keep the concurrency low enough that a
 # backfill never looks like an attack to a small Kenyan shop — the whole
@@ -66,6 +66,17 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
             for p in products[:20]:
                 print(f"  would cache {p.slug}: {p.image_url}")
             print("(--dry-run — no fetches, no writes)")
+        return
+
+    # Prove a written URL is actually fetchable BEFORE touching a live table.
+    # image_cached_url is preferred over image_url by the templates, so a URL
+    # that does not serve replaces a working merchant image with a broken one
+    # — the fallback covers NULL, not broken.
+    async with httpx.AsyncClient() as probe_client:
+        problem = await preflight(client=probe_client)
+    if problem:
+        print(f"preflight failed: {problem}")
+        print("refusing to write image_cached_url until a stored object is fetchable.")
         return
 
     sem = asyncio.Semaphore(CONCURRENCY)

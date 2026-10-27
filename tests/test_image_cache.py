@@ -125,3 +125,36 @@ def test_product_image_none_when_neither_exists():
 def test_bounds_are_sane():
     assert MIN_BYTES < MAX_BYTES
     assert MAX_BYTES <= 16 * 1024 * 1024
+
+
+# --------------------------------------------------------------------------
+# Preflight.
+#
+# Regression cover for a real incident: the first backfill run wrote 20 rows
+# pointing at img.pricekenya.co.ke before the R2 custom domain existed, so the
+# host had no DNS record and 20 live product pages lost their image. Valid
+# credentials are not enough — image_cached_url is PREFERRED over image_url,
+# so an unfetchable URL is not a no-op, it is a regression.
+
+
+@pytest.mark.anyio
+async def test_preflight_refuses_when_not_configured(monkeypatch):
+    from app.config import settings
+    from scrapers.common.image_cache import preflight
+
+    monkeypatch.setattr(settings, "r2_account_id", "")
+    async with httpx.AsyncClient() as c:
+        assert await preflight(client=c) is not None
+
+
+@pytest.mark.anyio
+async def test_preflight_refuses_without_a_public_base_url(_r2, monkeypatch):
+    """Credentials can be perfect while nothing is publicly fetchable."""
+    from app.config import settings
+    from scrapers.common.image_cache import preflight
+
+    monkeypatch.setattr(settings, "r2_public_base_url", "")
+    async with httpx.AsyncClient() as c:
+        problem = await preflight(client=c)
+    assert problem is not None
+    assert "PUBLIC" in problem.upper()

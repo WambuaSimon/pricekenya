@@ -165,6 +165,64 @@ def store(body: bytes, ext: str) -> str:
     return public_url(key)
 
 
+async def preflight(*, client: httpx.AsyncClient) -> str | None:
+    """Prove a stored object is publicly fetchable. None on success, else why.
+
+    The backfill writes `image_cached_url` into a live table, and
+    `product_image()` prefers that column — so a URL that does not serve is
+    not a no-op, it replaces a working merchant image with a broken one. The
+    fallback only covers NULL, not broken.
+
+    That is not hypothetical: the first real run wrote 20 rows pointing at
+    img.pricekenya.co.ke before the R2 custom domain had been connected, so
+    the host had no DNS record at all and 20 live product pages lost their
+    image until the rows were cleared.
+
+    Uploading one probe object and fetching it back through the PUBLIC base
+    URL is the only check that tests the whole path a browser takes: bucket
+    write, custom-domain DNS, TLS, and public access. Checking credentials
+    alone would have passed happily while the domain did not exist.
+    """
+    if not cache_enabled():
+        return "R2 is not configured"
+    if not (settings.r2_public_base_url or "").strip():
+        return "R2_PUBLIC_BASE_URL is empty — nothing would be fetchable"
+
+    # 1x1 transparent GIF: smallest thing that is a real image.
+    probe = (
+        b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!"
+        b"\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01"
+        b"\x00\x00\x02\x02D\x01\x00;"
+    )
+    key = "p/_preflight.gif"
+    try:
+        _client().put_object(
+            Bucket=settings.r2_bucket,
+            Key=key,
+            Body=probe,
+            ContentType="image/gif",
+            CacheControl="public, max-age=60",
+        )
+    except Exception as e:  # noqa: BLE001
+        return f"could not write to the bucket: {type(e).__name__}: {e}"
+
+    url = public_url(key)
+    try:
+        resp = await client.get(url, follow_redirects=True, timeout=20.0)
+    except Exception as e:  # noqa: BLE001 — DNS, TLS, connection
+        return (
+            f"wrote the object but could not fetch {url} ({type(e).__name__}). "
+            "Most likely the R2 bucket has no connected custom domain yet, or "
+            "its DNS has not propagated."
+        )
+    if resp.status_code != 200:
+        return (
+            f"wrote the object but {url} returned HTTP {resp.status_code}. "
+            "Check that the bucket's public access / custom domain is enabled."
+        )
+    return None
+
+
 async def cache_image(url: str, *, client: httpx.AsyncClient) -> str | None:
     """Full path: download, validate, store. None when any step says no."""
     if not cache_enabled():
