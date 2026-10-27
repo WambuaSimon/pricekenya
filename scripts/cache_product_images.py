@@ -37,9 +37,22 @@ from scrapers.common.image_cache import cache_enabled, cache_image, preflight
 CONCURRENCY = 6
 
 
-async def _one(product_id: int, url: str, client, sem) -> tuple[int, str | None]:
+# Rows per DB write. The point is that the session is open for milliseconds
+# at a time, not for the whole run: the first full backfill held one Session
+# across an hour of slow HTTP and Postgres eventually closed the connection
+# underneath it ("server closed the connection unexpectedly"), losing the run
+# at 1,800 of 9,806. Fetch with no session held, then write in a short burst.
+BATCH = 50
+
+
+async def _one(product_id: int, url: str, client, sem, stats) -> tuple[int, str | None]:
     async with sem:
-        return product_id, await cache_image(url, client=client)
+        return product_id, await cache_image(url, client=client, stats=stats)
+
+
+def _chunks(items, size):
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
 
 
 async def _run(session: Session, categories, limit, dry, recache) -> None:
@@ -79,8 +92,13 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
         print("refusing to write image_cached_url until a stored object is fetchable.")
         return
 
+    # Snapshot the work as plain tuples and let the caller's session go. From
+    # here on no DB connection is held while we are doing network I/O.
+    work = [(p.id, p.image_url) for p in products]
+
     sem = asyncio.Semaphore(CONCURRENCY)
-    cached = failed = 0
+    cached = failed = done = 0
+    stats: dict[str, int] = {}
     start = time.perf_counter()
     async with httpx.AsyncClient(
         headers={
@@ -90,25 +108,35 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
             "Accept": "image/avif,image/webp,image/png,image/jpeg,*/*",
         },
     ) as client:
-        tasks = [_one(p.id, p.image_url, client, sem) for p in products]
-        by_id = {p.id: p for p in products}
-        for i, coro in enumerate(asyncio.as_completed(tasks), 1):
-            pid, url = await coro
-            if url:
-                by_id[pid].image_cached_url = url
-                session.add(by_id[pid])
-                cached += 1
-                if cached % 25 == 0:
-                    session.commit()
-            else:
-                failed += 1
-            if i % 100 == 0 or i == len(tasks):
-                rate = i / (time.perf_counter() - start)
-                print(f"  {i}/{len(tasks)}  cached={cached} failed={failed} ({rate:.1f}/s)")
-    session.commit()
+        for batch in _chunks(work, BATCH):
+            results = await asyncio.gather(
+                *(_one(pid, url, client, sem, stats) for pid, url in batch)
+            )
+            got = [(pid, url) for pid, url in results if url]
+            failed += len(results) - len(got)
+            done += len(results)
+
+            # Short-lived session per batch. A dropped connection now costs
+            # one batch, and the next batch simply opens a new one.
+            if got:
+                with Session(engine) as write:
+                    for pid, url in got:
+                        product = write.get(Product, pid)
+                        if product is not None:
+                            product.image_cached_url = url
+                            write.add(product)
+                    write.commit()
+                cached += len(got)
+
+            rate = done / (time.perf_counter() - start)
+            print(f"  {done}/{len(work)}  cached={cached} failed={failed} ({rate:.1f}/s)", flush=True)
+
     print(f"\ndone — cached {cached}, failed {failed}")
-    if failed:
-        print("failures are expected for the blocked hosts; they keep hotlinking.")
+    if stats:
+        print("failure reasons:")
+        for reason, n in sorted(stats.items(), key=lambda kv: -kv[1]):
+            print(f"  {n:>5}  {reason}")
+        print("http:403/404 on the known blocked hosts is expected — they keep hotlinking.")
 
 
 def main() -> None:

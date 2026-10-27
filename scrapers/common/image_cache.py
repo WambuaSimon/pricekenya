@@ -129,23 +129,43 @@ def _already_there(key: str) -> bool:
         return False
 
 
-async def fetch_bytes(url: str, *, client: httpx.AsyncClient) -> tuple[bytes, str] | None:
+async def fetch_bytes(
+    url: str, *, client: httpx.AsyncClient, stats: dict[str, int] | None = None
+) -> tuple[bytes, str] | None:
     """Download `url`, returning (body, ext) when it is a usable image.
 
     Returns None rather than raising for every failure mode — a merchant
     being down must not take a scrape leg with it.
+
+    `stats` tallies WHY things fail. Without it a backfill reports "failed=219"
+    and leaves you guessing whether that is the known blocked hosts or a bug
+    in our own sniffing; the first full run did exactly that.
     """
+
+    def note(reason: str) -> None:
+        if stats is not None:
+            stats[reason] = stats.get(reason, 0) + 1
+
     try:
         resp = await client.get(url, follow_redirects=True, timeout=25.0)
-    except Exception:  # noqa: BLE001 — network, DNS, TLS, timeout
+    except Exception as e:  # noqa: BLE001 — network, DNS, TLS, timeout
+        note(f"network:{type(e).__name__}")
         return None
     if resp.status_code != 200:
+        note(f"http:{resp.status_code}")
         return None
     body = resp.content
-    if not (MIN_BYTES <= len(body) <= MAX_BYTES):
+    if len(body) < MIN_BYTES:
+        note("too-small")
+        return None
+    if len(body) > MAX_BYTES:
+        note("too-large")
         return None
     ext = _sniff_ext(body, resp.headers.get("content-type", ""))
-    return (body, ext) if ext else None
+    if not ext:
+        note("not-an-image")
+        return None
+    return body, ext
 
 
 def store(body: bytes, ext: str) -> str:
@@ -240,11 +260,13 @@ async def preflight(*, client: httpx.AsyncClient) -> str | None:
     return f"wrote the object but {last} (after {PREFLIGHT_ATTEMPTS} attempts)"
 
 
-async def cache_image(url: str, *, client: httpx.AsyncClient) -> str | None:
+async def cache_image(
+    url: str, *, client: httpx.AsyncClient, stats: dict[str, int] | None = None
+) -> str | None:
     """Full path: download, validate, store. None when any step says no."""
     if not cache_enabled():
         return None
-    got = await fetch_bytes(url, client=client)
+    got = await fetch_bytes(url, client=client, stats=stats)
     if not got:
         return None
     body, ext = got
