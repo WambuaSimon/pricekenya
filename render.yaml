@@ -26,6 +26,16 @@ services:
         value: "2"
       - key: ALERTS_FROM_EMAIL
         value: PriceKenya Alerts <alerts@pricekenya.co.ke>
+      # Inbound WhatsApp chat: the floating pill and the footer link, both of
+      # which open an empty compose addressed to us. Off while nobody is
+      # staffing the number — a shopper who messages an unread inbox reads the
+      # silence as the whole site being abandoned. Set to true to bring both
+      # back; no code change needed.
+      #
+      # This does NOT gate the product page's "Share on WhatsApp" button. That
+      # is user-to-user and stays live off PRICEKENYA_WHATSAPP_NUMBER alone.
+      - key: PRICEKENYA_WHATSAPP_CHAT_ENABLED
+        value: "false"
       - key: JUMIA_AFFILIATE_ID
         sync: false
       - key: DATABASE_URL

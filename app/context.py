@@ -27,6 +27,23 @@ def whatsapp_href(text: str | None = None) -> str | None:
         return f"https://wa.me/{num}?text={quote(text)}"
     return f"https://wa.me/{num}"
 
+
+def whatsapp_chat_href() -> str | None:
+    """`whatsapp_href()` for the inbound-chat surfaces, or None when off.
+
+    Two things have to be true to show a chat entry point: we have a number,
+    and someone is actually reading it. The second is what
+    `pricekenya_whatsapp_chat_enabled` tracks, and it defaults to False.
+
+    Separate from `whatsapp_href` so the product page's share button — which
+    is user-to-user and obliges us nothing — keeps working while inbound chat
+    is switched off. Returning None rather than exposing the flag directly
+    keeps the templates' existing `{% if href %}` shape unchanged.
+    """
+    if not settings.pricekenya_whatsapp_chat_enabled:
+        return None
+    return whatsapp_href()
+
 # Stroke-icon key + short nav label per top-level category slug. The key
 # indexes _ICON_PATHS in partials/_icons.html; `short` is what the horizontal
 # nav strip renders, since the full names ("Phones, Tablets and Accessories")

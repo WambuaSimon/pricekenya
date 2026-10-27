@@ -8,6 +8,7 @@ from app.context import (
     get_nav_categories,
     product_fallback_label,
     product_placeholder_icon,
+    whatsapp_chat_href,
     whatsapp_href,
 )
 from app.pricing import trusted_saving
@@ -31,5 +32,6 @@ templates.env.globals["get_active_top_slug"] = get_active_top_slug
 templates.env.globals["product_placeholder_icon"] = product_placeholder_icon
 templates.env.globals["product_fallback_label"] = product_fallback_label
 templates.env.globals["whatsapp_href"] = whatsapp_href
+templates.env.globals["whatsapp_chat_href"] = whatsapp_chat_href
 templates.env.globals["trusted_saving"] = trusted_saving
 templates.env.globals["now"] = lambda: datetime.now(UTC)
