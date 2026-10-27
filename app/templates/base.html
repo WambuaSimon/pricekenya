@@ -338,8 +338,12 @@
       {% block content %}{% endblock %}
     </main>
 
-    {# Floating "Chat on WhatsApp" widget. Silently hides when the env var
-       PRICEKENYA_WHATSAPP_NUMBER is empty (whatsapp_href() returns None).
+    {# Floating "Chat on WhatsApp" widget. Silently hides unless BOTH
+       PRICEKENYA_WHATSAPP_NUMBER is set and PRICEKENYA_WHATSAPP_CHAT_ENABLED
+       is true (whatsapp_chat_href() returns None otherwise). The second flag
+       is off by default and gates this pill and the footer WhatsApp link —
+       the two surfaces that invite a shopper to message us — without
+       touching the product page's "Share on WhatsApp" button.
        Dismissible via the small (x); the dismissal is remembered for 7 days
        in a client cookie so we don't nag every pageload. Sits above HTMX
        swap regions but below any modal (z-30 vs z-40+ for drawers).
@@ -353,7 +357,7 @@
        canned and get deleted before anyone types anyway. The product-page
        "Share" button DOES pre-fill because there it's the point (product
        title + price + URL for forwarding a deal). #}
-    {% set _chat_href = whatsapp_href() %}
+    {% set _chat_href = whatsapp_chat_href() %}
     {% if _chat_href %}
       {# Render visible by default; the JS below only hides the widget when
          the user has clicked (x) and the 7-day dismiss cookie is present.

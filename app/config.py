@@ -50,6 +50,18 @@ class Settings(BaseSettings):
     # copy-link buttons and the floating chat pill silently do not render.
     # wa.me links accept this format directly.
     pricekenya_whatsapp_number: str = ""
+    # Inbound chat only: the floating "Chat on WhatsApp" pill and the footer
+    # WhatsApp link, both of which open an empty compose addressed to us.
+    # Off by default — an inbound channel nobody is watching is worse than no
+    # channel, because a shopper who messages it reads the silence as the
+    # whole site being abandoned. Flip to true (PRICEKENYA_WHATSAPP_CHAT_
+    # ENABLED=true) when someone is actually staffing the number.
+    #
+    # Deliberately separate from the number above, so turning chat off does
+    # not also take down the product page's "Share on WhatsApp" button. That
+    # one is user-to-user — it creates no reply obligation for us and is the
+    # cheapest distribution this site has in a market that runs on WhatsApp.
+    pricekenya_whatsapp_chat_enabled: bool = False
 
     @field_validator("database_url")
     @classmethod
