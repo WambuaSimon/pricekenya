@@ -34,6 +34,23 @@ class Settings(BaseSettings):
     # encoder so the web app never loads sentence-transformers.
     embedding_enabled: bool = False
 
+    # --- Cached product images (Cloudflare R2, S3-compatible) ---
+    # Every image on the site is otherwise a hotlink, which means a merchant
+    # can empty our category pages by changing its bot policy — see
+    # OPERATIONS.md 8ag. With these set, the scraper stores its own copy and
+    # serves it from our domain.
+    #
+    # Inert unless all four of account/key/secret/bucket are present, so dev
+    # and CI need no credentials and simply keep hotlinking.
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = ""
+    # Public origin the bucket is served from — an R2 custom domain such as
+    # https://img.pricekenya.co.ke. Keep it on our own domain: the point of
+    # the cache is that no third party can take these images away.
+    r2_public_base_url: str = ""
+
     # --- Admin ---
     # Shared secret for /admin/* routes (merge-review). Sent as X-Admin-Key.
     # Leave empty to gate the routes shut in prod.

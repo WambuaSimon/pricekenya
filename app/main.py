@@ -30,6 +30,7 @@ async def lifespan(_app: FastAPI):
         add_click_table,
         add_marketing_opt_in,
         add_pricehistory_listing_observed_index,
+        add_product_cached_image,
         add_product_description,
         add_product_redirect_table,
         add_review_moderation,
@@ -38,6 +39,7 @@ async def lifespan(_app: FastAPI):
     add_marketing_opt_in.run()
     add_click_table.run()
     add_product_description.run()
+    add_product_cached_image.run()
     add_reviews_table.run()
     add_review_moderation.run()
     add_cached_sitemap_table.run()

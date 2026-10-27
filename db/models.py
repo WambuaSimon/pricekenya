@@ -51,6 +51,14 @@ class Product(SQLModel, table=True):
     model: str
     title: str
     image_url: str | None = None
+    # Our own copy of `image_url`, served from R2 behind our domain. NULL
+    # until the cache fills. Templates prefer it and fall back to image_url,
+    # so a miss degrades to the old hotlink rather than a blank tile.
+    #
+    # Separate column on purpose: image_url stays as provenance and as the
+    # input a rebuild re-fetches from, which is what makes this cache
+    # disposable rather than load-bearing.
+    image_cached_url: str | None = None
     # Category leaf this product belongs to. category_slug is denormalized for
     # cheap filtering; category_id keeps referential integrity.
     category_id: int | None = Field(default=None, foreign_key="category.id", index=True)

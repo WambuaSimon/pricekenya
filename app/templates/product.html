@@ -8,7 +8,7 @@
 {% block title %}{% if product.title|length <= 30 %}{{ product.title }} ({{ now().year }}) — Compare Kenya Prices{% if min_price %} from {{ min_price | kes }}{% endif %} · PriceKenya{% else %}{{ product.title }}: Kenya Price {{ now().year }}{% if min_price %} — from {{ min_price | kes }}{% endif %} · PriceKenya{% endif %}{% endblock %}
 {% block description %}{% if offers %}Compare {{ product.title }} prices from {{ offers|length }} Kenyan merchant{% if offers|length != 1 %}s{% endif %}. Best price {{ min_price | kes }}{% if last_updated %}, updated {{ last_updated.strftime('%d %b %Y') }}{% endif %}.{% else %}Compare {{ product.title }} prices across Kenyan merchants on PriceKenya.{% endif %}{% endblock %}
 {% block og_type %}product{% endblock %}
-{% block og_image %}{{ product.image_url or '/static/apple-touch-icon.svg' }}{% endblock %}
+{% block og_image %}{{ product_image(product) or '/static/apple-touch-icon.svg' }}{% endblock %}
 {% block head_extra %}
   {# Noindex product pages that don't clear the "worth serving" bar:
        - 0 live offers (all merchants sold-out or delisted — a dead page)
@@ -65,8 +65,8 @@
     "itemCondition": {{ _condition | tojson }},
     "brand": {"@type": "Brand", "name": {{ (product.brand or "") | title | tojson }}},
     "sku": {{ product.canonical_key | tojson }},
-    "productID": {{ product.canonical_key | tojson }}{% if product.image_url %},
-    "image": {{ product.image_url | tojson }}{% endif %}{% if product.description %},
+    "productID": {{ product.canonical_key | tojson }}{% if product_image(product) %},
+    "image": {{ product_image(product) | tojson }}{% endif %}{% if product.description %},
     "description": {{ product.description | tojson }}{% endif %},
     "offers": {
       "@type": "AggregateOffer",
@@ -135,13 +135,13 @@
         <span class="absolute inset-0 flex items-center justify-center px-4 text-center text-[17px] font-semibold text-faint">
           {{ product_fallback_label(product) }}
         </span>
-        {% if product.image_url %}
-          <img src="{{ product.image_url }}" alt="{{ product.title }}"
+        {% if product_image(product) %}
+          <img src="{{ product_image(product) }}" alt="{{ product.title }}"
                referrerpolicy="no-referrer" onerror="this.style.display='none'"
                class="relative block w-full h-full object-contain p-7">
         {% endif %}
       </div>
-      {% if product.image_url and shop_count %}
+      {% if product_image(product) and shop_count %}
         {# The reference names the merchant the image came from. We do not
            record image provenance — Product.image_url is written by
            whichever scraper saw the product first and the link back to that

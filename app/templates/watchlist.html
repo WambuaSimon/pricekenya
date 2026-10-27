@@ -15,8 +15,8 @@
             <span class="absolute inset-0 flex items-center justify-center text-2xl opacity-70">
               {{ product_placeholder_icon(item.product) }}
             </span>
-            {% if item.product.image_url %}
-              <img src="{{ item.product.image_url }}" alt="{{ item.product.title }}" class="relative object-contain w-full h-full" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+            {% if product_image(item.product) %}
+              <img src="{{ product_image(item.product) }}" alt="{{ item.product.title }}" class="relative object-contain w-full h-full" referrerpolicy="no-referrer" onerror="this.style.display='none'">
             {% endif %}
           </a>
           <div class="min-w-0 flex-1">
