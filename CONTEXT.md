@@ -248,3 +248,46 @@ slugs — the 14 with regex parsers plus the two orphaned scraper-only slugs
 4. `ADMIN_KEY=<secret>` to open the review page; browse to `/admin/merge-review` with `X-Admin-Key` header.
 
 **Cost math to watch (Phase 0):** free-tier Gemini 2.0 Flash is 1500 req/day. `llm_daily_cap_per_category` default 500 across 16 slugs = 8000 potential/day, well under any single-project quota. If we approach the cap in prod, the natural next step is prompt caching or moving to a paid tier.
+
+## 13. Security advisories assessed
+
+A dated record of upstream advisories we checked this project against, so a
+later reader can tell "were we affected by X?" without redoing the work.
+
+### 2026-10 — eMudhra intermediate CA compromise; Node.js and PHP releases
+
+Prompted by Render's 2026-10-23 customer notice covering three advisories.
+
+| Advisory | Verdict |
+|---|---|
+| PHP2Shell | Not affected — no PHP, no Docker image in this repo. |
+| Node.js TLS hostname bypass + Brotli RCE | Not affected — no Node runtime; the web service is the native Python runtime. GitHub's own Actions runner executes Node-based actions, which is GitHub-managed, not ours. |
+| eMudhra / emSign intermediate CA key compromise | **Was affected, via `certifi`. Fixed.** |
+
+**Why eMudhra reached us.** Eight eMudhra intermediates had recoverable
+private keys. They chain to four roots; exactly one of those — `emSign ECC
+Root CA - G3`, a cross-signer — was present in the `certifi` bundle this
+project installs. Because Python's HTTP clients trust `certifi` rather than
+the OS store, every outbound HTTPS call inherited that trust. The widely
+reported Sectigo cross-sign path did **not** apply: it chains to `AAA
+Certificate Services`, which Mozilla had already dropped, so it was never in
+our bundle. `emSign Root CA - G1` is still in `certifi` and that is correct —
+it did not issue the compromised intermediates and must not be stripped.
+
+**Fix.** `certifi>=2026.10.19` is the first bundle to drop the affected root;
+the floor is now explicit in `pyproject.toml`. There is no lockfile, so every
+build re-resolves — which is exactly why the floor is written down rather than
+left to `curl_cffi`'s transitive requirement.
+
+**Both HTTP clients are covered, for different reasons.** `httpx` reads
+`certifi` directly. `curl_cffi` prefers `ssl.get_default_verify_paths()` and
+only falls back to `certifi`, so on a host whose Python ships its own OpenSSL
+CA file it will silently use that instead — a store `pip` cannot update. On the
+Linux runtime that path is the distro store, refreshed when the service
+rebuilds.
+
+**Provenance note.** The `pyproject.toml` floor was committed by accident
+inside #93 ("Cache product images in R2"), an unrelated PR, rather than under
+its own change. The pin itself is correct and was verified in a production
+build; only its attribution is wrong. This section is the audit trail that
+commit should have carried.
