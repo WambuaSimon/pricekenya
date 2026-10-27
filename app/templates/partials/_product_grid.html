@@ -30,8 +30,8 @@
           <span class="absolute inset-0 flex items-center justify-center px-2 text-center text-sm font-semibold text-faint">
             {{ product_fallback_label(product) }}
           </span>
-          {% if product.image_url %}
-            <img src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy"
+          {% if product_image(product) %}
+            <img src="{{ product_image(product) }}" alt="{{ product.title }}" loading="lazy"
                  class="relative block object-contain w-full h-full"
                  referrerpolicy="no-referrer"
                  onerror="this.style.display='none'">

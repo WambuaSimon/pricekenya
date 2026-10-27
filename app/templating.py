@@ -7,6 +7,7 @@ from app.context import (
     get_active_top_slug,
     get_nav_categories,
     product_fallback_label,
+    product_image,
     product_placeholder_icon,
     whatsapp_chat_href,
     whatsapp_href,
@@ -31,6 +32,7 @@ templates.env.globals["nav_categories"] = get_nav_categories
 templates.env.globals["get_active_top_slug"] = get_active_top_slug
 templates.env.globals["product_placeholder_icon"] = product_placeholder_icon
 templates.env.globals["product_fallback_label"] = product_fallback_label
+templates.env.globals["product_image"] = product_image
 templates.env.globals["whatsapp_href"] = whatsapp_href
 templates.env.globals["whatsapp_chat_href"] = whatsapp_chat_href
 templates.env.globals["trusted_saving"] = trusted_saving

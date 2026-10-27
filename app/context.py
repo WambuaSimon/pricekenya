@@ -13,6 +13,21 @@ from db.models import Category, Product
 from db.session import engine
 
 
+def product_image(product) -> str | None:
+    """The URL to render for `product`: our cached copy, else the merchant's.
+
+    One accessor instead of `cached or original` repeated across four
+    templates, so the fallback can never be half-applied — a product page
+    showing the cached copy while its og:image still pointed at a blocked
+    merchant would be exactly the bug this cache exists to kill.
+
+    The fallback is the whole safety story: a cache miss, a half-finished
+    backfill or an R2 outage degrades to today's behaviour rather than a
+    blank tile.
+    """
+    return getattr(product, "image_cached_url", None) or getattr(product, "image_url", None)
+
+
 def whatsapp_href(text: str | None = None) -> str | None:
     """Return a `wa.me/<number>?text=<msg>` URL, or None if unset.
 
