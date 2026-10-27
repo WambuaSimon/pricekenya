@@ -158,3 +158,56 @@ async def test_preflight_refuses_without_a_public_base_url(_r2, monkeypatch):
         problem = await preflight(client=c)
     assert problem is not None
     assert "PUBLIC" in problem.upper()
+
+
+@pytest.mark.anyio
+async def test_preflight_retries_before_giving_up(_r2, monkeypatch):
+    """One dropped connection must not abort the backfill.
+
+    Regression cover: the first preflight had no retry and killed a
+    9,806-image run on a single ConnectError against a URL that served 200
+    immediately before and after. Failing closed on one blip is worse than
+    failing open on one blip — it blocks an hour of correct work.
+    """
+    import scrapers.common.image_cache as ic
+
+    monkeypatch.setattr(ic, "_client", lambda: _FakeS3())
+    monkeypatch.setattr(ic.asyncio, "sleep", _no_sleep)
+
+    calls = {"n": 0}
+
+    class _Client:
+        async def get(self, url, **kw):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise httpx.ConnectError("boom")
+            return httpx.Response(200)
+
+    assert await ic.preflight(client=_Client()) is None
+    assert calls["n"] == 3, "should have retried past the transient failures"
+
+
+@pytest.mark.anyio
+async def test_preflight_still_fails_when_every_attempt_fails(_r2, monkeypatch):
+    """Retrying must not turn a real outage into a pass."""
+    import scrapers.common.image_cache as ic
+
+    monkeypatch.setattr(ic, "_client", lambda: _FakeS3())
+    monkeypatch.setattr(ic.asyncio, "sleep", _no_sleep)
+
+    class _Client:
+        async def get(self, url, **kw):
+            raise httpx.ConnectError("still down")
+
+    problem = await ic.preflight(client=_Client())
+    assert problem is not None
+    assert "attempts" in problem
+
+
+class _FakeS3:
+    def put_object(self, **kw):
+        return {}
+
+
+async def _no_sleep(_seconds):
+    return None

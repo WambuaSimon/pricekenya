@@ -18,6 +18,7 @@ unless all four R2 settings are present, so dev and CI need no credentials.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from functools import lru_cache
 
@@ -51,6 +52,11 @@ _MAGIC: tuple[tuple[bytes, str], ...] = (
 MAX_BYTES = 8 * 1024 * 1024
 # Below this it is a tracking pixel or a placeholder, not a product photo.
 MIN_BYTES = 1024
+
+# The preflight gates a long, live-table-writing job, so it is worth a few
+# seconds to be sure a failure is real rather than one dropped connection.
+PREFLIGHT_ATTEMPTS = 4
+PREFLIGHT_BACKOFF_S = 2.0
 
 
 def cache_enabled() -> bool:
@@ -206,21 +212,32 @@ async def preflight(*, client: httpx.AsyncClient) -> str | None:
     except Exception as e:  # noqa: BLE001
         return f"could not write to the bucket: {type(e).__name__}: {e}"
 
+    # Retried, because a single failed GET proves nothing. The first run of
+    # this preflight aborted a 9,806-image backfill on one ConnectError
+    # against a URL that was verifiably serving 200 before and after. A probe
+    # that fails open on one blip is useless; a probe that fails CLOSED on one
+    # blip is worse, because it blocks an hour of correct work.
     url = public_url(key)
-    try:
-        resp = await client.get(url, follow_redirects=True, timeout=20.0)
-    except Exception as e:  # noqa: BLE001 — DNS, TLS, connection
-        return (
-            f"wrote the object but could not fetch {url} ({type(e).__name__}). "
-            "Most likely the R2 bucket has no connected custom domain yet, or "
-            "its DNS has not propagated."
+    last = ""
+    for attempt in range(PREFLIGHT_ATTEMPTS):
+        if attempt:
+            await asyncio.sleep(PREFLIGHT_BACKOFF_S * attempt)
+        try:
+            resp = await client.get(url, follow_redirects=True, timeout=20.0)
+        except Exception as e:  # noqa: BLE001 — DNS, TLS, connection
+            last = (
+                f"could not fetch {url} ({type(e).__name__}). Most likely the "
+                "R2 bucket has no connected custom domain yet, or its DNS has "
+                "not propagated."
+            )
+            continue
+        if resp.status_code == 200:
+            return None
+        last = (
+            f"{url} returned HTTP {resp.status_code}. Check that the bucket's "
+            "public access / custom domain is enabled."
         )
-    if resp.status_code != 200:
-        return (
-            f"wrote the object but {url} returned HTTP {resp.status_code}. "
-            "Check that the bucket's public access / custom domain is enabled."
-        )
-    return None
+    return f"wrote the object but {last} (after {PREFLIGHT_ATTEMPTS} attempts)"
 
 
 async def cache_image(url: str, *, client: httpx.AsyncClient) -> str | None:
