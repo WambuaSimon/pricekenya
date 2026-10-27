@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Image review — Admin — PriceKenya{% endblock %}
+
+{% block content %}
+{% set active_section = 'image' %}
+{% include "admin/_nav.html" %}
+<div class="max-w-6xl mx-auto px-4">
+  <h1 class="text-2xl font-semibold mb-1">Sourced image review</h1>
+  <p class="text-slate-600 dark:text-slate-400 text-sm mb-2">
+    Images pulled from manufacturer sites for products no merchant can illustrate.
+    <strong>Nothing here is live.</strong> Approving writes the image onto the product;
+    rejecting leaves it on the brand-name fallback tile, which is the honest default.
+  </p>
+  {# The reviewer's actual job, stated plainly. A wrong image does not error —
+     it sits next to a price looking authoritative — so the only check that
+     works is a human reading the title and looking at the picture. #}
+  <p class="text-slate-500 dark:text-slate-500 text-sm mb-6">
+    Ask one question per card: <em>is this photo the product named in the title?</em>
+    A plausible-looking photo of the wrong variant is worse than no photo. When
+    unsure, reject — the item keeps working, it just stays a tile.
+  </p>
+
+  {% if not rows %}
+    <div class="rounded-md bg-slate-100 dark:bg-slate-800 p-6 text-slate-600 dark:text-slate-300">
+      No pending image candidates.
+    </div>
+  {% else %}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {% for row in rows %}
+        {% set c = row.candidate %}
+        {% set p = row.product %}
+        <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
+          <div class="flex gap-4">
+            <div class="w-28 h-28 flex-shrink-0 rounded bg-slate-50 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+              {# referrerpolicy mirrors the public card markup so what the
+                 reviewer sees is what a shopper would get. #}
+              <img src="{{ c.image_url }}" alt="" class="object-contain w-full h-full"
+                   referrerpolicy="no-referrer"
+                   onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-xs text-rose-600',textContent:'image failed to load'}))">
+            </div>
+            <div class="min-w-0">
+              <a href="/p/{{ p.slug }}" target="_blank" rel="noopener"
+                 class="text-sm font-medium text-slate-900 dark:text-slate-100 hover:underline break-words">
+                {{ c.matched_title }}
+              </a>
+              <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                source: <span class="font-mono">{{ c.source }}</span>
+              </div>
+              <a href="{{ c.source_url }}" target="_blank" rel="noopener"
+                 class="mt-1 block text-xs text-slate-500 dark:text-slate-400 hover:underline break-all">
+                {{ c.source_url }}
+              </a>
+              {% if p.title != c.matched_title %}
+                <div class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  title changed since proposal — now &ldquo;{{ p.title }}&rdquo;
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <form method="post" action="/admin/image-review/{{ c.id }}/approve">
+              <button type="submit"
+                      class="text-sm px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700">
+                Approve
+              </button>
+            </form>
+            <form method="post" action="/admin/image-review/{{ c.id }}/reject">
+              <button type="submit"
+                      class="text-sm px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+                Reject
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

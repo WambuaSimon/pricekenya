@@ -10,6 +10,7 @@
       ('alerts', '/admin/alerts', 'Alerts'),
       ('reviews', '/admin/reviews', 'Reviews'),
       ('merge', '/admin/merge-review', 'Merge review'),
+      ('image', '/admin/image-review', 'Image review'),
     ] %}
     {% for slug, href, label in _tabs %}
       {% set is_active = (active_section or '') == slug %}

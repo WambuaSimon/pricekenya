@@ -4,6 +4,11 @@
 in [0.90, 0.95)) for manual approve/reject. Auto-merges (≥0.95) don't land
 here — they've already been resolved during ingest.
 
+`/admin/image-review` surfaces images sourced from manufacturer sites for
+products no merchant can illustrate. Approving one is the ONLY way such an
+image reaches a shopper; see db/models.ProductImageCandidate for why that
+gate is not optional.
+
 Auth: the shared secret lives in `settings.admin_key`. When empty, every
 request is rejected (defence-in-depth: no admin_key in prod = no admin
 routes). Sent as `X-Admin-Key: <value>`; also accepted as a cookie
@@ -28,6 +33,7 @@ from db.models import (
     Listing,
     Merchant,
     Product,
+    ProductImageCandidate,
     ProductMergeCandidate,
     Review,
     ReviewReport,
@@ -753,3 +759,94 @@ def admin_alerts_unsubscribe(
     session.add(a)
     session.commit()
     return RedirectResponse(url="/admin/alerts", status_code=303)
+
+
+# --------------------------------------------------------------------------
+# Image review
+#
+# The approve action writes `image_url`, not `image_cached_url`: the caching
+# backfill reads image_url and will make our own copy on its next pass, so
+# an approved manufacturer image flows into the cache like any other. Writing
+# the cached column directly would hand a shopper a URL on someone else's
+# domain while claiming it was ours.
+
+
+@router.get("/image-review", response_class=HTMLResponse)
+def image_review(
+    request: Request,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    candidates = session.exec(
+        select(ProductImageCandidate)
+        .where(ProductImageCandidate.status == "pending")
+        .order_by(ProductImageCandidate.created_at.desc())
+        .limit(200)
+    ).all()
+
+    rows: list[dict] = []
+    for c in candidates:
+        product = session.get(Product, c.product_id)
+        if not product:
+            continue
+        rows.append({"candidate": c, "product": product})
+
+    response = templates.TemplateResponse(
+        request,
+        "admin/image_review.html",
+        {"rows": rows, "admin_key": settings.admin_key},
+    )
+    header_used = bool(request.headers.get("x-admin-key"))
+    query_used = bool(request.query_params.get("admin_key"))
+    cookie_missing = not request.cookies.get("admin_key")
+    if (header_used or query_used) and cookie_missing:
+        if query_used:
+            response = RedirectResponse(url="/admin/image-review", status_code=303)
+        response.set_cookie(
+            "admin_key",
+            settings.admin_key,
+            httponly=True,
+            samesite="lax",
+            max_age=60 * 60 * 8,
+        )
+    return response
+
+
+@router.post("/image-review/{cand_id}/approve")
+def image_approve(
+    cand_id: int,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    cand = session.get(ProductImageCandidate, cand_id)
+    if not cand or cand.status != "pending":
+        raise HTTPException(status_code=404)
+    product = session.get(Product, cand.product_id)
+    if not product:
+        cand.status = "rejected"
+        cand.reviewed_at = datetime.now(UTC)
+        cand.reviewer_note = "product deleted before review"
+    else:
+        product.image_url = cand.image_url
+        session.add(product)
+        cand.status = "approved"
+        cand.reviewed_at = datetime.now(UTC)
+    session.add(cand)
+    session.commit()
+    return RedirectResponse(url="/admin/image-review", status_code=303)
+
+
+@router.post("/image-review/{cand_id}/reject")
+def image_reject(
+    cand_id: int,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+):
+    cand = session.get(ProductImageCandidate, cand_id)
+    if not cand or cand.status != "pending":
+        raise HTTPException(status_code=404)
+    cand.status = "rejected"
+    cand.reviewed_at = datetime.now(UTC)
+    session.add(cand)
+    session.commit()
+    return RedirectResponse(url="/admin/image-review", status_code=303)

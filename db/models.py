@@ -182,6 +182,47 @@ class LlmExtractionLog(SQLModel, table=True):
     __table_args__ = (Index("ix_llm_cat_created", "category", "created_at"),)
 
 
+class ProductImageCandidate(SQLModel, table=True):
+    """An image sourced from outside our merchant catalog, awaiting review.
+
+    Nothing here is ever shown to a shopper until a human approves it, and
+    that gate is the whole design. A web image lookup always returns
+    *something*: for a title like "Oppo N6A" — which our own parser may have
+    invented — it returns a case, a render or a different variant, and no
+    automated check can tell that apart from a correct hit. Unlike a 403, a
+    wrong image does not error. It sits next to a price looking authoritative,
+    which on a price-comparison site is worse than the honest blank tile it
+    replaced.
+
+    So: propose, never publish. `source_url` is kept so a reviewer can see
+    where it came from, and `matched_title` so they can judge whether the
+    thing we searched for is the thing we found.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="product.id", index=True)
+    image_url: str
+    # Page the image was taken from, e.g. the manufacturer product page.
+    source_url: str
+    # Which resolver produced it ("samsung", "xiaomi", ...), so a resolver
+    # that starts returning junk can be found and switched off by name.
+    source: str = Field(index=True)
+    # The product title at proposal time. Stored rather than joined because
+    # the judgement a reviewer makes is "does this image match THIS text",
+    # and the title can change under them afterwards.
+    matched_title: str
+    status: str = Field(default="pending", index=True)  # pending | approved | rejected
+    reviewed_at: datetime | None = None
+    reviewer_note: str | None = None
+    created_at: datetime = Field(default_factory=_utcnow, index=True)
+
+    __table_args__ = (
+        # One live proposal per product per resolver, so re-running the
+        # proposer never stacks duplicates in the queue.
+        UniqueConstraint("product_id", "source", name="uq_imagecandidate_product_source"),
+    )
+
+
 class ProductMergeCandidate(SQLModel, table=True):
     """Two near-duplicate products flagged by the embedding merger (Phase 1).
 
