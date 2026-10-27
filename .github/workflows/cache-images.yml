@@ -1,0 +1,92 @@
+name: Cache product images
+
+# Copies newly-scraped product images into R2 so the site stops hotlinking
+# them. See scrapers/common/image_cache.py for why that matters and
+# OPERATIONS.md 8ag for the outage that motivated it.
+#
+# Why a scheduled job rather than caching inline during ingest: the scrape
+# matrix is ~65 jobs, and wiring an upload into each one would put R2
+# credentials in every leg, add a network hop per listing to the slowest part
+# of the pipeline, and give a scrape a brand-new way to fail. The backfill is
+# already idempotent and incremental — it only touches rows where
+# image_cached_url IS NULL — so running it after the scrapes gets the same
+# result with none of that coupling.
+
+on:
+  schedule:
+    # 04:45 and 16:45 UTC. scrape.yml starts 01:17 / 13:17 and runs ~1h20-1h30,
+    # and sitemap.yml rebuilds at 03:15 / 15:15 — so this lands after both,
+    # caching images for products that were created earlier the same cycle
+    # rather than racing the scrape that creates them.
+    - cron: '45 4,16 * * *'
+  workflow_dispatch:
+
+# A second run would re-query the same NULL rows and re-fetch the same
+# merchant URLs. Harmless (the object key is a content hash, so nothing is
+# duplicated in the bucket) but pure waste, and it doubles the request load
+# on merchant servers.
+concurrency:
+  group: cache-images
+  cancel-in-progress: true
+
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    # Steady state is a few dozen new products per cycle, which takes
+    # seconds. The ceiling exists for the first full run and for a catch-up
+    # after the job has been failing: ~9.8k images at the polite rate is
+    # a bit over an hour.
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install deps
+        run: pip install -e .
+      - name: Cache product images
+        # The script preflights before writing anything: it stores a probe
+        # object and fetches it back through the public URL. If the custom
+        # domain is missing or DNS has not propagated it exits having written
+        # nothing, rather than filling a live table with URLs that 404.
+        run: python -m scripts.cache_product_images
+
+  notify:
+    # Same Telegram path as scrape.yml and sitemap.yml. A silently-failing
+    # cache job is invisible: the site keeps working off merchant hotlinks,
+    # so nothing looks broken until one of those merchants blocks us and a
+    # category page empties out — the 400h-blind-spot pattern from
+    # OPERATIONS.md 8j, with a slower fuse.
+    needs: cache
+    if: always() && needs.cache.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Notify Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets not configured — skipping notification."
+            exit 0
+          fi
+          MSG="⚠️ PriceKenya image cache job failed.%0AView: ${RUN_URL}%0ANew products keep hotlinking merchant images until this is fixed."
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MSG}" \
+            --data "disable_web_page_preview=true" \
+            > /tmp/tg_resp.json
+          if ! grep -q '"ok":true' /tmp/tg_resp.json; then
+            echo "Telegram send failed:"; cat /tmp/tg_resp.json; exit 1
+          fi
+          echo "Telegram notification sent."
