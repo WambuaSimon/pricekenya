@@ -25,6 +25,7 @@ import asyncio
 import time
 
 import httpx
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, select
 
 from db.models import Product
@@ -55,15 +56,45 @@ def _chunks(items, size):
         yield items[i : i + size]
 
 
-async def _run(session: Session, categories, limit, dry, recache) -> None:
-    if not cache_enabled():
-        print(
-            "R2 is not configured — set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, "
-            "R2_SECRET_ACCESS_KEY, R2_BUCKET (and R2_PUBLIC_BASE_URL).\n"
-            "Nothing to do; the site keeps hotlinking."
-        )
-        return
+def _write_batch(rows: list[tuple[int, str]], attempts: int = 3) -> None:
+    """Persist one batch in a short-lived session, retrying a dead connection.
 
+    Each attempt opens a fresh session, so it takes a new connection from the
+    pool — and pool_pre_ping discards a socket the server already closed at
+    exactly that moment. One terminated connection therefore costs a retry,
+    not the run.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            with Session(engine) as write:
+                for pid, url in rows:
+                    product = write.get(Product, pid)
+                    if product is not None:
+                        product.image_cached_url = url
+                        write.add(product)
+                write.commit()
+            return
+        except OperationalError as e:
+            if attempt == attempts:
+                raise
+            print(f"  db write failed ({type(e).__name__}), retry {attempt}/{attempts - 1}", flush=True)
+            time.sleep(2 * attempt)
+
+
+def _load_targets(categories, limit, recache) -> list[tuple[int, str, str]]:
+    """(id, slug, image_url) for every product needing a cached copy.
+
+    Its own short-lived session, closed before any network work starts. The
+    caller must NOT hold a session across the run: SQLAlchemy keeps a
+    transaction open from the first read until commit/rollback, and an
+    idle-in-transaction connection gets terminated server-side. That killed
+    two runs — one at 1,800 of 9,806, one at 100 — with
+    "server closed the connection unexpectedly", the second only ~45s in,
+    which is what ruled out an ordinary idle timeout.
+
+    pool_pre_ping does not help here: it validates a connection at CHECKOUT,
+    and a connection held by an open session is never re-checked-out.
+    """
     q = select(Product).where(Product.image_url.is_not(None))
     if not recache:
         q = q.where(Product.image_cached_url.is_(None))
@@ -72,12 +103,25 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
     q = q.order_by(Product.id)
     if limit:
         q = q.limit(limit)
-    products = session.exec(q).all()
-    print(f"products to cache: {len(products)}")
-    if not products or dry:
+    with Session(engine) as session:
+        return [(p.id, p.slug, p.image_url) for p in session.exec(q).all()]
+
+
+async def _run(categories, limit, dry, recache) -> None:
+    if not cache_enabled():
+        print(
+            "R2 is not configured — set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, "
+            "R2_SECRET_ACCESS_KEY, R2_BUCKET (and R2_PUBLIC_BASE_URL).\n"
+            "Nothing to do; the site keeps hotlinking."
+        )
+        return
+
+    targets = _load_targets(categories, limit, recache)
+    print(f"products to cache: {len(targets)}", flush=True)
+    if not targets or dry:
         if dry:
-            for p in products[:20]:
-                print(f"  would cache {p.slug}: {p.image_url}")
+            for _pid, slug, url in targets[:20]:
+                print(f"  would cache {slug}: {url}")
             print("(--dry-run — no fetches, no writes)")
         return
 
@@ -92,9 +136,7 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
         print("refusing to write image_cached_url until a stored object is fetchable.")
         return
 
-    # Snapshot the work as plain tuples and let the caller's session go. From
-    # here on no DB connection is held while we are doing network I/O.
-    work = [(p.id, p.image_url) for p in products]
+    work = [(pid, url) for pid, _slug, url in targets]
 
     sem = asyncio.Semaphore(CONCURRENCY)
     cached = failed = done = 0
@@ -119,13 +161,7 @@ async def _run(session: Session, categories, limit, dry, recache) -> None:
             # Short-lived session per batch. A dropped connection now costs
             # one batch, and the next batch simply opens a new one.
             if got:
-                with Session(engine) as write:
-                    for pid, url in got:
-                        product = write.get(Product, pid)
-                        if product is not None:
-                            product.image_cached_url = url
-                            write.add(product)
-                    write.commit()
+                _write_batch(got)
                 cached += len(got)
 
             rate = done / (time.perf_counter() - start)
@@ -146,11 +182,10 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--recache", action="store_true", help="Redo already-cached rows")
     args = parser.parse_args()
-    with Session(engine) as session:
-        asyncio.run(
-            _run(session, set(args.category) if args.category else None,
-                 args.limit, args.dry_run, args.recache)
-        )
+    asyncio.run(
+        _run(set(args.category) if args.category else None,
+             args.limit, args.dry_run, args.recache)
+    )
 
 
 if __name__ == "__main__":
