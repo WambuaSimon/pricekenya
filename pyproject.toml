@@ -50,7 +50,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.7",
+    # Ceiling: ruff gains new lint rules in minor bumps, so an unpinned floor
+    # turns a routine `pip install -e '.[dev]'` into an unrelated CI failure.
+    # That is not hypothetical — the 2026-10-27 toolchain rebuild moved 0.15
+    # -> 0.17 and surfaced rules the tree had never been checked against.
+    # Lift the ceiling deliberately, with the new rules' output in hand.
+    "ruff>=0.17,<0.18",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
 ]
