@@ -80,6 +80,13 @@ WC_MERCHANTS: dict[str, dict] = {
     # / Dixons / Ramtons.
     "jojabo-ke": {
         "meta": {"slug": "jojabo-ke", "name": "Jojabo Technologies", "base_url": "https://jojabotechnologies.co.ke"},
+        # TLS-fingerprint block on GHA IPs since 2026-10-27: every leaf logs
+        # a bare `RetryError[HTTPStatusError]` on the default "polite"
+        # (plain httpx) client, with no "zero cards" or challenge-shell
+        # diagnostic — the GET itself is rejected before any HTML comes
+        # back. Chrome TLS impersonation is the established fix for this
+        # signature (tclke-ke, smartphoneskenya-ke, zuka-ke, §8h/§8i).
+        "client_type": "cffi",
         "leaf_to_urls": {
             "audio": ["https://jojabotechnologies.co.ke/product-category/audio-mixer", "https://jojabotechnologies.co.ke/product-category/bass-speakers", "https://jojabotechnologies.co.ke/product-category/earbuds"],
             "cameras": ["https://jojabotechnologies.co.ke/product-category/camera", "https://jojabotechnologies.co.ke/product-category/cctv-cameras"],
