@@ -450,22 +450,21 @@ WC_MERCHANTS: dict[str, dict] = {
     # 239-listing catalog (audio/cameras/laptops/accessories) that's
     # already covered by Jumia/Kilimall/Hotpoint/Phone Place. See
     # OPERATIONS.md §8k.
-    "hisense-kenya-ke": {
-        "meta": {"slug": "hisense-kenya-ke", "name": "Hisense Kenya (Official)", "base_url": "https://hisense-kenya.co.ke"},
-        # Cloudflare + Turnstile JS challenge; plain httpx and curl_cffi both
-        # get 403. Playwright headless Chromium executes the challenge JS
-        # cleanly here (checked on 2026-07-13). Newer Turnstile variants
-        # detect plain headless via navigator.webdriver etc. — if a shielded
-        # merchant stays at 403 after switching to playwright, add stealth.
-        "client_type": "playwright",
-        "leaf_to_urls": {
-            "audio": ["https://hisense-kenya.co.ke/product-category/soundbars"],
-            "cooking": ["https://hisense-kenya.co.ke/product-category/cookers-ovens", "https://hisense-kenya.co.ke/product-category/microwaves"],
-            "refrigerators": ["https://hisense-kenya.co.ke/product-category/fridges-freezers"],
-            "tvs": ["https://hisense-kenya.co.ke/product-category/tvs", "https://hisense-kenya.co.ke/product-category/tvs/qled-4k", "https://hisense-kenya.co.ke/product-category/tvs/uhd-4k"],
-            "washers-dryers": ["https://hisense-kenya.co.ke/product-category/washing-machines"],
-        },
-    },
+    # hisense-kenya-ke deprecated 2026-10-29: the site itself is down, not
+    # bot-blocked. Every leaf has returned a real HTTP 200 since the
+    # 2026-10-24 15:55 scheduled run (8/8 consecutive runs) whose body is a
+    # placeholder page — <title>Hisense Kenya is under construction</title>
+    # — identical across all 5 leaves (audio/cooking/refrigerators/tvs/
+    # washers-dryers) and unchanged for 4+ days. That's not the Cloudflare
+    # Turnstile challenge this entry used to fight (no challenge markup, no
+    # 403 — a genuine 200 with the merchant's own placeholder content), so
+    # no client_type escalation applies; it's the same "the catalog is
+    # genuinely gone" shape as tclke-ke's SPA-shell rebuild, just with a
+    # literal "under construction" notice instead of an empty app shell.
+    # 73 listings; TV/appliance catalog is deeply covered elsewhere:
+    # Hotpoint, TCL Kenya, Ramtons, Dixons, Fivestar, Housewife's Paradise.
+    # Not worth re-wiring if/when the site comes back — re-discover from
+    # scratch then, since category URLs may well have changed too.
     # nairobitvshop-ke deprecated 2026-08-11 — compound failure:
     #   1. GHA IPs get ConnectTimeout at the network layer (same LiteSpeed-
     #      style packet drop as zuka-ke; residential-proxy-only fix).

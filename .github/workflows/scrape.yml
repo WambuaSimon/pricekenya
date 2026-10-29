@@ -192,7 +192,9 @@ jobs:
           - wc-nextbuy-ke       # refurbished phones
           - pricepoint-ke       # WC Store API scraper (was wc-*)
           - wc-phoneshop-ke     # phones + gaming accessories
-          - wc-hisense-kenya-ke # Cloudflare Turnstile — Playwright headless
+          # wc-hisense-kenya-ke deprecated 2026-10-29: the site is down
+          # (real 200, body is the merchant's own "under construction"
+          # placeholder on every leaf), not bot-blocked. See wc_merchants.py.
           # wc-overtech-ke deprecated 2026-08-29: network-layer block on GHA
           # IPs (RetryError[Future ... raised Timeout], no HTTP response) —
           # same signature as zuka-ke/nairobitvshop-ke. See wc_merchants.py
@@ -217,7 +219,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: startsWith(matrix.target, 'wc-hisense-kenya') || matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke'
+        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
