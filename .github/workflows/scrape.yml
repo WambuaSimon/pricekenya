@@ -145,7 +145,7 @@ jobs:
           # finetech-ke deprecated 2026-08-21: finetech.co.ke is NXDOMAIN
           # (domain lapsed, not a bot block). See wc_merchants.py.
           - wc-fivestar-ke
-          - wc-jojabo-ke
+          - wc-jojabo-ke        # playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-10-29)
           - wc-le-ke
           - wc-megatech-ke        # playwright-stealth (was cffi; JS-refresh challenge escalated 2026-08-11)
           # wc-nairobitvshop-ke deprecated 2026-08-11 — see wc_merchants.py
@@ -219,7 +219,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke'
+        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke' || matrix.target == 'wc-jojabo-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}

@@ -80,13 +80,24 @@ WC_MERCHANTS: dict[str, dict] = {
     # / Dixons / Ramtons.
     "jojabo-ke": {
         "meta": {"slug": "jojabo-ke", "name": "Jojabo Technologies", "base_url": "https://jojabotechnologies.co.ke"},
-        # TLS-fingerprint block on GHA IPs since 2026-10-27: every leaf logs
-        # a bare `RetryError[HTTPStatusError]` on the default "polite"
-        # (plain httpx) client, with no "zero cards" or challenge-shell
-        # diagnostic — the GET itself is rejected before any HTML comes
-        # back. Chrome TLS impersonation is the established fix for this
-        # signature (tclke-ke, smartphoneskenya-ke, zuka-ke, §8h/§8i).
-        "client_type": "cffi",
+        # TLS-fingerprint block on GHA IPs since 2026-10-27: every leaf logged
+        # a bare `RetryError[HTTPStatusError]` on the default "polite" (plain
+        # httpx) client, with no "zero cards" or challenge-shell diagnostic —
+        # the GET itself was rejected before any HTML came back. PR #104
+        # fixed that with `client_type: "cffi"` (Chrome TLS impersonation).
+        #
+        # Escalated again as of the first run after #104 merged
+        # (2026-10-29): every leaf now logs `RetryError[HTTPError]` on cffi
+        # itself — curl_cffi's own exception for a real HTTP error status
+        # returned despite Chrome TLS impersonation, not an httpx
+        # `HTTPStatusError` (already past that) and not a `Timeout`/
+        # `ConnectTimeout` (rules out a network-layer drop). This is the
+        # exact escalation signature smartdevices-ke/eamobitech-ke,
+        # audiocom-ke, and solarshop-ke each hit on cffi before needing
+        # `playwright-stealth` — in every one of those cases the signature
+        # never resolved on its own, only worsened. See git history for the
+        # per-merchant triage detail (OPERATIONS.md, no longer tracked here).
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://jojabotechnologies.co.ke/product-category/audio-mixer", "https://jojabotechnologies.co.ke/product-category/bass-speakers", "https://jojabotechnologies.co.ke/product-category/earbuds"],
             "cameras": ["https://jojabotechnologies.co.ke/product-category/camera", "https://jojabotechnologies.co.ke/product-category/cctv-cameras"],
