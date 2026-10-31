@@ -251,10 +251,24 @@ async def fetch_woocommerce_category(
                     or first_card.css_first("h3")
                 )
                 first_card_head = (first_card.html or "")[:800]
+                # When none of the known .price selectors match, the price
+                # markup may simply live past the first 800 chars of a card
+                # built on a bespoke BEM-style theme (nextbuy-ke's
+                # "nb-product-card__*" classes, for one) rather than being
+                # absent. Probe for ANY element whose class attribute
+                # contains "price" and print its own snippet separately, so
+                # the next pass can see the real markup instead of just
+                # confirming (again) that the known selectors don't match.
+                price_like_snippet = None
+                if not has_price:
+                    price_like_node = first_card.css_first('[class*="price"]')
+                    if price_like_node is not None:
+                        price_like_snippet = (price_like_node.html or "")[:300]
                 print(
                     f"[wc] {merchant_slug}/{category_slug} page1 {len(cards)} card(s) "
                     f"matched but zero extracted (selector drift?) "
-                    f"anchor={has_anchor} price={has_price} title={has_title}: "
+                    f"anchor={has_anchor} price={has_price} title={has_title} "
+                    f"price_like_element={price_like_snippet!r}: "
                     f"{first_card_head!r}"
                 )
     finally:
