@@ -210,7 +210,14 @@ async def fetch_woocommerce_category(
                 # 'empty catalog' from 'challenge page' from 'wrong URL'
                 # without hunting Render logs.
                 if page == 1:
-                    body_head = (resp.text or "")[:300].replace("\n", " ")
+                    # 300 chars wasn't enough to reach past a long <head> (meta
+                    # tags, inline CSS) into any <script> a JS-refresh shell
+                    # puts in <body> — armco-ke's 2026-11-04 zero-cards log cut
+                    # off mid-<!-- comment --> in <head> with no way to tell
+                    # whether a reload script follows. Widened so the next
+                    # triage can actually match the playbook signature instead
+                    # of guessing from a truncated snippet.
+                    body_head = (resp.text or "")[:2000].replace("\n", " ")
                     print(
                         f"[wc] {merchant_slug}/{category_slug} page1 zero cards "
                         f"(status {resp.status_code}, body head): {body_head!r}"
@@ -250,7 +257,11 @@ async def fetch_woocommerce_category(
                     or first_card.css_first("h2")
                     or first_card.css_first("h3")
                 )
-                first_card_head = (first_card.html or "")[:800]
+                # 800 chars wasn't enough either — nextbuy-ke's 2026-11-04 log
+                # cut off mid-<img src> URL, before the price markup the
+                # anchor/price/title flags above are trying to explain. Widened
+                # for the same reason as the body_head snippet above.
+                first_card_head = (first_card.html or "")[:3000]
                 print(
                     f"[wc] {merchant_slug}/{category_slug} page1 {len(cards)} card(s) "
                     f"matched but zero extracted (selector drift?) "
