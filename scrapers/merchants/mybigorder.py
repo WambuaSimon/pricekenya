@@ -221,6 +221,21 @@ async def _fetch_category(
                   f"({type(e).__name__}: {e}); skipping rest of this category")
             return
         listings = _parse_cards(resp.text, fixed_category_slug=fixed_category_slug)
+        if page == 1 and not listings:
+            # The GET succeeded (no exception above) but nothing parsed out —
+            # a silent zero-yield this scraper had no way to explain, same
+            # blind spot woocommerce.py's "zero cards" canary already closed
+            # for WC merchants (see fetch_woocommerce_category). Report
+            # whether the card marker itself is still present so a template
+            # tweak (marker intact, inner regex drifted) reads differently
+            # from a site rebuild (marker gone entirely).
+            has_marker = _CARD_MARKER in (resp.text or "")
+            body_head = (resp.text or "")[:2000].replace("\n", " ")
+            print(
+                f"mybigorder: {slug} page {page} zero cards parsed "
+                f"(status {resp.status_code}, card marker present={has_marker}, "
+                f"body head): {body_head!r}"
+            )
         new_this_page = 0
         for r in listings:
             if r.url in seen:
