@@ -80,13 +80,18 @@ WC_MERCHANTS: dict[str, dict] = {
     # / Dixons / Ramtons.
     "jojabo-ke": {
         "meta": {"slug": "jojabo-ke", "name": "Jojabo Technologies", "base_url": "https://jojabotechnologies.co.ke"},
-        # TLS-fingerprint block on GHA IPs since 2026-10-27: every leaf logs
-        # a bare `RetryError[HTTPStatusError]` on the default "polite"
-        # (plain httpx) client, with no "zero cards" or challenge-shell
-        # diagnostic — the GET itself is rejected before any HTML comes
-        # back. Chrome TLS impersonation is the established fix for this
-        # signature (tclke-ke, smartphoneskenya-ke, zuka-ke, §8h/§8i).
-        "client_type": "cffi",
+        # TLS-fingerprint block on GHA IPs since 2026-10-27 was fixed with
+        # `client_type: "cffi"` (#104). That stopped holding on 2026-11-01:
+        # every leaf now logs a bare `RetryError[HTTPError]` (curl_cffi's own
+        # exception for a real error status returned *despite* Chrome TLS
+        # impersonation — not httpx's `HTTPStatusError`, so cffi is still
+        # getting a response, and not a Timeout, so it's not a network-layer
+        # drop). Confirmed identical across 2026-11-01 through 2026-11-04
+        # (4/4 scheduled runs). This is the same escalation signature
+        # solarshop-ke/smartdevices-ke/eamobitech-ke/audiocom-ke each hit on
+        # cffi before needing `playwright-stealth`, and in none of those
+        # cases did the signature resolve on its own.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://jojabotechnologies.co.ke/product-category/audio-mixer", "https://jojabotechnologies.co.ke/product-category/bass-speakers", "https://jojabotechnologies.co.ke/product-category/earbuds"],
             "cameras": ["https://jojabotechnologies.co.ke/product-category/camera", "https://jojabotechnologies.co.ke/product-category/cctv-cameras"],
