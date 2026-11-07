@@ -196,9 +196,25 @@ async def fetch_woocommerce_category(
                 # shopify.py's page-1 diagnostic. Subsequent pages fail quiet
                 # (normal end-of-pagination indistinguishable from transient).
                 if page == 1:
+                    # Both PoliteClient and CffiPoliteClient wrap .get() in
+                    # @retry, so exc is almost always tenacity's RetryError —
+                    # and RetryError.__str__ only echoes the failed Future's
+                    # *class name* ("raised HTTPError"), not its message, so
+                    # the actual status code/body never reached this print
+                    # (jojabo-ke, OPERATIONS log: identical "RetryError:
+                    # RetryError[<Future ... raised HTTPError>]" on every
+                    # category even after the cffi fix landed, with no way to
+                    # tell a live 403 from something else). Unwrap to the
+                    # last attempt's real exception when tenacity gave us one.
+                    detail: BaseException = exc
+                    last_attempt = getattr(exc, "last_attempt", None)
+                    if last_attempt is not None:
+                        inner = last_attempt.exception()
+                        if inner is not None:
+                            detail = inner
                     print(
                         f"[wc] {merchant_slug}/{category_slug} page1 GET failed: "
-                        f"{type(exc).__name__}: {exc}"
+                        f"{type(detail).__name__}: {detail}"
                     )
                 return
             html = HTMLParser(resp.text)
