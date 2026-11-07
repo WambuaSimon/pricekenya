@@ -221,6 +221,26 @@ async def _fetch_category(
                   f"({type(e).__name__}: {e}); skipping rest of this category")
             return
         listings = _parse_cards(resp.text, fixed_category_slug=fixed_category_slug)
+        if page == 1 and not listings:
+            # The GET succeeded (no exception above) but nothing parsed out
+            # of it — a silent zero-yield with no diagnostic of its own,
+            # unlike the except-block above or woocommerce.py's "zero cards"
+            # canary (§8h/§8i). All-mybigorder has gone from "failed (X);
+            # skipping" to raising ScraperYieldTooLow with *no* preceding
+            # print at all (every category, every scheduled run since at
+            # least 2026-11-04), meaning the site is now returning 200s that
+            # `_parse_cards` can't extract anything from — either the card
+            # marker itself changed or the per-field regexes inside a
+            # still-matching card drifted. Report which so the next run's
+            # log shows the actual signature instead of a bare
+            # ScraperYieldTooLow.
+            card_count = resp.text.count(_CARD_MARKER)
+            body_head = (resp.text or "")[:800].replace("\n", " ")
+            print(
+                f"mybigorder: {slug} page {page} got status "
+                f"{resp.status_code}, {card_count} card marker(s) found but "
+                f"zero parsed (selector drift?): {body_head!r}"
+            )
         new_this_page = 0
         for r in listings:
             if r.url in seen:
