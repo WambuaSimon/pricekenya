@@ -209,8 +209,26 @@ async def fetch_woocommerce_category(
                 # something else. Prints the response head so we can tell
                 # 'empty catalog' from 'challenge page' from 'wrong URL'
                 # without hunting Render logs.
+                #
+                # 300 chars isn't enough to tell a bot-mitigation shell from
+                # a genuine non-WooCommerce rebuild apart — armco-ke has
+                # logged this exact signature every scheduled run since
+                # 2026-09-29 (20+ consecutive windows per OPERATIONS.md
+                # §8u-§8ae) and every pass stalls on the same wall: the
+                # 300-char head shows a real 200 response with WC-theme
+                # boilerplate stripped out, but cuts off before any
+                # `window.location.reload` / challenge marker OR any
+                # SPA-framework marker (`__NEXT_DATA__`, `id="root"`, a
+                # `<script type="module" src=...>` bundle tag) would appear,
+                # so neither "still-blockable with playwright-stealth" nor
+                # "genuinely migrated off WooCommerce" can be confirmed.
+                # Widened to 800 chars, matching the snippet size already
+                # used below for the "matched but zero extracted" canary
+                # (nextbuy-ke, §8z), so the next run's log can actually
+                # settle this instead of reproducing the same inconclusive
+                # 300-char snippet a 21st time.
                 if page == 1:
-                    body_head = (resp.text or "")[:300].replace("\n", " ")
+                    body_head = (resp.text or "")[:800].replace("\n", " ")
                     print(
                         f"[wc] {merchant_slug}/{category_slug} page1 zero cards "
                         f"(status {resp.status_code}, body head): {body_head!r}"
