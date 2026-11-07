@@ -234,6 +234,18 @@ async def fetch_woocommerce_category(
                 # site that switched card markup shows up as a readable
                 # signature instead of a bare ScraperYieldTooLow with no clue
                 # why.
+                #
+                # 800 chars (the first widening, §8z) still wasn't enough:
+                # nextbuy-ke has logged anchor=True price=False title=True on
+                # this exact card every scheduled run since 2026-10-09 (see
+                # OPERATIONS.md §8z-§8af), and the 800-char head only reaches
+                # as far as the `<img>` tag inside the card's media wrapper
+                # — it cuts off before the price markup the merchant's
+                # custom "nb-product-card" theme actually uses, which is
+                # the one thing every one of those passes needed to pick a
+                # new selector instead of re-confirming the same gap a 10th
+                # time. Widened to 4000 chars to clear a single product
+                # card's full markup.
                 first_card = cards[0]
                 has_anchor = bool(first_card.css_first("a[href]"))
                 has_price = bool(
@@ -250,7 +262,7 @@ async def fetch_woocommerce_category(
                     or first_card.css_first("h2")
                     or first_card.css_first("h3")
                 )
-                first_card_head = (first_card.html or "")[:800]
+                first_card_head = (first_card.html or "")[:4000]
                 print(
                     f"[wc] {merchant_slug}/{category_slug} page1 {len(cards)} card(s) "
                     f"matched but zero extracted (selector drift?) "
