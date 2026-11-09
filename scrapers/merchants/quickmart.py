@@ -5,6 +5,19 @@ location + branch" session. The homepage and category URLs both return a
 50 KB shell until the session carries all five location cookies. Landing
 plain httpx (or curl_cffi without the session) gets nothing useful.
 
+**2026-11-06 escalation:** `CffiPoliteClient`'s Chrome TLS impersonation
+stopped clearing the bootstrap request — every scheduled run since logs a
+bare `curl_cffi.requests.exceptions.HTTPError: HTTP Error 403` on the very
+first GET (`/4301`), with no HTML at all, surfaced as `RetryError[HTTPError]`
+by tenacity. Same signature class (a real HTTP error returned despite Chrome
+TLS impersonation, not a Timeout/ConnectTimeout and not httpx's
+HTTPStatusError) that forced jojabo-ke, solarshop-ke, smartdevices-ke,
+eamobitech-ke, and audiocom-ke from `cffi` to `playwright-stealth` — in every
+one of those cases the signature never resolved on its own. Switched to
+`PlaywrightPoliteClient(stealth=True)`; the session cookies the bootstrap
+hop sets land on the shared browser context, so they still carry over to
+every later `.get()` call the same way the old cookie-jar session did.
+
 **Session bootstrap:** visiting the branch URL `/4301` (Quickmart Pioneer,
 Nairobi CBD) sets `PHPSESSID` + the five `_ygGeo*` cookies + `_ygShopId=58`
 in one hop — no POST or geolocation-form emulation required. All subsequent
@@ -47,7 +60,7 @@ import re
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
-from scrapers.common.base import CffiPoliteClient, RawListing
+from scrapers.common.base import PlaywrightPoliteClient, RawListing
 
 MERCHANT_META = {
     "slug": "quickmart-ke",
@@ -181,7 +194,7 @@ def _iter_marker_positions(page_html: str):
         start = idx + len(_CARD_MARKER)
 
 
-async def _fetch_electronics(client: CffiPoliteClient) -> AsyncIterator[RawListing]:
+async def _fetch_electronics(client: PlaywrightPoliteClient) -> AsyncIterator[RawListing]:
     # Bootstrap the session — one GET sets all five location cookies + shop.
     await client.get(_SESSION_BOOTSTRAP_URL)
 
@@ -215,7 +228,7 @@ async def _fetch_electronics(client: CffiPoliteClient) -> AsyncIterator[RawListi
 
 
 async def fetch_electronics() -> AsyncIterator[RawListing]:
-    client = CffiPoliteClient()
+    client = PlaywrightPoliteClient(stealth=True)
     try:
         async for r in _fetch_electronics(client):
             yield r
