@@ -135,7 +135,7 @@ jobs:
           - all-naivas          # Livewire + curl_cffi (CF wall)
           - all-phoneplace      # WooCommerce + curl_cffi (CF wall)
           - phonesstore-ke      # WC Store API scraper (was multi-leg all-*)     # WooCommerce (no wall)
-          - all-quickmart       # Growcer PHP + curl_cffi, hyphen paging
+          - all-quickmart       # Growcer PHP + playwright-stealth, hyphen paging (was cffi; cffi got HTTPError on the bootstrap GET every attempt 2026-11-06)
           - all-carrefour       # Next.js RSC parse + curl_cffi (Akamai wall)
           - all-xiaomi          # WooCommerce, xiaomistores.co.ke
           - all-mybigorder      # Kenyan marketplace, plain httpx, per-subcategory
@@ -219,7 +219,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke'
+        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke' || matrix.target == 'all-quickmart'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
