@@ -109,6 +109,58 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+### 8ah. Stale-merchant triage (2026-11-11) — the backlog, not the merchants, is the finding
+
+No DB access this pass (no `DATABASE_URL`), so signal came entirely from the
+`scrape.yml` matrix on GitHub Actions, per the `MIN_PRIOR_LISTINGS_FOR_CHECK`
+floor change recorded in the pre-2026-10-26 operations log (git history only
+now — see §8 above for why that log stopped being committed). Covered the
+last 4 completed scheduled runs, 2026-11-09 06:23 → 2026-11-10 19:42 UTC.
+
+**Numbered 8ah, not 8k.** The task that kicked off this pass assumed
+`CONTEXT.md`'s own lettering stopped at §8j, which is true for this file —
+but the *log* didn't stop there, it just stopped being committed here.
+`OPERATIONS.md`'s git history (last tracked at commit `91fa5f1~1`) already
+used §8k through §8ag before the 2026-10-26 untracking. Picking "8k" again
+in this file would collide with that history for anyone who goes looking.
+Continuing from §8ag instead.
+
+**Five legs failed in all 4 runs: `all-quickmart`, `all-mybigorder`,
+`wc-jojabo-ke`, `wc-armco-ke`, `wc-nextbuy-ke`.** Every one of them already
+has an open, clean, mergeable PR against it — #106/#108/#111 (jojabo-ke),
+#112 (armco-ke), #107/#113 (nextbuy-ke), #110/#114 (mybigorder-ke), #115
+(quickmart-ke). Pulled the freshest job log for each this pass and
+confirmed, leg by leg, that the failure signature is byte-for-byte what
+those PRs already document — no new breakage, nothing re-diagnosed, no new
+PR opened. (Three legs — `techstore-ke`, `newmatic-ke`, `solarstore-ke` —
+failed once each in this 4-run window with green runs on both sides; per
+the standing megatech-ke lesson, a single red run with no second data point
+is noise, not a pattern, and gets no action.)
+
+**The actual problem is that nothing has merged since PR #105 (2026-10-29).**
+Ten PRs are open, all `mergeable_state: clean`, oldest from 2026-10-31. That
+is the same unmerged-backlog failure mode §8r first flagged in 2026-09-21 —
+each pass keeps correctly declining to guess a fix, correctly adding a
+diagnostic instead, and then nobody ships the diagnostic, so the next pass
+reads the same inconclusive log a week later. Two pairs in the current
+backlog are near-duplicates of each other (jojabo-ke: #106 and #108 propose
+the identical escalation off two separate triage passes; mybigorder-ke: #110
+and #114 add the same class of diagnostic at different snippet sizes) —
+a symptom of the same root problem, not a new one.
+
+**Recommended merge order, not a re-diagnosis:** the diagnostic-only PRs
+first (#109, #111, #112, one of #107/#113, one of #110/#114) so the next
+scheduled run actually produces the evidence the open question needs,
+*then* the two live escalations that already have solid repeated-pattern
+evidence behind them (#115 quickmart-ke, confirmed on 6 runs; and whichever
+of #106/#108 survives for jojabo-ke) — in that order, so an escalation isn't
+landing on top of a diagnostic rewrite it would otherwise conflict with.
+`wc-armco-ke` and `wc-nextbuy-ke` still don't have a fixable signature yet
+(no TLS-fingerprint or JS-challenge match for armco-ke's non-WooCommerce
+shell; nextbuy-ke's price markup still isn't visible in the captured
+snippet) — both correctly stay diagnostic-only until the widened snippets
+actually ship and come back with something to act on.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
