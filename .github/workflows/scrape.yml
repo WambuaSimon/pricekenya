@@ -165,7 +165,7 @@ jobs:
           # wc-zuka-ke deprecated 2026-08-11: LiteSpeed firewall silently drops
           # GHA IPs at network layer (RetryError[Future ... raised Timeout]);
           # curl_cffi no longer bypasses. See wc_merchants.py for rationale.
-          - techstore-ke        # WC Store API scraper (was wc-*)
+          - techstore-ke        # WC Store API scraper (was wc-*) — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-11-09)
           - wc-devicestech-ke
           - wc-nairobilaptops-ke
           - wc-solarshop-ke     # solar specialist: inverters + batteries — playwright-stealth (was cffi; cffi got HTTPError on every attempt 2026-10-22)
@@ -219,7 +219,7 @@ jobs:
       # Chromium only downloads once per runner then caches; the ~200MB is
       # only paid for merchants that actually use client_type: "playwright".
       - name: Install chromium (Playwright merchants only)
-        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke'
+        if: matrix.target == 'patabay-ke' || matrix.target == 'wc-megatech-ke' || matrix.target == 'wc-housewife-ke' || matrix.target == 'solarstore-ke' || matrix.target == 'wc-solarshop-ke' || matrix.target == 'techstore-ke'
         run: playwright install chromium --with-deps
       - name: Scrape ${{ matrix.target }}
         run: python -m scrapers.ingest ${{ matrix.target }}
