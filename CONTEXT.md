@@ -109,6 +109,54 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8ai. Scheduled triage (2026-11-13) — the backlog, not diagnosis, is the problem
+
+No `DATABASE_URL` in this environment; signal came entirely from the
+`scrape.yml` matrix on GitHub Actions, covering the 4 most recent
+scheduled runs (2026-11-11 06:14 → 2026-11-12 20:38 UTC).
+
+Six legs failed in all 4 runs: `all-quickmart`, `all-mybigorder`,
+`wc-jojabo-ke`, `techstore-ke`, `wc-armco-ke`, `wc-nextbuy-ke`.
+
+**Four of six were already covered by open PRs from prior triage
+passes.** Re-verified each against this pass's fresher CI evidence and
+found nothing changed: `wc-jojabo-ke` (cffi → playwright-stealth
+escalation, #106/#108 — closed #106 as a duplicate, kept #108),
+`all-quickmart` (same escalation, #115), `all-mybigorder` (zero-card
+diagnostic, #110/#114 — closed #110 as a duplicate, kept #114).
+`wc-armco-ke` and `wc-nextbuy-ke` remain genuinely inconclusive — neither
+matches a known fixable signature, and diagnostics for both have already
+been widened by #107/#109/#112/#113. Not re-diagnosed.
+
+**Two were genuinely new.** `techstore-ke` failed for the first time ever
+(unmodified since 2026-09-09) starting between 2026-11-08 17:55 and
+2026-11-09 06:23 — the same cffi-escalation signature jojabo-ke and
+quickmart-ke each hit the same week. Fixed in #118.
+
+**Process miss worth naming plainly.** This pass initially re-diagnosed
+and opened a PR for `jojabo-ke` *before* checking the existing PR
+backlog, duplicating #106/#108 a third time (#117, closed once the
+backlog check caught it). Check `list_pull_requests(state=open)` before
+diagnosing anything, not after — the §8r process note already said this;
+this pass is a fresh example of what skipping it costs.
+
+**The real finding is throughput, not diagnosis.** Nothing has merged
+since #105 (2026-10-29) — over two weeks and 70+ scheduled runs ago. #116
+(2026-11-11) already flagged this exact backlog and recommended a merge
+order; it is itself still unmerged. Every open PR reports `pytest`/`ruff`
+clean and `mergeable_state: clean` against `main`. Recommended order,
+unchanged from #116: diagnostics-only first (#107, and one of
+#109/#112/#113 — these three overlap and may conflict with each other),
+then the live escalations (#108, #115, #118).
+
+No merchant-specific signatures or body-head markup recorded here — see
+the individual PR descriptions linked above for the CI evidence, per
+this section's own rationale for keeping that detail out of a committed,
+aggregated log.
+
+Verification: `python3.13 -m pytest -q` (all pass) and `python3.13 -m
+ruff check scrapers/ tests/` (clean), run before this pass's changes.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
