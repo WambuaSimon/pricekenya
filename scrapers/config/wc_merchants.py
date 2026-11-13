@@ -80,13 +80,16 @@ WC_MERCHANTS: dict[str, dict] = {
     # / Dixons / Ramtons.
     "jojabo-ke": {
         "meta": {"slug": "jojabo-ke", "name": "Jojabo Technologies", "base_url": "https://jojabotechnologies.co.ke"},
-        # TLS-fingerprint block on GHA IPs since 2026-10-27: every leaf logs
-        # a bare `RetryError[HTTPStatusError]` on the default "polite"
-        # (plain httpx) client, with no "zero cards" or challenge-shell
-        # diagnostic — the GET itself is rejected before any HTML comes
-        # back. Chrome TLS impersonation is the established fix for this
-        # signature (tclke-ke, smartphoneskenya-ke, zuka-ke, §8h/§8i).
-        "client_type": "cffi",
+        # 2026-10-29 (#104): moved httpx -> cffi for a TLS-fingerprint
+        # RetryError[HTTPStatusError]. That never actually cleared it —
+        # every scheduled run since (confirmed 2026-10-29 through
+        # 2026-11-12, e.g. run 43294607170) still logs a bare
+        # `RetryError[<... raised HTTPError>]` on every leaf, now on cffi
+        # itself (curl_cffi.requests.exceptions.HTTPError: HTTP Error 403),
+        # with no "zero cards" or challenge-shell diagnostic. Bot posture
+        # escalated past cffi, the same pattern housewife-ke and
+        # megatech-ke hit (§8j) — moving to playwright-stealth.
+        "client_type": "playwright-stealth",
         "leaf_to_urls": {
             "audio": ["https://jojabotechnologies.co.ke/product-category/audio-mixer", "https://jojabotechnologies.co.ke/product-category/bass-speakers", "https://jojabotechnologies.co.ke/product-category/earbuds"],
             "cameras": ["https://jojabotechnologies.co.ke/product-category/camera", "https://jojabotechnologies.co.ke/product-category/cctv-cameras"],
