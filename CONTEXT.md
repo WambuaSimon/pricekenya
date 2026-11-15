@@ -109,6 +109,78 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8aj. Scheduled triage — no new breakage, backlog now eleven PRs deep (2026-11-15)
+
+No DB access this pass (no `DATABASE_URL`), so signal came from the
+`scrape.yml` matrix on GitHub Actions. Covered the last 4 completed
+scheduled runs (`43380542098` → `43624036661`, 2026-11-13 06:42 →
+2026-11-14 17:59 UTC) via per-job status, cross-checked against a further
+4 runs back to 2026-11-11 06:14 to separate persistent breaks from noise.
+
+**Housekeeping first, per the standing process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **eleven** open
+PRs (#107-#109, #111-#116, #118-#119), none merged since #105 (merged
+2026-10-29) — 17 days and roughly 34 scheduled runs with nothing landing.
+
+Five legs failed in every run checked this window: `all-quickmart`,
+`all-mybigorder`, `wc-jojabo-ke`, `wc-armco-ke`, `wc-nextbuy-ke`. **Every
+one already has an open, clean, mergeable PR against it**
+(#115 quickmart-ke, #110/#114 mybigorder-ke, #108/#111 jojabo-ke, #112
+armco-ke, #107/#113 nextbuy-ke). Pulled the freshest job log for each and
+confirmed the failure signature matches what those PRs already document,
+byte for byte — nextbuy-ke's widened diagnostic (merged earlier as part of
+PR #80) now reports `anchor=True price=False title=True` on every attempt,
+confirming the card's price node is the one piece of markup that no longer
+matches any of `_extract_product`'s known `.price` selectors on nextbuy's
+custom theme — but the captured snippet still cuts off before the price
+markup itself, which is exactly what open PR #113 (800 → 4000 chars) would
+fix. No new PR opened for any of the five — would just be a twelfth
+corroboration of diagnoses already settled.
+
+**New this pass: a fix PR's own premise may have expired.** `techstore-ke`
+failed 4/4 runs through 2026-11-12 (the evidence behind PR #118, opened
+2026-11-13, proposing `client_type: "playwright-stealth"`), then came back
+green on every one of the 3 scheduled runs since — **without PR #118
+merging**. Confirmed `main` is still at #105 and `scrapers/merchants/
+techstore.py` is unchanged; pulled the first green run's job log
+(`43380542098`) directly and it's a clean exit, no diagnostics, not a
+masked failure. This is the inverse of the megatech-ke lesson (§8j): there
+the risk was reverting a fix that had already stuck; here the risk is
+merging a fix for a break that may have resolved on its own before the fix
+ever shipped. Not closing or editing #118 — flagging it here for whoever
+reviews it to re-run the matrix check before merging, since 3 clean runs
+on the unpatched client is itself evidence worth weighing.
+
+Two single-run blips, not acted on per the megatech-ke lesson: `pixels-ke`
+(new — every leaf returned a real HTTP 200 whose body is a host-level
+"Website Suspended" placeholder page, not a theme or a challenge shell; one
+run of evidence only, but if this recurs next pass it reads as the same
+class of call made for hisense-kenya-ke in #105 — a real response with
+nothing to scrape, not a `client_type` problem); `phonesstore-ke` (new —
+`RetryError[HTTPError]` on `cffi`, the same escalation-class signature
+several other merchants already outgrew on cffi, but one run against 919
+listings on record isn't enough to act on yet).
+
+**The backlog, not the merchants, is still the finding.** Eleven PRs open,
+oldest from 2026-10-31 (15 days), spanning diagnostics-only changes,
+two live fixes, and three write-ups including this one's two predecessors
+(#116 §8ah, #119 §8ai). Recommended order for whoever merges next: land
+the diagnostic-only PRs first (#109, #111, #112, and one of #107/#113),
+then re-verify current CI before merging the live fixes (#108 jojabo-ke,
+#115 quickmart-ke, and #118 techstore-ke specifically, given the finding
+above), then land #116/#119/this write-up for the record.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+hisense-kenya-ke, sollatek-ke's stray row) produced any signal in this
+window.
+
+**Verification.** Docs-only change — no scraper or workflow code touched.
+`python3.13 -m pytest -q` (644 tests, all pass) and `python3.13 -m ruff
+check scrapers/ tests/` (clean), both run against unmodified `main` before
+this write-up.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
