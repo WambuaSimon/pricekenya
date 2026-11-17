@@ -149,7 +149,10 @@ jobs:
           - wc-le-ke
           - wc-megatech-ke        # playwright-stealth (was cffi; JS-refresh challenge escalated 2026-08-11)
           # wc-nairobitvshop-ke deprecated 2026-08-11 — see wc_merchants.py
-          - wc-pixels-ke
+          # wc-pixels-ke deprecated 2026-11-17: hosting account suspended
+          # (real 200, body is a host-level "Website Suspended" placeholder
+          # on every leaf, 4/4 consecutive runs), not bot-blocked. See
+          # wc_merchants.py and CONTEXT.md §8ak.
           - wc-quest-ke
           # wc-smartdevices-ke deprecated 2026-09-15: escalated past
           # playwright-stealth (the strongest client_type this codebase has)
