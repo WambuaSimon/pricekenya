@@ -182,15 +182,6 @@ WC_MERCHANTS: dict[str, dict] = {
             "tvs": ["https://zurimall.co.ke/product-category/tvs-hometheaters", "https://zurimall.co.ke/product-category/tvs-hometheaters/hisense-tvs", "https://zurimall.co.ke/product-category/tvs-hometheaters/lg-tvs"],
         },
     },
-    "pixels-ke": {
-        "meta": {"slug": "pixels-ke", "name": "Pixels Electronics", "base_url": "https://pixelselectronics.co.ke"},
-        "leaf_to_urls": {
-            "cameras": ["https://pixelselectronics.co.ke/product-category/photo-video/cameras-drones"],
-            "laptops": ["https://pixelselectronics.co.ke/product-category/computer-office", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/laptops", "https://pixelselectronics.co.ke/product-category/laptops/apple-macbook", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/laptops/gaming-laptop"],
-            "phones": ["https://pixelselectronics.co.ke/product-category/cell-phones-accessories/cell-phones", "https://pixelselectronics.co.ke/product-category/smartphones", "https://pixelselectronics.co.ke/product-category/smartphones/mobile-phones"],
-            "tablets": ["https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs", "https://pixelselectronics.co.ke/product-category/laptops-tablets-pcs/tablets", "https://pixelselectronics.co.ke/product-category/tablets/apple-ipad"],
-        },
-    },
     "quest-ke": {
         "meta": {"slug": "quest-ke", "name": "Quest Appliances", "base_url": "https://www.questappliances.com"},
         "leaf_to_urls": {
@@ -465,6 +456,19 @@ WC_MERCHANTS: dict[str, dict] = {
     # Hotpoint, TCL Kenya, Ramtons, Dixons, Fivestar, Housewife's Paradise.
     # Not worth re-wiring if/when the site comes back — re-discover from
     # scratch then, since category URLs may well have changed too.
+    # pixels-ke deprecated 2026-11-17: hosting account suspended, not
+    # bot-blocked. Every leaf (cameras/laptops/phones/tablets) has returned
+    # a real HTTP 200 since the 2026-11-15 07:15 scheduled run (4/4
+    # consecutive runs through 2026-11-16 21:59) whose body is a host-level
+    # placeholder — <title>Website Suspended</title> — identical across all
+    # leaves and unchanged for 2+ days. Same "the catalog is genuinely gone"
+    # shape as hisense-kenya-ke's "under construction" page: a genuine 200
+    # with no challenge markup and no WooCommerce DOM, so no client_type
+    # escalation applies. 50 listings; phone/laptop/tablet/camera catalog is
+    # deeply covered elsewhere: Jumia, Kilimall, Phone Place, Avechi. Not
+    # worth re-wiring if/when the site comes back — re-discover from scratch
+    # then, since category URLs may well have changed too. See
+    # run 43965574920 and OPERATIONS.md (CONTEXT.md §8ak).
     # nairobitvshop-ke deprecated 2026-08-11 — compound failure:
     #   1. GHA IPs get ConnectTimeout at the network layer (same LiteSpeed-
     #      style packet drop as zuka-ke; residential-proxy-only fix).

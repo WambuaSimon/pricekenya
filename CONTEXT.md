@@ -109,6 +109,80 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8ak. Scheduled triage — pixels-ke's single-run blip recurs, backlog now twelve PRs deep (2026-11-17)
+
+No DB access this pass (no `DATABASE_URL`), so signal came from the
+`scrape.yml` matrix on GitHub Actions. Covered the last 4 completed
+scheduled runs (`43685526442` → `43965574920`, 2026-11-15 06:27 →
+2026-11-16 21:59 UTC).
+
+**Housekeeping first, per the standing process note.** Twelve PRs open
+(#107-#109, #111-#116, #118-#120), none merged since #105 (2026-10-29) —
+19 days and roughly 38 scheduled runs with nothing landing. #106, #110 and
+#117 (earlier jojabo-ke/mybigorder-ke attempts) are closed unmerged,
+superseded by later PRs in the same backlog.
+
+Six legs failed in every run checked this window: `all-quickmart`,
+`all-mybigorder`, `wc-jojabo-ke`, `wc-pixels-ke`, `wc-armco-ke`,
+`wc-nextbuy-ke`. The `health` job also failed in all 4 runs — not an
+independent bug, it's the DB-driven stale guard (§8ag's `tclke-ke` fix)
+correctly reporting that these same six legs are stale past 30h; `python
+-m scripts.scrape_health` output on run `43965574920` lists exactly these
+six as `active ... STALE` (armco-ke 1155.6h, nextbuy-ke 1024.5h, jojabo-ke
+497.2h, mybigorder-ke 352.2h, quickmart-ke 266.5h, pixels-ke 64.0h).
+
+Five of the six already have an open, clean PR against them
+(#115 quickmart-ke, #114/#110 mybigorder-ke, #108/#111 jojabo-ke, #112
+armco-ke, #107/#113 nextbuy-ke), and the freshest job log for each matches
+what those PRs already document. No new PR opened for any of the five —
+same call §8aj made, would just be a thirteenth corroboration of
+diagnoses already settled.
+
+**pixels-ke crosses from blip to break.** §8aj (2026-11-15) flagged this
+as a single-run blip — one `wc` leaf returning a real HTTP 200 whose body
+is a host-level "Website Suspended" placeholder, not a theme or challenge
+shell — and explicitly deferred acting on it: "if this recurs next pass it
+reads as the same class of call made for hisense-kenya-ke... a real
+response with nothing to scrape, not a `client_type` problem." Checked all
+4 runs this pass (`43685526442`, `43748928513`, `43816605238`,
+`43965574920`, spanning 2026-11-15 06:27 → 2026-11-16 21:59 UTC): identical
+signature on every category, every run —
+`[wc] pixels-ke/<leaf> page1 zero cards (status 200, body head: '<!DOCTYPE
+html>... <title>Website Suspended</title> ...')`. Unchanged for 2+ days
+across 4 consecutive scheduled runs. **Deprecated** (PR opens alongside
+this write-up) — removed from `scrapers/config/wc_merchants.py` and the
+`scrape.yml` matrix, dated comment left at both sites. 50 listings;
+phone/laptop/tablet/camera catalog already covered by Jumia / Kilimall /
+Phone Place / Avechi.
+
+**techstore-ke's recovery (flagged in §8aj) still holds.** Not in this
+pass's failure list on any of the 4 runs; `scrape_health` output on
+`43965574920` shows it fresh at 0.2h, not stale. PR #118 (escalate
+`client_type` to `playwright-stealth`) is still open and still unmerged —
+flagging again, as §8aj did, for whoever reviews it to re-run the matrix
+check before merging, since this is now 2+ pay periods of clean runs on
+the unpatched client.
+
+**The backlog, not the merchants, is still the finding.** Twelve PRs open
+before this pass (thirteen counting this one), oldest (#107) from
+2026-10-31 (17 days), and nothing has merged in 19 days. Recommended order
+for whoever merges next is unchanged from §8aj: diagnostic-only PRs first
+(#109, #111, #112, one of #107/#113), re-verify current CI, then the live
+fixes (#108 jojabo-ke, #115 quickmart-ke, #118 techstore-ke — re-check
+techstore-ke's premise first per above), then the write-up PRs.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+hisense-kenya-ke, sollatek-ke's stray row) produced any signal in this
+window. `wc-nairobilaptops-ke` failed once (one of the 4 runs checked) and
+passed the other 3 — a blip, not acted on, per the megatech-ke lesson
+(§8j).
+
+**Verification.** `python3.13 -m pytest -q` (all tests pass) and `python3.13
+-m ruff check scrapers/ tests/` (clean), both run after the pixels-ke
+removal in this same change.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
