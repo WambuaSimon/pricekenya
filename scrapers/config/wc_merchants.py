@@ -404,6 +404,16 @@ WC_MERCHANTS: dict[str, dict] = {
     # newmatic-ke moved to scrapers/merchants/newmatic.py (WC Store API path).
     "nextbuy-ke": {
         "meta": {"slug": "nextbuy-ke", "name": "NextBuy Kenya", "base_url": "https://nextbuy.co.ke"},
+        # TLS-fingerprint block on GHA IPs since 2026-11-18: every leaf now
+        # logs a bare `RetryError[HTTPStatusError]` on the default "polite"
+        # (plain httpx) client, with no "zero cards" or "matched but zero
+        # extracted" diagnostic — the GET itself is rejected before any HTML
+        # comes back. This replaces the Astra-theme selector-drift signature
+        # this merchant showed since 2026-10-09 (zero recurrence of it in the
+        # last 2 scheduled runs). Chrome TLS impersonation is the established
+        # fix for this signature (tclke-ke, smartphoneskenya-ke, zuka-ke,
+        # jojabo-ke).
+        "client_type": "cffi",
         "leaf_to_urls": {
             "phones": ["https://nextbuy.co.ke/product-category/phones-tablets/smartphones", "https://nextbuy.co.ke/product-category/like-new-electronics/certified-pre-owned-iphones", "https://nextbuy.co.ke/product-category/like-new-electronics/used-samsung-phones"],
         },
