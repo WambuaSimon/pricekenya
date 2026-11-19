@@ -109,6 +109,49 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8al. Scheduled triage — two stale diagnoses flipped to a shared TLS-fingerprint signature, backlog now fourteen PRs deep (2026-11-19)
+
+No `DATABASE_URL` in this environment; signal came entirely from the
+`scrape.yml` matrix on GitHub Actions (`MIN_PRIOR_LISTINGS_FOR_CHECK` at 5,
+so a zero-yield leg fails red instead of exiting 0 silently). `gh` CLI was
+available and used directly, falling back to `gh api .../logs` for job log
+content (worked this pass, unlike several prior passes where the Azure blob
+redirect 403'd).
+
+**Housekeeping first, per the standing process note.** `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` returned **thirteen** open
+PRs (#107–#121), none merged since #104/#105 (2026-10-29). Checked each
+against this pass's own evidence before doing anything:
+
+| PR | Merchant | Still matches current evidence? |
+|---|---|---|
+| #108 | jojabo-ke → playwright-stealth | Yes — confirmed byte-for-byte on the newest run (`RetryError[HTTPError]` on cffi, job `135110516498`). |
+| #115 | quickmart-ke → playwright-stealth | Yes — confirmed (`HTTPError 403` on the session-bootstrap GET, job `135110512628`). |
+| #121 | Deprecate pixels-ke ("Website Suspended") | Yes — confirmed, 4/4, identical body head. |
+| #112 | Widen armco-ke's zero-cards snippet | Yes — armco-ke's non-WooCommerce shell signature is unchanged (job `135110519811`); still no fixable `client_type` signature and still no deprecation-criteria match, now 8+ weeks running. |
+| #113 | Widen nextbuy-ke's selector-drift snippet | **Stale** — see below. |
+| #114 | Add mybigorder-ke zero-card diagnostic | **Stale** — see below. |
+| #118 | Escalate techstore-ke → playwright-stealth | **Stale, recovered.** techstore-ke is green on all 4 of this pass's runs (and has been since shortly after the PR's own evidence window closed, 2026-11-13). Flagging rather than closing — per the task's own brief, only act on persistent breakage, and a recovered leg is exactly the "don't merge on stale evidence" case the megatech-ke lesson named. Recommend whoever reviews the backlog re-run the matrix check before merging #118. |
+| #107, #109, #111 | woocommerce.py diagnostic widenings (jojabo-ke RetryError-unwrap, general snippet widening) | No conflict — these are general diagnostic improvements, not merchant-specific claims that could go stale. |
+| #116, #119, #120 | CONTEXT.md §8ah/§8ai/§8aj write-ups | Each inserts at the same anchor point (end of §8), so whichever merges first will force a one-line rebase on the others — same collision class §8q/§8r already hit. Not re-written here; this section picks the next free letter (§8al, after #121's §8ak) to avoid colliding with any of them. |
+
+**The actual new finding: nextbuy-ke and mybigorder-ke's long-standing diagnoses both went stale on the same day.** Covered the last 6 scheduled runs (`43816605238` → `44391525444`, 2026-11-16 06:25 → 2026-11-18 20:29 UTC) for these two merchants specifically, since their matrix color alone (red, unchanged for weeks) would have hidden a signature change exactly the way armco-ke's color has stayed red for two months on one unchanging signature.
+
+| Merchant | Old signature (held through 2026-11-17 ~08:00) | New signature (2026-11-18 07:25 onward, 2/2 clean runs) | Verdict |
+|---|---|---|---|
+| **wc-nextbuy-ke** | `N card(s) matched but zero extracted (selector drift?)` on the Astra theme — PR #113's target, unchanged since 2026-10-09 | `[wc] nextbuy-ke/phones page1 GET failed: RetryError: RetryError[<Future ... raised HTTPStatusError>]` on the default `polite` client, no diagnostic markup at all. One transitional run (`44173996810`, 2026-11-17 20:53) showed a mix: 1 of 3 category URLs timed out while the other 2 still showed selector drift. | **Fixed** (PR #122). `client_type: "cffi"` — the textbook TLS-fingerprint escalation. PR #113's diagnostic widening is stale for now but harmless; not closed, just superseded. |
+| **all-mybigorder** | Genuinely silent zero-yield, no exception at all — PR #114's target | `mybigorder: <slug> page 1 failed (RetryError: RetryError[<Future ... raised HTTPStatusError>]); skipping rest of this category` on every one of 10 categories — the diagnostic print PR #114 proposes already exists on `main` (added in an earlier pass) and fired cleanly once there was something to catch. | **Fixed** (PR #123). Swapped `PoliteClient` → `CffiPoliteClient` in `mybigorder.py` — same fix, same signature class. PR #114 is stale for now but harmless; not closed, just superseded. |
+
+Both merchants flipped signature in the same ~11-hour window (2026-11-17 20:53 → 2026-11-18 07:25), on unrelated domains and unrelated scraper code paths. Flagging the coincidence rather than asserting a shared cause — nothing here distinguishes "two merchants' hosts independently tightened Cloudflare/WAF posture the same week" from "something about the GHA IP pool changed reputation that week," and this pass has no way to tell which from CI logs alone.
+
+**wc-smartphoneskenya-ke** failed once (`44042097764` only), green on the 3 runs since — noise, per the standing megatech-ke lesson. No action.
+
+**The backlog is now fourteen PRs deep** (#107–#123) spanning 2026-10-31 → 2026-11-19, with nothing merged since #105 three weeks ago. This pass adds two genuine fixes (#122, #123) on top of that pile rather than shrinking it, because the underlying evidence changed and shipping a correct fix beats leaving a known-stale one as the only open item for these two merchants. The recommendation from every prior pass since §8ab stands: an operator needs to merge the surviving, still-accurate PRs (starting with the ones in the table above marked "Yes") before the next triage pass has to re-verify all of them yet again.
+
+`python3.13 -m pytest -q` — all tests pass. `python3.13 -m ruff check scrapers/ tests/` — clean. Both verified with the nextbuy-ke/mybigorder-ke changes applied, before either fix PR was opened.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke, hisense-kenya-ke, sollatek-ke's stray row) produced any signal in this window.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
