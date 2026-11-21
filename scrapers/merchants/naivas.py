@@ -160,10 +160,27 @@ async def _fetch_category(
         url = base_url if page == 1 else f"{base_url}?page={page}"
         try:
             resp = await client.get(url)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            # Page 1 failing here was completely silent — no print, no
+            # exception reaching _consume — which is how naivas-ke decayed
+            # for 100+ hours with every scheduled run showing green (CONTEXT.md
+            # §8am). Mirror woocommerce.py's page-1 diagnostic; subsequent
+            # pages still fail quiet since that's the normal end-of-pagination
+            # case here too.
+            if page == 1:
+                print(
+                    f"[naivas] {category_slug} page1 GET failed: "
+                    f"{type(exc).__name__}: {exc}"
+                )
             return
         listings = _parse_cards(resp.text, category_slug)
         if not listings:
+            if page == 1:
+                body_head = (resp.text or "")[:300].replace("\n", " ")
+                print(
+                    f"[naivas] {category_slug} page1 zero cards "
+                    f"(status {resp.status_code}, body head): {body_head!r}"
+                )
             return
         for r in listings:
             yield r
