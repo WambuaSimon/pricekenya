@@ -109,6 +109,55 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8am. Scheduled triage — a self-inflicted duplicate, and one new silent blind spot (2026-11-21)
+
+No `DATABASE_URL` in this environment; signal came entirely from the
+`scrape.yml` matrix on GitHub Actions (`MIN_PRIOR_LISTINGS_FOR_CHECK` at 5).
+Covered the last 4 completed scheduled runs (`44479040045` → `44809608161`,
+2026-11-19 07:21 → 2026-11-20 20:14 UTC), cross-checked back to
+`42175943269` (2026-11-06) to separate persistent breakage from noise.
+
+**Housekeeping, done out of order this time.** I diagnosed `all-quickmart`
+and `all-mybigorder` straight from CI logs and opened PRs #125 and #126
+before checking the existing open-PR backlog — exactly the process miss
+§8ah/§8ai/§8aj/§8al each called out. Both turned out to be byte-for-byte
+duplicates of already-open, clean, unmerged PRs (#115 and #123
+respectively, both from before this run and both still accurate against
+fresh evidence). Closed #125 and #126 with comments pointing at the
+originals rather than leaving three competing PRs per merchant. Lesson
+applied for the rest of this pass: checked `gh api
+repos/WambuaSimon/pricekenya/pulls?state=open` *first*.
+
+Same six legs failed in every run checked this window:
+`all-quickmart`, `all-mybigorder`, `wc-jojabo-ke`, `wc-pixels-ke`,
+`wc-armco-ke`, `wc-nextbuy-ke`. All six already have an open, clean,
+currently-accurate PR:
+
+| Merchant | Open PR | Confirmed against this pass's evidence |
+|---|---|---|
+| jojabo-ke → playwright-stealth | #108 | Yes — `RetryError[HTTPError]` on cffi, job `136542724628`, run `44809608161`. |
+| quickmart-ke → playwright-stealth | #115 | Yes — `curl_cffi...HTTPError: HTTP Error 403`, job `136542722757`. |
+| mybigorder-ke → cffi | #123 | Yes — `RetryError[HTTPStatusError]` on every category, job `136542724511`. |
+| nextbuy-ke → cffi | #122 | Yes — `RetryError[HTTPStatusError]` on the default client, job `136542729573`. |
+| Deprecate pixels-ke (hosting suspended) | #121 | Yes — identical "Website Suspended" body head, job `136542725173`; onset bisected to between runs `43565747955` (2026-11-14 06:19, last green) and `43624036661` (2026-11-14 17:59, first red) — 7 days straight since, not a blip. |
+| Widen armco-ke's zero-cards snippet | #112 | Yes — same non-WooCommerce theme shell (`data-dark-until` dark-mode toggle script) as every prior pass since §8u; still no fixable `client_type` signature, still no deprecation-criteria match (DNS fine, real 200s), now ~2 months running. |
+
+No new PR opened for any of these six — would only be a further corroboration of diagnoses already settled, same call §8aj/§8al already made.
+
+**techstore-ke stays recovered.** Green on all runs checked this window, consistent with §8al's note that it recovered shortly after its own evidence window closed. #118 (escalate to playwright-stealth) remains open against stale evidence; still flagging rather than closing it myself, since I didn't open it and closing someone else's open PR outright felt like a bigger step than flagging — but the recommendation stands: re-run the matrix check before merging #118.
+
+`wc-smartphoneskenya-ke` and `all-xiaomi` each failed exactly once in the window checked (`44042097764` and `44809608161` respectively) with a clean run immediately before and no repeat since — noise, no action, per the standing megatech-ke lesson against reacting to an unconfirmed blip.
+
+**New finding: naivas-ke is silently decaying with a fully green matrix.** `scripts.scrape_health`'s own output (read from the `health` job's log, not DB access) shows `naivas-ke active 214 202 2026-11-16 07:11 UTC 110.2h STALE` while `scrape (all-naivas)` has been `success` on every scheduled run since. The job log's scraper step prints *nothing at all* between start and a clean exit — no error, no diagnostic. Root cause: `scrapers/merchants/naivas.py`'s `_fetch_category` has a bare `except Exception: return` on the page-1 GET with no `print`, and every one of the 10 `run_naivas_*` entry points in `scrapers/ingest.py` calls `_consume(..., MERCHANT_META)` with the default `check_yield=False` — correct per-category behaviour by `_consume`'s own docstring, but it means a total failure across every category never trips `ScraperYieldTooLow` either. Same structural blind spot §8y documented for istore-ke, caught the same way: reading the `health` job's output directly instead of trusting matrix color.
+
+Not fixed — there is no log line yet showing *why* it's failing (TLS block? challenge? markup change?), and guessing would repeat the exact mistake the megatech-ke revert was about. Opened PR #127: adds the same page1-GET-failed / zero-cards diagnostic `woocommerce.py` already uses elsewhere, so the next scheduled run exposes the real signature instead of staying silent.
+
+**Cross-check against the deprecation list.** No already-deprecated merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke, nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke, hisense-kenya-ke) produced any signal in this window.
+
+**The backlog is now 17 PRs deep** (#107–#124, #127; #110/#117/#125/#126 closed unmerged), spanning 2026-10-31 → 2026-11-21, nothing merged since #105 three weeks ago. This pass nets +1 (the naivas-ke diagnostic, #127) after closing 2 of its own duplicates — the first net-neutral-or-better pass in this run of triages. The recommendation from every prior pass since §8ab stands unchanged: an operator needs to merge the surviving, still-accurate PRs before the next triage pass has to re-verify all of them yet again.
+
+`python -m pytest -q` — all tests pass. `python -m ruff check scrapers/ tests/` — clean. Both run against the `diag/naivas-ke-silent-failure-2026-11-21` branch before #127 was opened.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
