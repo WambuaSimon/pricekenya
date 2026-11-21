@@ -2,8 +2,17 @@
 
 MyBigOrder (mybigorder.com) is a Kenyan multi-vendor marketplace. It runs a
 server-rendered PHP storefront ("Active eCommerce CMS" — same template family
-as many Bagisto/CS-Cart forks). No Cloudflare wall, no TLS fingerprinting;
-plain httpx via `PoliteClient` gets through fine. Prices are already in KSh.
+as many Bagisto/CS-Cart forks). Prices are already in KSh.
+
+**Client escalation (2026-11-21):** plain httpx via `PoliteClient` got
+through cleanly from launch until every category started raising
+`RetryError[HTTPStatusError]` — 4/4 scheduled runs, 2026-11-19 through
+2026-11-20 (runs `44479040045` through `44809608161`) — a bare GET failure
+with no "zero cards" or challenge-shell diagnostic, the textbook
+TLS-fingerprint-discrimination signature already fixed the same way for
+tclke-ke/eamobitech-ke/smartphoneskenya-ke/solarshop-ke/istore-ke/nextbuy-ke.
+Switched to `CffiPoliteClient` (Chrome TLS impersonation); no other
+behavior change.
 
 **URL structure:**
 - Category listings: `/category/<slug>` with `?page=N` pagination.
@@ -40,7 +49,7 @@ import re
 from collections.abc import AsyncIterator
 from decimal import Decimal
 
-from scrapers.common.base import PoliteClient, RawListing
+from scrapers.common.base import CffiPoliteClient, RawListing
 
 MERCHANT_META = {
     "slug": "mybigorder-ke",
@@ -192,7 +201,7 @@ def _parse_cards(
 
 
 async def _fetch_category(
-    client: PoliteClient,
+    client: CffiPoliteClient,
     slug: str,
     *,
     fixed_category_slug: str | None,
@@ -210,7 +219,7 @@ async def _fetch_category(
             # or throttled is a bigger problem than losing that subcategory's
             # data for one cron cycle.
             #
-            # `str(e)` matters here, not just the class name: PoliteClient.get
+            # `str(e)` matters here, not just the class name: the client's .get()
             # is @retry-wrapped, so failures surface as tenacity's RetryError,
             # whose __str__ embeds the wrapped Future repr (e.g. "state=
             # finished raised HTTPStatusError") naming the *actual* underlying
@@ -235,7 +244,7 @@ async def _fetch_category(
             return
 
 
-async def _fetch_all(client: PoliteClient) -> AsyncIterator[RawListing]:
+async def _fetch_all(client: CffiPoliteClient) -> AsyncIterator[RawListing]:
     seen: set[str] = set()
     # 1:1 mappings first.
     for leaf_slug, mbo_slug in _LEAF_TO_URL.items():
@@ -258,7 +267,7 @@ async def _fetch_all(client: PoliteClient) -> AsyncIterator[RawListing]:
 
 
 async def fetch_all() -> AsyncIterator[RawListing]:
-    client = PoliteClient()
+    client = CffiPoliteClient()
     try:
         async for r in _fetch_all(client):
             yield r
