@@ -109,6 +109,66 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8am. Scheduled triage — all-xiaomi's silent zero-yield, and the PR backlog crosses three weeks (2026-11-23)
+
+No `DATABASE_URL` in this environment, so signal came entirely from the
+`scrape.yml` matrix on GitHub Actions. Covered the last 6 completed
+scheduled runs (`44609940827` → `45061761320`, 2026-11-19 20:33 →
+2026-11-22 19:36 UTC) via per-job status, not run conclusion.
+
+**Housekeeping first, per the standing process note.** `list_pull_requests`
+returned **seventeen** open PRs (#107-#127), none merged since #105
+(2026-10-29 — now over three weeks / ~48 scheduled runs with nothing
+landing). Six legs were already red and already covered: `all-quickmart`
+(#115), `all-mybigorder` (#114/#123), `wc-jojabo-ke` (#108/#111),
+`wc-pixels-ke` (#121, deprecation), `wc-armco-ke` (#112, no fixable
+signature, unresolved since 2026-09-29), `wc-nextbuy-ke` (#113/#122/#124).
+Pulled the freshest log for each and confirmed byte-for-byte match with
+what those PRs already document — not re-filed.
+
+**New this pass: `all-xiaomi`.** Green through `44693189832` (2026-11-20
+07:11), then failed on every one of the 5 most recent runs
+(`44809608161` → `45061761320`). Every failure is `ScraperYieldTooLow:
+xiaomi-ke: yielded ZERO listings but had 110 on record` with **zero
+diagnostic output before it** — `scrapers/merchants/xiaomi.py`'s own
+`_fetch()` predates the shared `fetch_wc_store_catalog` helper it
+inspired (see that module's docstring) and never picked up its page-1
+diagnostic prints, so a GET exception, an HTTP error status, a JSON
+parse failure and an empty-catalog response were all silently
+indistinguishable from each other and from a legitimately-finished
+pagination loop. Same structural blind spot this file's history already
+named for mybigorder-ke and nextbuy-ke before their diagnostics landed.
+
+Not guessing a `client_type` fix with zero visibility into which of the
+four silent branches is firing — that's exactly the blind flip this
+task's own brief warns against. Added the same page-1 diagnostic prints
+`fetch_wc_store_catalog` already uses (GET-exception class+message, HTTP
+status + body head, JSON-parse failure + body head, empty-products
+notice) to `xiaomi.py`'s own `_fetch()`. No behavior change — this only
+makes the real signature visible on the next scheduled run so a real fix
+(or deprecation call) can follow with evidence behind it, not a guess.
+
+`phonesstore-ke` failed exactly once in the 6-run window (green on the
+other 5) — noise, per the standing megatech-ke lesson: a single red run
+with no second data point isn't a pattern.
+
+**The backlog is the recurring finding, not any one merchant.** This is
+now the sixth consecutive scheduled pass (#116, #119, #120, #121, #124,
+and now this one) to report the same thing: diagnosis keeps landing
+correctly and on schedule, but nothing has merged in three weeks.
+Recommend an operator work through the backlog in dependency order —
+diagnostic-only PRs first (#109, #111, #112, #113, this one), then the
+live fixes with repeated-pattern evidence (#108, #115, #118 after
+re-verifying it against current CI — it recovered without merging),
+#121's deprecation, #122/#123's escalations, then the docs PRs — before
+it grows past seventeen. Kept this write-up at summary level (no exact
+body-head markup quoted) per the same reasoning that moved this log out
+of a committed file in the first place.
+
+**Verification.** `python3.13 -m pytest -q` — all tests pass.
+`python3.13 -m ruff check scrapers/ tests/` — clean. Both run with the
+`xiaomi.py` diagnostic change applied, before opening the PR.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
