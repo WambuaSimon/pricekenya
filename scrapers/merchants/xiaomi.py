@@ -155,15 +155,38 @@ async def _fetch(client: CffiPoliteClient) -> AsyncIterator[RawListing]:
         url = f"{_STORE_API}?per_page={_PER_PAGE}&page={page}"
         try:
             resp = await client.get(url)
-        except Exception:  # noqa: BLE001 — network flake, stop cleanly
+        except Exception as exc:  # noqa: BLE001 — network flake, stop cleanly
+            # Page-1 diagnostic so a blocked/timed-out CI run doesn't look
+            # identical to a legitimately empty catalog. Same pattern as
+            # scrapers/common/wc_store_api.py's fetch_wc_store_catalog.
+            if page == 1:
+                print(f"[xiaomi-ke] page1 GET failed: {type(exc).__name__}: {exc}")
             return
         if resp.status_code >= 400:
+            if page == 1:
+                body_head = (resp.text or "")[:300].replace("\n", " ")
+                print(
+                    f"[xiaomi-ke] page1 HTTP {resp.status_code}, "
+                    f"body head: {body_head!r}"
+                )
             return
         try:
             products = json.loads(resp.text)
-        except Exception:  # noqa: BLE001 — non-JSON response (WAF, etc.)
+        except Exception as exc:  # noqa: BLE001 — non-JSON response (WAF, etc.)
+            if page == 1:
+                body_head = (resp.text or "")[:300].replace("\n", " ")
+                print(
+                    f"[xiaomi-ke] page1 JSON parse failed "
+                    f"({type(exc).__name__}: {exc}); status {resp.status_code}, "
+                    f"body head: {body_head!r}"
+                )
             return
         if not isinstance(products, list) or not products:
+            if page == 1:
+                print(
+                    f"[xiaomi-ke] page1 empty products "
+                    f"(status {resp.status_code}, type={type(products).__name__})"
+                )
             return
 
         # X-WP-TotalPages tells us the last page. Stop when we've served
