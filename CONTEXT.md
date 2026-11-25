@@ -109,6 +109,73 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8an. Scheduled triage — nothing left to diagnose, eighteen PRs now unmerged for a month (2026-11-25)
+
+No `DATABASE_URL` in this environment; signal came entirely from the
+`scrape.yml` matrix on GitHub Actions. Covered the last 5 completed
+scheduled runs (`45061761320` → `45500663674`, 2026-11-22 19:36 →
+2026-11-24 22:24 UTC).
+
+**Every red leg this pass already has an open, clean, mergeable PR against
+it, re-confirmed byte-for-byte against this pass's own log pulls:**
+
+| Leg | Signature this pass | Covered by |
+|---|---|---|
+| `all-quickmart` | `curl_cffi.requests.exceptions.HTTPError: HTTP Error 403` on the session-bootstrap GET, 5/5 runs | #115 (cffi → playwright-stealth) |
+| `all-xiaomi` | `ScraperYieldTooLow`, zero diagnostic output, 5/5 runs | #129 (diagnostics-only; root cause still open by design) |
+| `all-mybigorder` | `RetryError[HTTPStatusError]` on every one of 10 categories, plain httpx, 5/5 runs | #123 (`PoliteClient` → `CffiPoliteClient`) |
+| `wc-jojabo-ke` | `RetryError[HTTPError]` on the cffi client itself (not httpx's `HTTPStatusError` — cffi has stopped holding), 5/5 runs | #108 (cffi → playwright-stealth) |
+| `wc-pixels-ke` | Real HTTP 200, body is a host-level `<title>Website Suspended</title>` placeholder on every leaf, 5/5 runs | #121 (deprecate — hosting account suspended, not a bot block) |
+| `wc-armco-ke` | Same non-WooCommerce JS-build-tooling shell (real 200, no `wp-content`, no challenge markup) documented continuously since 2026-09-29 — now 9+ weeks, still no fixable `client_type` signature and no DNS/network-layer deprecation match | #112 (diagnostic snippet widening only; no fix exists to open) |
+| `wc-nextbuy-ke` | `RetryError[HTTPStatusError]` on the default `polite` client, 5/5 runs — the TLS-fingerprint signature #122 targets | #122 (cffi) |
+| `health` | Not independent — exits 1 by design reporting the 7 active-but-stale merchants above (plus `naivas-ke`, see below) | n/a, by design |
+
+No new PR opened for any of these — doing so would be a nineteenth
+corroboration of diagnoses that have each already survived 2-4
+independent re-verification passes (§8al, §8am, and now this one) without
+the underlying signature changing. `wc-armco-ke` remains the one leg with
+genuinely no actionable fix: non-WooCommerce markup, a real 200, no TLS
+or JS-challenge signature either client_type lever addresses, and DNS/HTTP
+both fine — the deprecation bar doesn't clear either. That conclusion is
+unchanged since §8u (2026-09-29); nothing here moves it.
+
+**`naivas-ke` is stale (208.3h in the `health` job's table) despite its
+matrix leg running green every cycle** — already the subject of #127
+(diagnostics-only, unmerged). Not re-diagnosed; flagging only because it's
+easy to miss in a leg-status scan since it never shows red.
+
+**The actual finding this pass, same as the last four: the backlog, not
+the diagnosis.** `gh api repos/WambuaSimon/pricekenya/pulls?state=open`
+returns **eighteen** open PRs (#107-#129), spanning 2026-10-31 through
+2026-11-23. Nothing has merged since #105 on 2026-10-29 — **27 days, ~54
+scheduled scrape runs**, with every fix sitting ready and unapplied the
+entire time. Four prior passes (§8ah/#116, §8ai/#119, §8aj/#120,
+§8al/#124) already said this; repeating it a fifth time in the doc log
+changes nothing on its own, so this section exists mainly to hand the
+next reader (human or agent) an up-to-date, ordered list rather than to
+re-argue the point:
+
+1. **Deprecations first** (shrink the backlog, no runtime behavior to
+   verify): #121 (pixels-ke).
+2. **Config-only escalations** (one `client_type` line + one workflow
+   line each): #108 (jojabo-ke), #115 (quickmart-ke), #122 (nextbuy-ke),
+   #123 (mybigorder-ke).
+3. **Diagnostics-only, zero behavior change, safe to merge any time**:
+   #109, #111, #112, #113, #114, #127, #129. (#107 and #113 target the
+   same nextbuy-ke snippet-widening at different sizes — check for overlap
+   before merging both.)
+4. **Stale — do not merge without re-verifying first**: #118
+   (techstore-ke escalation; §8al found techstore-ke recovered on its own
+   before #118 landed — merging it now would flip a currently-healthy leg
+   to playwright-stealth for no reason).
+5. **Docs**: #116, #119, #120, #124, and this one all insert at the same
+   CONTEXT.md anchor point — expect a one-line conflict merging more than
+   one; take them in creation order (#116 → #119 → #120 → #124 → this).
+
+`python -m pytest -q` and `python -m ruff check scrapers/ tests/` both
+clean on `main` as of this pass — no code changed, this is a documentation
+PR only.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
