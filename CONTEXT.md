@@ -109,6 +109,83 @@ Two things this move does NOT do, both deliberate:
     `scrapers/config/wc_merchants.py`, which explain the same escalations
     and fixes inline and remain public.
 
+## 8ao. Scheduled triage — same seven legs, two new wrinkles, backlog now nineteen PRs (2026-11-27)
+
+No `DATABASE_URL` in this environment; signal came entirely from the
+`scrape.yml` matrix on GitHub Actions (`gh run view --json jobs` for
+per-leg status, `gh api .../actions/jobs/<id>/logs` for log content — both
+worked directly this pass, no `403` on the Azure blob redirect this time).
+
+Covered the last 4 completed scheduled runs (`45576804817` → `45898455307`,
+2026-11-25 08:30 → 2026-11-26 21:29 UTC).
+
+**Every persistently-red leg this pass already has an open, clean,
+mergeable PR against it, re-confirmed byte-for-byte against this pass's own
+log pulls:**
+
+| Leg | Signature this pass | Covered by |
+|---|---|---|
+| `all-quickmart` | `RetryError[HTTPError]` on `curl_cffi`, 4/4 runs | #115 (cffi → playwright-stealth) |
+| `all-xiaomi` | `ScraperYieldTooLow`, zero diagnostic output, 4/4 runs | #129 (diagnostics-only; root cause still open by design) |
+| `all-mybigorder` | `RetryError[HTTPStatusError]` on every one of 10 categories, plain httpx, 4/4 runs | #123 (`PoliteClient` → `CffiPoliteClient`) |
+| `wc-pixels-ke` | Real HTTP 200, body is the host-level `<title>Website Suspended</title>` placeholder on every leaf, 4/4 runs | #121 (deprecate — hosting account suspended) |
+| `wc-armco-ke` | Real HTTP 200, non-WooCommerce JS-rendered shell (no `wp-content`, no challenge markup) on every leaf, 4/4 runs; `kettles` again additionally threw `RetryError[HTTPStatusError]` on its second URL | #112 (diagnostic snippet widening only; no fix exists to open) |
+| `wc-nextbuy-ke` | `RetryError[HTTPStatusError]` on the default `polite` client, 4/4 runs | #122 (cffi) |
+| `naivas-ke` | Matrix leg green every run; `health` job's own table shows 255.5h stale, climbing from #130's 208.3h | #127 (diagnostics-only, unmerged) |
+
+No new PR opened for any of the above — each is an (N+1)th corroboration of
+a diagnosis that has already survived multiple independent re-verification
+passes (most recently §8an/#130) with the signature unchanged. `wc-armco-ke`
+still clears neither the TLS/JS-challenge playbook nor either deprecation
+criterion; unchanged since §8u (2026-09-29).
+
+**Wrinkle 1 — `wc-jojabo-ke` went green.** Red on every run since #108 was
+opened (2026-11-05) straight through `45500663674` (2026-11-24 22:24,
+confirmed via a 4-run back-check), then **green on the newest run**,
+`45898455307` (2026-11-26 21:29) — the `health` job's table shows it
+scraped successfully 0.2h before that job ran. This is exactly one data
+point after weeks of red, the same "don't act on an unconfirmed recovery"
+shape as `techstore-ke`'s self-recovery (flagged in #130, also confirmed
+still holding this pass — 0.2h stale in the same `health` table). Not
+closing #108/#111 on one green run; left a comment on #108 flagging the
+recovery and asking whoever reviews next to re-check before merging a
+`client_type` escalation the leg may no longer need.
+
+**Wrinkle 2 — `wc-nairobilaptops-ke`, a new single-run failure with a
+textbook signature.** Green on every run checked back through #130's
+window, then failed once, on the newest run only (`45898455307`):
+
+```
+[wc] nairobilaptops-ke/audio page1 zero cards (status 200, body head): '<!DOCTYPE html> <html lang="en"> <head>   <meta charset="utf8">   ...
+<script nonce="...">(function(){setTimeout(function(){window.location.reload();}, 5000);}('
+```
+
+— the JS-refresh bot-mitigation shell this codebase's playbook already has
+a fix for (`client_type: "playwright-stealth"`, the housewife-ke/megatech-ke
+pattern from §8j). One occurrence only, so per the standing megatech-ke
+lesson (§8j — don't act on an unconfirmed single-run blip) this is **not**
+acted on. Flagging the exact signature match so next pass doesn't have to
+re-derive it from scratch if it recurs.
+
+**The backlog, again.** `gh api repos/WambuaSimon/pricekenya/pulls?state=open`
+returns **nineteen** open PRs (#107–#130), spanning 2026-10-31 through
+2026-11-25. Nothing has merged since #105 on 2026-10-29 — **29 days, ~58
+scheduled scrape runs** — with every fix sitting ready and unapplied the
+entire time. §8an/#130 already laid out an ordered merge checklist
+(deprecation first, then config-only escalations, then diagnostics-only,
+with #118 flagged stale); this pass's only addition to that checklist is
+that #108 should move to the "re-verify before merging" bucket alongside
+#118, for the same reason. Not repeating the full checklist a sixth time.
+
+`python3.13 -m pytest -q` — all tests pass. `python3.13 -m ruff check
+scrapers/ tests/` — clean. No code change accompanies this write-up.
+
+**Cross-check against the deprecation list.** No already-deprecated
+merchant (7 Shopify, techonline-ke, zuka-ke, finetech-ke, overtech-ke,
+nairobitvshop-ke, tclke-ke, smartdevices-ke, eamobitech-ke, audiocom-ke,
+hisense-kenya-ke, sollatek-ke's stray row) produced any signal in this
+window.
+
 ## 9. Roadmap
 
 ### v0.5 — make it production-credible
